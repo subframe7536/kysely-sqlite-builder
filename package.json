@@ -1,0 +1,56 @@
+{
+  "name": "kysely-sqlite-builder",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Useful Layer",
+  "author": "subframe7536",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./schema": {
+      "import": "./dist/schema.mjs",
+      "require": "./dist/schema.js"
+    },
+    "./utils": {
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "typesVersions": {
+    "*": {
+      "utils": [
+        "./dist/utils.d.ts"
+      ],
+      "schema": [
+        "./dist/schema.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest --run"
+  },
+  "peerDependencies": {
+    "kysely": "^0.27.3"
+  },
+  "dependencies": {
+    "kysely-plugin-serialize": "^0.5.7"
+  },
+  "devDependencies": {
+    "@subframe7536/eslint-config": "^0.5.11",
+    "@subframe7536/type-utils": "^0.1.6",
+    "@types/node": "^20.11.28",
+    "eslint": "^8.57.0",
+    "esno": "^4.7.0",
+    "kysely": "^0.27.3",
+    "kysely-wasm": "^0.5.7",
+    "node-sqlite3-wasm": "^0.8.12",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.2",
+    "vitest": "^1.4.0"
+  }
+}
