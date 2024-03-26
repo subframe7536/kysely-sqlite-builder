@@ -1,9 +1,11 @@
 import type { RawBuilder } from 'kysely'
 import type { IsNotNull } from '@subframe7536/type-utils'
 import type {
+  ColumnProperty,
   ColumnType,
   Columns,
   ColumnsWithErrorInfo,
+  InferColumnTypeByString,
   Table,
   TableProperty,
   TimeTriggerOptions,
@@ -14,7 +16,7 @@ export const TGR = '__TIME_TRIGGER__'
 /**
  * define table
  *
- * you can use it with {@link Column}
+ * you can use it with {@link $col}
  *
  * @example
  * const testTable = defineTable({
@@ -38,13 +40,14 @@ export function defineTable<
   U extends string | true | null = null,
   D extends string | true | null = null,
 >(
-  columns: T,
-  property?: Omit<TableProperty<T>, 'timeTrigger' | 'softDelete'> & {
+  options: { columns: T } & Omit<TableProperty<T>, 'timeTrigger' | 'softDelete'> & {
     timeTrigger?: TimeTriggerOptions<C, U>
     softDelete?: D
   },
 ): Table<T, C, U, D> {
-  const { create, update } = property?.timeTrigger || {}
+  const { columns, ...rest } = options
+  const { timeTrigger: { create, update } = {}, softDelete } = rest
+
   const triggerOptions = { type: 'date', defaultTo: TGR }
   if (create === true) {
     // @ts-expect-error assign
@@ -62,7 +65,6 @@ export function defineTable<
     // @ts-expect-error assign
     columns[update] = { ...triggerOptions, notNull: true }
   }
-  const softDelete = property?.softDelete
   const softDeleteOptions = { type: 'int', defaultTo: 0 }
   if (softDelete === true) {
     // @ts-expect-error assign
@@ -73,61 +75,80 @@ export function defineTable<
   }
 
   return {
+    ...rest,
     columns: columns as unknown as ColumnsWithErrorInfo<T>,
-    ...property,
   }
 }
 
-function base<T>(type: ColumnType, defaultTo?: T | RawBuilder<unknown> | null) {
-  const base = {
-    type,
-    defaultTo: defaultTo as IsNotNull<typeof defaultTo> extends true ? T : T | null,
-  } as const
-  return {
-    ...base,
-    NotNull() {
-      return {
-        ...base,
-        notNull: true,
-      } as const
-    },
-  }
+type Options<T = any, NotNull extends true | null = true | null> = {
+  defaultTo?: T | RawBuilder<unknown> | null
+  notNull?: NotNull
+}
+
+function parse(type: ColumnType, options?: Options) {
+  const data = { type, ...options }
+  return { ...data, $cast: () => data }
+}
+
+type ColumnBuilder<
+  T extends ColumnType,
+  Type extends InferColumnTypeByString<T> | null,
+  NotNull extends true | null,
+  HasDefaultTo = IsNotNull<Type>,
+> = ColumnProperty<T, HasDefaultTo extends true ? Type : Type | null, NotNull> & {
+  $cast: <
+    NarrowedType extends InferColumnTypeByString<T>,
+  >() => ColumnProperty<T, HasDefaultTo extends true ? NarrowedType : NarrowedType | null, NotNull>
 }
 
 /**
- * define column
+ * define column util
  */
-export const Column = {
+export const column = {
+  /**
+   * column type: INTEGER AUTO INCREMENT
+   */
+  increments: () => ({ type: 'increments' as const }),
+  /**
+   * column type: INTEGER
+   */
+  int: <T extends number | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('int', options as any) as ColumnBuilder<'int', T, NotNull>,
+  /**
+   * column type: REAL
+   */
+  float: <T extends number | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('float', options as any) as ColumnBuilder<'float', T, NotNull>,
   /**
    * column type: text
    */
-  String: <T extends string>(defaultTo?: T | RawBuilder<unknown> | null) => base('string', defaultTo),
+  string: <T extends string | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('string', options as any) as ColumnBuilder<'string', T, NotNull>,
   /**
-   * column type: integer
+   * column type: BLOB
    */
-  Int: <T extends number>(defaultTo?: T | RawBuilder<unknown> | null) => base('int', defaultTo),
+  blob: <NotNull extends true | null>(
+    options?: Omit<Options<ArrayBufferLike, NotNull>, 'defaultTo'>,
+  ) => parse('blob', options as any) as ColumnProperty<'blob', ArrayBufferLike, NotNull>,
   /**
-   * column type: real
+   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  Float: <T extends number>(defaultTo?: T | RawBuilder<unknown> | null) => base('float', defaultTo),
+  boolean: <T extends boolean | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('boolean', options as any) as ColumnBuilder<'boolean', T, NotNull>,
   /**
-   * column type: blob
+   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  Blob: () => base<ArrayBufferLike>('blob'),
+  date: <T extends Date | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('date', options as any) as ColumnBuilder<'date', T, NotNull>,
   /**
-   * column type: interger auto increment
+   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  Increments: () => ({ type: 'increments' } as const),
-  /**
-   * column type: text (parse with `JSON.parse`)
-   */
-  Boolean: (defaultTo?: boolean | RawBuilder<unknown> | null) => base('boolean', defaultTo),
-  /**
-   * column type: text (parse with `JSON.parse`)
-   */
-  Date: (defaultTo?: Date | RawBuilder<unknown> | null) => base('date', defaultTo),
-  /**
-   * column type: text (parse with `JSON.parse`)
-   */
-  Object: <T extends object>(defaultTo?: T | RawBuilder<unknown> | null) => base('object', defaultTo),
+  object: <T extends object | null, NotNull extends true | null>(
+    options?: Options<T, NotNull>,
+  ) => parse('object', options as any) as ColumnBuilder<'object', T, NotNull>,
 }

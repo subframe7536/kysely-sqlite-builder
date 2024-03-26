@@ -48,7 +48,7 @@ export function basicExecutorFn<DB extends Record<string, any>>(db: () => Kysely
 export function createSoftDeleteExecutorFn<DB extends Record<string, any>>(
   deleteColumnName = 'isDeleted',
 ): SqliteExecutorFn<DB, {
-  withoutDelete: <W extends WhereInterface<DB, keyof DB>>(qb: W) => WhereInterface<DB, keyof DB>
+  withoutDeletion: <W extends WhereInterface<DB, keyof DB>>(qb: W) => WhereInterface<DB, keyof DB>
 }> {
   return (db: () => Kysely<DB>) => {
     return {
@@ -64,7 +64,7 @@ export function createSoftDeleteExecutorFn<DB extends Record<string, any>>(
       deleteFrom: <T extends keyof DB & string>(
         table: T,
       ) => db().updateTable(table).set(deleteColumnName, 1 as any),
-      withoutDelete: <W extends WhereInterface<DB, keyof DB>>(
+      withoutDeletion: <W extends WhereInterface<DB, keyof DB>>(
         qb: W,
       ) => qb.where(deleteColumnName, '=', 0 as any),
     } as any

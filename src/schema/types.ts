@@ -156,7 +156,7 @@ export type InferTable<
       : P[K]['type'] extends 'increments'
         // return "Generated<...>"
         ? Exclude<P[K]['defaultTo'], null>
-        // if defaultTo is required
+        // if defaultTo is not null
         : IsNotNull<P[K]['defaultTo']> extends true
           // return Generated
           ? Generated<Exclude<P[K]['defaultTo'], null>>

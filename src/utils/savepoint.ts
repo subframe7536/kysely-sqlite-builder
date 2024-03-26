@@ -10,7 +10,6 @@ export type SavePoint = {
  * create savepoint, release or rollback it later,
  * included in `SqliteBuilder`
  * @example
- * ```ts
  * const sp = await savePoint(db, 'savepoint_1')
  * try {
  *   // do something...
@@ -18,7 +17,6 @@ export type SavePoint = {
  * } catch (e) {
  *   await sp.rollback()
  * }
- * ```
  */
 
 export async function savePoint(

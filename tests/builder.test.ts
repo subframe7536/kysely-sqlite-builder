@@ -1,20 +1,20 @@
-import { SqliteDialect } from 'kysely'
 import { Database } from 'node-sqlite3-wasm'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createSoftDeleteExecutorFn, getOrSetDBVersion, optimizePragma } from '../src/utils'
 import type { InferDatabase } from '../src/schema'
-import { Column, defineTable, useSchema } from '../src/schema'
+import { column, defineTable, useSchema } from '../src/schema'
 import { SqliteBuilder } from '../src'
 
 const testTable = defineTable({
-  id: Column.Increments(),
-  person: Column.Object({ name: 'test' }),
-  gender: Column.Boolean().NotNull(),
-  array: Column.Object<string[]>(),
-  literal: Column.String<'l1' | 'l2'>(),
-  buffer: Column.Blob(),
-}, {
+  columns: {
+    id: column.increments(),
+    person: column.object({ defaultTo: { name: 'test' } }),
+    gender: column.boolean({ notNull: true }),
+    array: column.object().$cast<string[]>(),
+    literal: column.string().$cast<'l1' | 'l2'>(),
+    buffer: column.blob(),
+  },
   primary: 'id',
   index: ['person', ['id', 'gender']],
   timeTrigger: { create: true, update: true },
@@ -45,8 +45,10 @@ describe('test sync table', async () => {
   })
   it('should create new table', async () => {
     const foo = defineTable({
-      col1: { type: 'increments' },
-      col2: { type: 'string' },
+      columns: {
+        col1: { type: 'increments' },
+        col2: { type: 'string' },
+      },
     })
 
     await db.syncDB(useSchema({
@@ -66,20 +68,18 @@ describe('test sync table', async () => {
     expect(_tables.length).toBe(0)
   })
   it('should update and diff same table with columns', async () => {
-    const foo = defineTable(
-      {
-        id: Column.Increments(),
-        person: Column.Int(),
-        bool: Column.Boolean().NotNull(),
-        array: Column.Object<string[]>(),
-        buffer: Column.Blob(),
-        newColumn: Column.Int(),
+    const foo = defineTable({
+      columns: {
+        id: column.increments(),
+        person: column.int(),
+        bool: column.boolean({ notNull: true }),
+        array: column.object().$cast<string[]>(),
+        buffer: column.blob(),
+        newColumn: column.int(),
       },
-      {
-        primary: 'id',
-        timeTrigger: { create: true, update: true },
-      },
-    )
+      primary: 'id',
+      timeTrigger: { create: true, update: true },
+    })
     await db.syncDB(useSchema({ test: foo }, { log: false }))
     const [_tables] = await db.kysely.introspection.getTables()
     expect(_tables
@@ -168,9 +168,10 @@ describe('test builder', async () => {
 
   it('should soft delete', async () => {
     const softDeleteTable = defineTable({
-      id: Column.Increments(),
-      name: Column.String(),
-    }, {
+      columns: {
+        id: column.increments(),
+        name: column.string(),
+      },
       primary: 'id',
       softDelete: true,
     })

@@ -9,7 +9,7 @@ import type {
   Simplify,
   Transaction,
 } from 'kysely'
-import { CompiledQuery, Kysely } from 'kysely'
+import { CompiledQuery, Kysely, SelectQueryNode } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
 import { SerializePlugin, type SerializePluginOptions, defaultSerializer } from 'kysely-plugin-serialize'
 import {
@@ -19,7 +19,7 @@ import {
   basicExecutorFn,
   createKyselyLogger,
   checkIntegrity as runCheckIntegrity,
-  runWithSavePoint,
+  savePoint,
 } from './utils'
 
 import type {
@@ -32,14 +32,8 @@ import type {
 
 export class IntegrityError extends Error {
   constructor() {
-    super('db file maybe broken')
+    super('db file maybe corrupted')
   }
-}
-
-function isSelectQueryBuilder<DB, O>(
-  builder: AvailableBuilder<DB, O>,
-): builder is SelectQueryBuilder<DB, any, O> {
-  return builder.toOperationNode().kind === 'SelectQueryNode'
 }
 
 export interface SqliteBuilderOptions<T extends Record<string, any>, Extra extends Record<string, any>> {
@@ -82,7 +76,7 @@ export interface SqliteBuilderOptions<T extends Record<string, any>, Extra exten
   executorFn?: SqliteExecutorFn<T, Extra>
 }
 
-type TransactionOptions<T> = {
+interface TransactionOptions<T> {
   errorMsg?: string
   /**
    * after commit hook
@@ -95,7 +89,6 @@ type TransactionOptions<T> = {
 }
 /**
  * setup params
- * @param queryBuilder query builder
  * @example
  * const select = db.precompile<{ name: string }>(processRootOperatorNode)
  *   .query((d, param) =>
@@ -125,7 +118,6 @@ type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, 
   }
 }
 
-// ({select, ..., kysely})=>
 export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<string, any> = {}> {
   private _kysely: Kysely<DB>
   public trxCount = 0
@@ -247,7 +239,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    * run in transaction, support nest call (using `savepoint`)
    */
   public async transaction<O>(
-    fn: (trx: Transaction<DB>) => Promise<O>,
+    fn: (trx: SqliteExecutor<DB, Extra>) => Promise<O>,
     options: TransactionOptions<O> = {},
   ): Promise<O | undefined> {
     if (!this.trx) {
@@ -255,7 +247,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
         .execute(async (trx) => {
           this.trx = trx
           this.logger?.debug('run in transaction')
-          return await fn(trx)
+          return await fn(this.executor)
         })
         .then(async (result) => {
           await options.onCommit?.(result)
@@ -271,12 +263,16 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
 
     this.trxCount++
     this.logger?.debug(`run in savepoint: sp_${this.trxCount}`)
-    return await runWithSavePoint(this.trx!, fn, `sp_${this.trxCount}`)
+    const { release, rollback } = await savePoint(this.kysely, `sp_${this.trxCount}`)
+
+    return await fn(this.executor)
       .then(async (result) => {
+        await release()
         await options.onCommit?.(result)
         return result
       })
       .catch(async (e) => {
+        await rollback()
         await options.onRollback?.(e)
         this.logError(e, options.errorMsg)
         return undefined
@@ -310,8 +306,8 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     fn: (db: SqliteExecutor<DB, Extra>) => AvailableBuilder<DB, O>,
   ): Promise<Simplify<O> | undefined> {
     let _sql = fn(this.executor)
-    if (isSelectQueryBuilder(_sql)) {
-      _sql = _sql.limit(1)
+    if (SelectQueryNode.is(_sql.toOperationNode())) {
+      _sql = (_sql as SelectQueryBuilder<DB, any, any>).limit(1)
     }
     return await _sql.executeTakeFirst()
   }
