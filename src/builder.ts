@@ -68,7 +68,7 @@ export interface SqliteBuilderOptions<T extends Record<string, any>, Extra exten
    *   deleteValue: 1,
    *   notDeleteValue: 0,
    * })
-   * const db = new SqliteBuilder({
+   * const builder = new SqliteBuilder({
    *   dialect,
    *   executorFn: softDeleteExecutorFn,
    * })
@@ -87,27 +87,7 @@ interface TransactionOptions<T> {
    */
   onRollback?: (err: unknown) => Promisable<void>
 }
-/**
- * setup params
- * @example
- * const select = db.precompile<{ name: string }>(processRootOperatorNode)
- *   .query((d, param) =>
- *     d.selectFrom('test').selectAll().where('name', '=', param('name')),
- *   )
- * const compileResult = select.generate({ name: 'test' })
- * // {
- * //   sql: 'select * from "test" where "name" = ?',
- * //   parameters: ['test'],
- * //   query: { kind: 'SelectQueryNode' } // only node kind by default
- * // }
- * select.dispose() // clear cached query
- *
- * // or auto disposed by using
- * using selectWithUsing = db.precompile<{ name: string }>()
- *   .query((d, param) =>
- *     d.selectFrom('test').selectAll().where('name', '=', param('name')),
- *   )
- */
+
 type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, any>> = {
   build: <O>(
     queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T>(name: K) => T[K]) => Compilable<O>
@@ -136,6 +116,66 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
   /**
    * sqlite builder
    * @param options options
+   * @example
+   * import { SqliteDialect } from 'kysely'
+   * import { SqliteBuilder } from 'kysely-sqlite-builder'
+   * import Database from 'better-sqlite3'
+   * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
+   * import { column, defineTable } from 'kysely-sqlite-builder/schema'
+   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder/utils'
+   *
+   * const testTable = defineTable({
+   *   columns: {
+   *     id: column.increments(),
+   *     person: column.object({ defaultTo: { name: 'test' } }),
+   *     gender: column.boolean({ notNull: true }),
+   *     // or
+   *     // gender: { type: 'boolean', notNull: true },
+   *     array: column.object().$cast<string[]>(),
+   *     literal: column.string().$cast<'l1' | 'l2'>(),
+   *     buffer: column.blob(),
+   *   },
+   *   primary: 'id',
+   *   index: ['person', ['id', 'gender']],
+   *   timeTrigger: { create: true, update: true },
+   *   // enable soft delete
+   *   softDelete: true,
+   * })
+   *
+   * const DBSchema = {
+   *   test: testTable,
+   * }
+   *
+   * const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
+   *   dialect: new SqliteDialect({
+   *     database: new Database(':memory:'),
+   *   }),
+   *   logger: console,
+   *   onQuery: true,
+   *   // use soft delete
+   *   executorFn: createSoftDeleteExecutorFn(),
+   * })
+   * await builder.execute(db => db.insertInto('test').values({ person: { name: 'test' }, gender: true }))
+   *
+   * builder.transaction(async (trx) => {
+   *   // auto load transaction
+   *   await builder.execute(db => db.insertInto('test').values({ gender: true }))
+   *   // or
+   *   // await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
+   *   builder.transaction(async () => {
+   *     // nest transaction, use savepoint
+   *     await builder.execute(db => db.selectFrom('test').where('gender', '=', true))
+   *   })
+   * })
+   *
+   * // use origin instance
+   * await builder.kysely.insertInto('test').values({ gender: false }).execute()
+   *
+   * // run raw sql
+   * await builder.raw(sql`PRAGMA user_version = 2`)
+   *
+   * // destroy
+   * await builder.destroy()
    */
   constructor(options: SqliteBuilderOptions<DB, Extra>) {
     const {
@@ -172,46 +212,15 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    * @param updater sync table function, built-in: {@link useSchema}, {@link useMigrator}
    * @param checkIntegrity whether to check integrity
    * @example
-   * import { SqliteBuilder } from 'kysely-sqlite-builder'
-   * import { defineLiteral, defineObject, defineTable, useSchema } from 'kysely-sqlite-builder/schema'
-   * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
-   * // schemas for AutoSyncTables
-   * const testTable = defineTable({
-   *   id: { type: 'increments' },
-   *   person: { type: 'object', defaultTo: { name: 'test' } },
-   *   gender: { type: 'boolean', notNull: true },
-   *   str: defineLiteral<'str1' | 'str2'>('str1'),
-   *   array: defineObject<string[]>().NotNull(),
-   *   buffer: { type: 'blob' },
-   * }, {
-   *   primary: 'id',
-   *   index: ['person', ['id', 'gender']],
-   *   timeTrigger: { create: true, update: true },
-   * })
-   *
-   * const baseTables = {
-   *   test: testTable,
-   * }
-   *
-   * // infer type from baseTables
-   * type DB = InferDatabase<typeof baseTables>
-   *
-   * const db = new SqliteBuilder<DB>({
-   *   dialect: new SqliteDialect({
-   *     database: new Database(':memory:'),
-   *   }),
-   *   logger: console,
-   *   onQuery: true,
-   * })
-   *
-   * // update tables using schema
-   * await db.syncDB(useSchema(baseTables, { logger: false }))
-   *
+   * import { useSchema } from 'kysely-sqlite-builder/schema'
    * import { useMigrator } from 'kysely-sqlite-builder'
    * import { FileMigrationProvider } from 'kysely'
    *
+   * // update tables using schema
+   * await builder.syncDB(useSchema(Schema, { logger: false }))
+   *
    * // update tables using MigrationProvider and migrate to latest
-   * await db.syncDB(useMigrator(new FileMigrationProvider(...)))
+   * await builder.syncDB(useMigrator(new FileMigrationProvider(...)))
    */
   public async syncDB(updater: TableUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
@@ -281,11 +290,14 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
   }
 
   /**
-   * execute and return result list, auto detect transaction
+   * execute compiled query and return result list, auto detect transaction
    */
   public async execute<O>(
     query: CompiledQuery<O>,
   ): Promise<QueryResult<O>>
+  /**
+   * execute function and return result list, auto detect transaction
+   */
   public async execute<O>(
     fn: (db: SqliteExecutor<DB, Extra>) => AvailableBuilder<DB, O>,
   ): Promise<Simplify<O>[] | undefined>
@@ -315,11 +327,11 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
   /**
    * precompile query, call it with different params later, design for better performance
    * @example
-   * const select = db.precompile<{ name: string }>(processRootOperatorNode)
-   *   .query((d, param) =>
-   *     d.selectFrom('test').selectAll().where('name', '=', param('name')),
+   * const select = builder.precompile<{ name: string }>()
+   *   .query((db, param) =>
+   *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
    *   )
-   * const compileResult = select.generate({ name: 'test' })
+   * const compileResult = select.compile({ name: 'test' })
    * // {
    * //   sql: 'select * from "test" where "name" = ?',
    * //   parameters: ['test'],
@@ -328,9 +340,9 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    * select.dispose() // clear cached query
    *
    * // or auto disposed by using
-   * using selectWithUsing = db.precompile<{ name: string }>()
-   *   .query((d, param) =>
-   *     d.selectFrom('test').selectAll().where('name', '=', param('name')),
+   * using selectWithUsing = builder.precompile<{ name: string }>()
+   *   .query((db, param) =>
+   *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
    *   )
    */
   public precompile<T extends Record<string, any>>(
@@ -374,6 +386,9 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
   public async raw<O = unknown>(
     rawSql: RawBuilder<O>,
   ): Promise<QueryResult<O | unknown>>
+  /**
+   * execute sql string, auto detect transaction
+   */
   public async raw<O = unknown>(
     rawSql: string,
     parameters?: unknown[]

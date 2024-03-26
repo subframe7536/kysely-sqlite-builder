@@ -20,7 +20,6 @@ export type SavePoint = {
  *   await sp.rollback()
  * }
  */
-
 export async function savePoint(
   db: Kysely<any> | Transaction<any>,
   name?: string,
@@ -34,23 +33,5 @@ export async function savePoint(
     rollback: async () => {
       await sql`rollback to savepoint ${sql.raw(_name)}`.execute(db)
     },
-  }
-}
-export async function runWithSavePoint<
-  DB extends Kysely<any> | Transaction<any>,
-  O,
->(
-  db: DB,
-  fn: (db: DB) => Promise<O>,
-  name?: string,
-): Promise<O> {
-  const { release, rollback } = await savePoint(db, name)
-  try {
-    const result = await fn(db)
-    await release()
-    return result
-  } catch (e) {
-    await rollback()
-    throw e
   }
 }

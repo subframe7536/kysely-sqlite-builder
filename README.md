@@ -116,10 +116,10 @@ using selectWithUsing = builder.precompile<{ name: string }>()
 ```ts
 import { SqliteDialect } from 'kysely'
 import Database from 'better-sqlite3'
-import type { InferDatabase } from 'sqlite-builder/schema'
-import { column, defineTable } from 'sqlite-builder/schema'
-import { SqliteBuilder } from 'sqlite-builder'
-import { createSoftDeleteExecutorFn } from 'sqlite-builder/utils'
+import type { InferDatabase } from 'kysely-sqlite-builder/schema'
+import { column, defineTable } from 'kysely-sqlite-builder/schema'
+import { SqliteBuilder } from 'kysely-sqlite-builder'
+import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder/utils'
 
 const softDeleteTable = defineTable({
   columns: {
@@ -257,12 +257,6 @@ function optimizePragma(db: Executor, options?: OptimizePragmaOptions): Promise<
  * }
  */
 function savePoint(db: Kysely<any> | Transaction<any>, name?: string): Promise<SavePoint>
-
-function runWithSavePoint<DB extends Kysely<any> | Transaction<any>, O>(
-  db: DB,
-  fn: (db: DB) => Promise<O>,
-  name?: string
-): Promise<O>
 ```
 
 ## License
