@@ -32,7 +32,7 @@ export type LoggerOptions = {
  * util for `KyselyConfig.log`, log on every execution
  * @example
  * import { Kysely } from 'kysely'
- * import { createKyselyLogger } from 'kysely-sqlite-utils'
+ * import { createKyselyLogger } from 'kysely-sqlite-builder/utils'
  *
  * const db = new Kysely<DB>({
  *   dialect,

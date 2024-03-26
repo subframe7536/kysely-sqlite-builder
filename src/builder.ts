@@ -114,7 +114,7 @@ type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, 
   ) => {
     [Symbol.dispose]: VoidFunction
     dispose: VoidFunction
-    compile: (param: T) => CompiledQuery<QueryBuilderOutput<O>>
+    compile: (param: T) => CompiledQuery<QueryBuilderOutput<Compilable<O>>>
   }
 }
 

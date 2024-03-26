@@ -44,7 +44,7 @@ const DBSchema = {
   test: testTable,
 }
 
-const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
+const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
   dialect: new SqliteDialect({
     database: new Database(':memory:'),
   }),
@@ -53,36 +53,36 @@ const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
 })
 
 // update table using schema
-await db.syncDB(useSchema(DBSchema, { logger: false }))
+await builder.syncDB(useSchema(DBSchema, { logger: false }))
 
 // update table using migrator
-await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
+await builder.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
 ```
 
 ### Execute queries
 
 ```ts
-await db.execute(d => d.insertInto('test').values({ person: { name: 'test' }, gender: true }))
+await builder.execute(db => db.insertInto('test').values({ person: { name: 'test' }, gender: true }))
 
-db.transaction(async (trx) => {
+builder.transaction(async (trx) => {
   // auto load transaction
-  await db.execute(d => d.insertInto('test').values({ gender: true }))
+  await builder.execute(db => db.insertInto('test').values({ gender: true }))
   // or
   // await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
-  db.transaction(async () => {
+  builder.transaction(async () => {
     // nest transaction, use savepoint
-    await db.execute(d => d.selectFrom('test').where('gender', '=', true))
+    await builder.execute(db => db.selectFrom('test').where('gender', '=', true))
   })
 })
 
 // use origin instance
-await db.kysely.insertInto('test').values({ gender: false }).execute()
+await builder.kysely.insertInto('test').values({ gender: false }).execute()
 
 // run raw sql
-await db.raw(sql`PRAGMA user_version = 2`)
+await builder.raw(sql`PRAGMA user_version = 2`)
 
 // destroy
-await db.destroy()
+await builder.destroy()
 ```
 
 ### Precompile
@@ -90,9 +90,9 @@ await db.destroy()
 inspired by [kysely-params](https://github.com/jtlapp/kysely-params), optimized for sqlite
 
 ```ts
-const select = db.precompile<{ name: string }>()
-  .query((d, param) =>
-    d.selectFrom('test').selectAll().where('name', '=', param('name')),
+const select = builder.precompile<{ name: string }>()
+  .query((db, param) =>
+    db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
 const compileResult = select.compile({ name: 'test' })
 // {
@@ -103,9 +103,9 @@ const compileResult = select.compile({ name: 'test' })
 select.dispose() // clear cached query
 
 // or auto disposed by using
-using selectWithUsing = db.precompile<{ name: string }>()
-  .query((d, param) =>
-    d.selectFrom('test').selectAll().where('name', '=', param('name')),
+using selectWithUsing = builder.precompile<{ name: string }>()
+  .query((db, param) =>
+    db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
 ```
 
@@ -139,7 +139,7 @@ const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
   executorFn: createSoftDeleteExecutorFn(),
 })
 
-await db.executeTakeFirst(d => d.deleteFrom('testSoftDelete').where('id', '=', 1))
+await builder.executeTakeFirst(db => db.deleteFrom('testSoftDelete').where('id', '=', 1))
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
 ```
 
@@ -173,7 +173,7 @@ type LoggerOptions = {
  * util for `KyselyConfig.log`, log on every execution
  * @example
  * import { Kysely } from 'kysely'
- * import { createKyselyLogger } from 'kysely-sqlite-utils'
+ * import { createKyselyLogger } from 'kysely-sqlite-builder/utils'
  *
  * const db = new Kysely<DB>({
  *   dialect,
@@ -244,6 +244,8 @@ function optimizePragma(db: Executor, options?: OptimizePragmaOptions): Promise<
  * create savepoint, release or rollback it later,
  * included in `SqliteBuilder`
  * @example
+ * import { savePoint } from 'kysely-sqlite-builder/utils'
+ *
  * const sp = await savePoint(db, 'savepoint_1')
  * try {
  *   // do something...

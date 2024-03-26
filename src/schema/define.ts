@@ -132,7 +132,7 @@ export const column = {
    */
   blob: <NotNull extends true | null>(
     options?: Omit<Options<ArrayBufferLike, NotNull>, 'defaultTo'>,
-  ) => parse('blob', options as any) as ColumnProperty<'blob', ArrayBufferLike, NotNull>,
+  ) => parse('blob', options as any) as ColumnProperty<'blob', ArrayBufferLike | null, NotNull>,
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
