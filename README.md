@@ -262,3 +262,7 @@ function runWithSavePoint<DB extends Kysely<any> | Transaction<any>, O>(
   name?: string
 ): Promise<O>
 ```
+
+## License
+
+MIT
