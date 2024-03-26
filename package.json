@@ -2,24 +2,26 @@
   "name": "kysely-sqlite-builder",
   "type": "module",
   "version": "0.0.1",
-  "description": "Useful Layer",
+  "description": "Utility layer for Kysely on SQLite",
   "author": "subframe7536",
+  "license": "MIT",
+  "repository": "https://github.com/subframe7536/kysely-sqlite-builder",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./schema": {
-      "import": "./dist/schema.mjs",
-      "require": "./dist/schema.js"
+      "import": "./dist/schema.js",
+      "require": "./dist/schema.cjs"
     },
     "./utils": {
-      "import": "./dist/utils.mjs",
-      "require": "./dist/utils.js"
+      "import": "./dist/utils.js",
+      "require": "./dist/utils.cjs"
     }
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "typesVersions": {
     "*": {
       "utils": [
