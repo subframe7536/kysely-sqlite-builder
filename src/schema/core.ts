@@ -99,14 +99,14 @@ export async function syncTables<T extends Schema>(
 
       for (const [existTableName, existColumns] of Object.entries(existTables)) {
         if (!(existTableName in targetTables)) {
-          debug(`remove table: ${existTableName}`)
+          debug('remove table: ' + existTableName)
           await runDropTable(trx, existTableName)
         } else {
-          debug(`diff table: ${existTableName}`)
+          debug('diff table: ' + existTableName)
           try {
             await diffTable(trx, existTableName, existColumns, targetTables[existTableName])
           } catch (e) {
-            logger?.error(`fail to sync ${existTableName}`, e as any)
+            logger?.error('fail to sync ' + existTableName, e as any)
             throw e
           }
         }
@@ -114,7 +114,7 @@ export async function syncTables<T extends Schema>(
 
       for (const [targetTableName, targetTable] of Object.entries(targetTables)) {
         if (!(targetTableName in existTables)) {
-          debug(`create table: ${targetTableName}`)
+          debug('create table: ' + targetTableName)
           await runCreateTableWithIndexAndTrigger(trx, targetTableName, targetTable)
         }
       }
@@ -156,7 +156,7 @@ export async function syncTables<T extends Schema>(
     // see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
     //
     debug('different table structure, update')
-    const tempTableName = `_temp_${tableName}`
+    const tempTableName = '_temp_' + tableName
 
     // 1. create target table with temp name
     const _triggerOptions = await runCreateTable(trx, tempTableName, props)
@@ -178,7 +178,7 @@ export async function syncTables<T extends Schema>(
     await runCreateTableIndex(trx, tableName, index)
     await runCreateTimeTrigger(trx, tableName, _triggerOptions)
 
-    debug(`restore columns: ${restoreColumnList}`)
+    debug('restore columns: ' + restoreColumnList)
   }
 }
 

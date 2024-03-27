@@ -72,7 +72,7 @@ export async function runCreateTableIndex(
   for (const i of index || []) {
     const _i = parseArray(i)
 
-    await trx.schema.createIndex(`idx_${tableName}_${_i.join('_')}`)
+    await trx.schema.createIndex('idx_' + tableName + '_' + _i.reduce((a, b) => a + '_' + b, ''))
       .on(tableName)
       .columns(_i as string[])
       .ifNotExists()
@@ -146,7 +146,7 @@ export async function runCreateTable(
   if (!_haveAutoKey && primary) {
     const _p = parseArray(primary)
     tableSql = tableSql.addPrimaryKeyConstraint(
-      `pk_${_p.join('_')}`,
+      'pk_' + _p.reduce((a, b) => a + '_' + b, ''),
       _p as any,
     )
   }
@@ -154,7 +154,7 @@ export async function runCreateTable(
   for (const uk of unique || []) {
     const _u = parseArray(uk)
     tableSql = tableSql.addUniqueConstraint(
-      `uk_${_u.join('_')}`,
+      'uk_' + _u.reduce((a, b) => a + '_' + b, ''),
       _u as any,
     )
   }
@@ -182,7 +182,7 @@ export async function runCreateTimeTrigger(
   }
   const { triggerKey, update } = options
 
-  const triggerName = `tgr_${tableName}_${update}`
+  const triggerName = 'tgr_' + tableName + '_' + update
   await sql`create trigger if not exists ${sql.ref(triggerName)}
 after update
 on ${sql.table(tableName)}

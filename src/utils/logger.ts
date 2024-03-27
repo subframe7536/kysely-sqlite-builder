@@ -59,7 +59,7 @@ export function createKyselyLogger(
           data = param.toLocaleString()
         }
         if (typeof data === 'string') {
-          data = `'${data}'`.replace(/\?/g, questionMarker)
+          data = ('\'' + data + '\'').replace(/\?/g, questionMarker)
         }
         _sql = _sql.replace(/\?/, data)
       })

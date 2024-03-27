@@ -24,7 +24,7 @@ export async function savePoint(
   db: Kysely<any> | Transaction<any>,
   name?: string,
 ): Promise<SavePoint> {
-  const _name = name || `sp_${Date.now() % 100000000}`
+  const _name = name || 'sp_' + Date.now() % 100000000
   await sql`savepoint ${sql.raw(_name)}`.execute(db)
   return {
     release: async () => {
