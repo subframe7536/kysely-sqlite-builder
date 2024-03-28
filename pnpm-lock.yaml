@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   kysely-plugin-serialize:
-    specifier: ^0.5.7
-    version: 0.5.7(kysely@0.27.3)
+    specifier: ^0.6.0
+    version: 0.6.0(kysely@0.27.3)
 
 devDependencies:
   '@subframe7536/eslint-config':
@@ -29,8 +29,8 @@ devDependencies:
     specifier: ^0.27.3
     version: 0.27.3
   kysely-wasm:
-    specifier: ^0.5.7
-    version: 0.5.7(kysely@0.27.3)
+    specifier: ^0.6.0
+    version: 0.6.0(kysely@0.27.3)
   node-sqlite3-wasm:
     specifier: ^0.8.13
     version: 0.8.13
@@ -2627,16 +2627,16 @@ packages:
     engines: {node: '>=6'}
     dev: true
 
-  /kysely-plugin-serialize@0.5.7(kysely@0.27.3):
-    resolution: {integrity: sha512-FWPcH7eR3i059iogfzQS3qzNABQbUEnJug1paQ74G3MSUUgKAC5hp7T75oeHrnWgNHYCvQJfppD29vHXGVRgAg==}
+  /kysely-plugin-serialize@0.6.0(kysely@0.27.3):
+    resolution: {integrity: sha512-H6lvQccS6Xx78qMdRMFdkx9xYrOpNBgpY8ZX5LMrogU+jqSuVGtOmxyffjqRYSNED9bxlk1HSX2gWWoeAIU4kQ==}
     peerDependencies:
       kysely: '>=0.26'
     dependencies:
       kysely: 0.27.3
     dev: false
 
-  /kysely-wasm@0.5.7(kysely@0.27.3):
-    resolution: {integrity: sha512-Y2pY56RwC4ysYjeZgAO32Wk+O8wH8JcGiTBVCdl4b5QjFjNNBEdmxEpNjiM07gSMGJQO6mwjKWdIwQM719NzFA==}
+  /kysely-wasm@0.6.0(kysely@0.27.3):
+    resolution: {integrity: sha512-/BO+E1qxaThDD3lMUpb3Y1qYgXUxv2znz8tn9+lr5HzJ0fz9jaUul8MzGiDXn5aQVFWx1oJ9PydMLCAizrUJqA==}
     peerDependencies:
       kysely: '>=0.26'
     dependencies:

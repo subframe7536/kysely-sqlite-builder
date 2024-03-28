@@ -55,7 +55,7 @@
     "kysely": "^0.27.3"
   },
   "dependencies": {
-    "kysely-plugin-serialize": "^0.5.7"
+    "kysely-plugin-serialize": "^0.6.0"
   },
   "devDependencies": {
     "@subframe7536/eslint-config": "^0.5.13",
@@ -64,7 +64,7 @@
     "bumpp": "^9.4.0",
     "eslint": "^8.57.0",
     "kysely": "^0.27.3",
-    "kysely-wasm": "^0.5.7",
+    "kysely-wasm": "^0.6.0",
     "node-sqlite3-wasm": "^0.8.13",
     "tsup": "^8.0.2",
     "typescript": "^5.4.3",
