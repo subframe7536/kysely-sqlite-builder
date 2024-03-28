@@ -48,6 +48,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest --run",
+    "test:bench": "vitest bench",
     "release": "pnpm test && pnpm run build && bumpp --all && npm publish"
   },
   "peerDependencies": {

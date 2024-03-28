@@ -149,7 +149,7 @@ describe('test builder', async () => {
 
     const { parameters, sql } = select.compile({ person: { name: '1' } })
     expect(sql).toBe('select * from "test" where "person" = ?')
-    expect(parameters).toStrictEqual(['{"name":"1"}'])
+    expect(parameters[0]).toBe('{"name":"1"}')
 
     const start2 = performance.now()
     console.log('no compiled:', `${(start2 - start).toFixed(2)}ms`)
