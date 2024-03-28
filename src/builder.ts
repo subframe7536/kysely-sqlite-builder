@@ -90,7 +90,7 @@ interface TransactionOptions<T> {
 
 type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, any>> = {
   build: <O>(
-    queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T>(name: K) => T[K]) => Compilable<O>
+    queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
   ) => {
     [Symbol.dispose]: VoidFunction
     dispose: VoidFunction
@@ -351,7 +351,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     this.logger?.debug?.('precompile')
     return {
       build: <O>(
-        queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T>(name: K) => T[K]) => Compilable<O>,
+        queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
       ) => {
         let compiled: CompiledQuery<Compilable<O>> | null
         const dispose = () => compiled = null
@@ -360,17 +360,13 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
           dispose,
           compile: (param: T) => {
             if (!compiled) {
-              const { parameters, sql, query } = queryBuilder(this.executor, name => `__pre_${name as string}` as any).compile()
-              compiled = {
-                sql,
-                query: processRootOperatorNode(query) as any,
-                parameters,
-              }
+              const { query: node, ...data } = queryBuilder(this.executor, name => ('_P_' + name) as any).compile()
+              compiled = { ...data, query: processRootOperatorNode(node) as any }
             }
             return {
               ...compiled,
               parameters: compiled.parameters.map((p) => {
-                const key = (typeof p === 'string' && p.startsWith('__pre_')) ? p.slice(6) : undefined
+                const key = (typeof p === 'string' && p.startsWith('_P_')) ? p.substring(3) : undefined
                 return key ? this.serializer(param[key]) : p
               }),
             }
