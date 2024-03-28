@@ -118,8 +118,7 @@ import { SqliteDialect } from 'kysely'
 import Database from 'better-sqlite3'
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import { column, defineTable } from 'kysely-sqlite-builder/schema'
-import { SqliteBuilder } from 'kysely-sqlite-builder'
-import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder/utils'
+import { SqliteBuilder, createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
 
 const softDeleteTable = defineTable({
   columns: {
@@ -145,48 +144,9 @@ await builder.executeTakeFirst(db => db.deleteFrom('testSoftDelete').where('id',
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
 ```
 
-### Utils
+### Pragma
 
 ```ts
-type LoggerParams = {
-  sql: string
-  params: readonly unknown[]
-  duration: number
-  queryNode?: RootOperationNode
-  error?: unknown
-}
-type LoggerOptions = {
-  /**
-   * log functions
-   */
-  logger: (data: LoggerParams) => void
-  /**
-   * whether to merge parameters into sql, use `JSON.stringify` to serialize params
-   *
-   * e.g. from `select ? from ?` to `select "name" from "user"`
-   */
-  merge?: boolean
-  /**
-   * whether to log queryNode
-   */
-  logQueryNode?: boolean
-}
-/**
- * util for `KyselyConfig.log`, log on every execution
- * @example
- * import { Kysely } from 'kysely'
- * import { createKyselyLogger } from 'kysely-sqlite-builder/utils'
- *
- * const db = new Kysely<DB>({
- *   dialect,
- *   log: createKyselyLogger({
- *     logger: console.log,
- *     merge: true,
- *   })
- * })
- */
-function createKyselyLogger(options: LoggerOptions): (event: LogEvent) => void
-
 /**
  * check integrity_check pragma
  */
@@ -241,22 +201,6 @@ type OptimizePragmaOptions = {
  * @param options pragma options, {@link OptimizePragmaOptions details}
  */
 function optimizePragma(db: Executor, options?: OptimizePragmaOptions): Promise<void>
-
-/**
- * create savepoint, release or rollback it later,
- * included in `SqliteBuilder`
- * @example
- * import { savePoint } from 'kysely-sqlite-builder/utils'
- *
- * const sp = await savePoint(db, 'savepoint_1')
- * try {
- *   // do something...
- *   await sp.release()
- * } catch (e) {
- *   await sp.rollback()
- * }
- */
-function savePoint(db: Kysely<any> | Transaction<any>, name?: string): Promise<SavePoint>
 ```
 
 ## License

@@ -1,10 +1,10 @@
 import { Database } from 'node-sqlite3-wasm'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createSoftDeleteExecutorFn, getOrSetDBVersion, optimizePragma } from '../src/utils'
+import { SqliteBuilder, createSoftDeleteExecutorFn } from '../src'
 import type { InferDatabase } from '../src/schema'
 import { column, defineTable, useSchema } from '../src/schema'
-import { SqliteBuilder } from '../src'
+import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
 
 const testTable = defineTable({
   columns: {

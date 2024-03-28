@@ -12,15 +12,8 @@ import type {
 import { CompiledQuery, Kysely, SelectQueryNode } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
 import { SerializePlugin, type SerializePluginOptions, defaultSerializer } from 'kysely-plugin-serialize'
-import {
-  type LoggerOptions,
-  type SqliteExecutor,
-  type SqliteExecutorFn,
-  basicExecutorFn,
-  createKyselyLogger,
-  checkIntegrity as runCheckIntegrity,
-  savePoint,
-} from './utils'
+
+import { checkIntegrity as runCheckIntegrity } from './pragma'
 
 import type {
   AvailableBuilder,
@@ -29,6 +22,9 @@ import type {
   StatusResult,
   TableUpdater,
 } from './types'
+import { type LoggerOptions, createKyselyLogger } from './logger'
+import { type SqliteExecutor, type SqliteExecutorFn, basicExecutorFn } from './executor'
+import { savePoint } from './savepoint'
 
 export class IntegrityError extends Error {
   constructor() {
@@ -39,9 +35,9 @@ export class IntegrityError extends Error {
 export interface SqliteBuilderOptions<T extends Record<string, any>, Extra extends Record<string, any>> {
   dialect: Dialect
   /**
-   * call on `dialect.log`, wrapped with `createKyselyLogger`
+   * like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
    *
-   * if value is `true`, logger is `console.log` and `merge: true`
+   * if value is `true`, it will log result sql and and other {@link LoggerParams} in console
    */
   onQuery?: boolean | LoggerOptions
   /**
@@ -61,7 +57,7 @@ export interface SqliteBuilderOptions<T extends Record<string, any>, Extra exten
   /**
    * custom executor
    * @example
-   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder/utils'
+   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
    *
    * const softDeleteExecutorFn = createSoftDeleteExecutorFn({
    *   deleteColumn: 'isDeleted',
@@ -122,7 +118,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    * import Database from 'better-sqlite3'
    * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
    * import { column, defineTable } from 'kysely-sqlite-builder/schema'
-   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder/utils'
+   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
    *
    * const testTable = defineTable({
    *   columns: {

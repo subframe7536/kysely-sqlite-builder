@@ -20,19 +20,12 @@
     "./schema": {
       "import": "./dist/schema.js",
       "require": "./dist/schema.cjs"
-    },
-    "./utils": {
-      "import": "./dist/utils.js",
-      "require": "./dist/utils.cjs"
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "typesVersions": {
     "*": {
-      "utils": [
-        "./dist/utils.d.ts"
-      ],
       "schema": [
         "./dist/schema.d.ts"
       ]

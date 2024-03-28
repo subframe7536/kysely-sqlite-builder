@@ -10,8 +10,6 @@ export type SavePoint = {
  * create savepoint, release or rollback it later,
  * included in `SqliteBuilder`
  * @example
- * import { savePoint } from 'kysely-sqlite-builder/utils'
- *
  * const sp = await savePoint(db, 'savepoint_1')
  * try {
  *   // do something...

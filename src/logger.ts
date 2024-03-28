@@ -14,6 +14,7 @@ export type LoggerParams = {
 export type LoggerOptions = {
   /**
    * log functions
+   * @param data logger params, see {@link LoggerParams}
    */
   logger: (data: LoggerParams) => void
   /**
@@ -32,7 +33,6 @@ export type LoggerOptions = {
  * util for `KyselyConfig.log`, log on every execution
  * @example
  * import { Kysely } from 'kysely'
- * import { createKyselyLogger } from 'kysely-sqlite-builder/utils'
  *
  * const db = new Kysely<DB>({
  *   dialect,
@@ -49,7 +49,7 @@ export function createKyselyLogger(
 
   return (event: LogEvent) => {
     const { level, queryDurationMillis, query: { parameters, sql, query } } = event
-    const questionMarker = '__Q__'
+    const questionMarker = '_Q_'
     const err = level === 'error' ? event.error : undefined
     let _sql = sql.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ')
     if (merge) {

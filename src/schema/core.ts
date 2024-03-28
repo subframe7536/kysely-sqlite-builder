@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
 import type { Kysely, Transaction } from 'kysely'
 import type { Promisable, StringKeys } from '@subframe7536/type-utils'
-import { getOrSetDBVersion } from '../utils'
+import { getOrSetDBVersion } from '../pragma'
 import type { DBLogger, StatusResult } from '../types'
 import type { Columns, InferDatabase, Schema, Table } from './types'
 import {
