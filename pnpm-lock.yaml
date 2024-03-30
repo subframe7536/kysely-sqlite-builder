@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-dependencies:
-  kysely-plugin-serialize:
-    specifier: ^0.6.0
-    version: 0.6.0(kysely@0.27.3)
-
 devDependencies:
   '@subframe7536/eslint-config':
     specifier: ^0.5.13
@@ -2627,14 +2622,6 @@ packages:
     engines: {node: '>=6'}
     dev: true
 
-  /kysely-plugin-serialize@0.6.0(kysely@0.27.3):
-    resolution: {integrity: sha512-H6lvQccS6Xx78qMdRMFdkx9xYrOpNBgpY8ZX5LMrogU+jqSuVGtOmxyffjqRYSNED9bxlk1HSX2gWWoeAIU4kQ==}
-    peerDependencies:
-      kysely: '>=0.26'
-    dependencies:
-      kysely: 0.27.3
-    dev: false
-
   /kysely-wasm@0.6.0(kysely@0.27.3):
     resolution: {integrity: sha512-/BO+E1qxaThDD3lMUpb3Y1qYgXUxv2znz8tn9+lr5HzJ0fz9jaUul8MzGiDXn5aQVFWx1oJ9PydMLCAizrUJqA==}
     peerDependencies:
@@ -2646,6 +2633,7 @@ packages:
   /kysely@0.27.3:
     resolution: {integrity: sha512-lG03Ru+XyOJFsjH3OMY6R/9U38IjDPfnOfDgO3ynhbDr+Dz8fak+X6L62vqu3iybQnj+lG84OttBuU9KY3L9kA==}
     engines: {node: '>=14.0.0'}
+    dev: true
 
   /levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}

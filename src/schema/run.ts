@@ -3,7 +3,7 @@ import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
 import type {
   ColumnProperty,
-  ColumnType,
+  ColumnTypeString,
   Table,
 } from './types'
 import { TGR } from './define'
@@ -14,7 +14,7 @@ type ParsedColumnType =
   | 'blob'
   | 'real'
 
-export function parseColumnType(type: ColumnType) {
+export function parseColumnType(type: ColumnTypeString) {
   let dataType: ParsedColumnType = 'text'
   let haveIncrements = false
   switch (type) {

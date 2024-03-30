@@ -54,6 +54,7 @@ export function parseCreateTableSQL(definition: string): ParsedCreateTableSQL {
 
   return ret
 }
+
 type ExistTable = {
   name: string
   sql: string
@@ -79,7 +80,6 @@ export async function parseExistDB(
       ),
     ))
     .select(['name', 'sql', 'type'])
-    .$castTo<ExistTable>()
     .execute()
 
   const tableMap: ParsedSchema = {
@@ -87,7 +87,7 @@ export async function parseExistDB(
     indexList: [],
     triggerList: [],
   }
-  for (const { name, sql, type } of tables) {
+  for (const { name, sql, type } of tables as ExistTable[]) {
     if (!sql) {
       continue
     }

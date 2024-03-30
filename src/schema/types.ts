@@ -1,7 +1,7 @@
-import type { Generated, RawBuilder } from 'kysely'
+import type { ColumnType, Generated, RawBuilder } from 'kysely'
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 
-export type ColumnType =
+export type ColumnTypeString =
   | 'string'
   | 'boolean'
   | 'int' | 'float'
@@ -13,7 +13,7 @@ export type ColumnType =
 export type InferGenereated<T> = T extends Generated<infer P> ? P : T
 export type InferColumnTypeByString<T> =
   T extends 'string' ? string :
-    T extends 'boolean' ? boolean :
+    T extends 'boolean' ? ColumnType<0 | 1, boolean, boolean> :
       T extends 'int' | 'float' ? number :
         T extends 'increments' ? Generated<number> :
           T extends 'date' ? Date :
@@ -33,7 +33,7 @@ export type InferStringByColumnType<T> =
                   never
 
 export type ColumnProperty<
-  ColType extends ColumnType = ColumnType,
+  ColType extends ColumnTypeString = ColumnTypeString,
   DefaultTo extends InferColumnTypeByString<ColType> | null = InferColumnTypeByString<ColType> | null,
   NotNull extends true | null = true | null,
 > = {

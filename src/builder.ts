@@ -11,7 +11,7 @@ import type {
 } from 'kysely'
 import { CompiledQuery, Kysely, SelectQueryNode } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
-import { SerializePlugin, type SerializePluginOptions, defaultSerializer } from 'kysely-plugin-serialize'
+import { SerializePlugin, defaultSerializer } from './plugin'
 
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 
@@ -50,10 +50,6 @@ export interface SqliteBuilderOptions<T extends Record<string, any>, Extra exten
    * db logger
    */
   logger?: DBLogger
-  /**
-   * options for serializer plugin
-   */
-  serializerPluginOptions?: SerializePluginOptions
   /**
    * custom executor
    * @example
@@ -179,15 +175,10 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
       logger,
       onQuery,
       plugins = [],
-      serializerPluginOptions,
       executorFn = basicExecutorFn<DB>,
     } = options
     this.logger = logger
-
-    if (serializerPluginOptions?.serializer) {
-      this.serializer = serializerPluginOptions.serializer
-    }
-    plugins.push(new SerializePlugin(serializerPluginOptions))
+    plugins.push(new SerializePlugin())
 
     let log
     if (onQuery === true) {

@@ -1,8 +1,8 @@
-import type { RawBuilder } from 'kysely'
+import type { ColumnType, RawBuilder } from 'kysely'
 import type { IsNotNull } from '@subframe7536/type-utils'
 import type {
   ColumnProperty,
-  ColumnType,
+  ColumnTypeString,
   Columns,
   ColumnsWithErrorInfo,
   InferColumnTypeByString,
@@ -11,7 +11,7 @@ import type {
   TimeTriggerOptions,
 } from './types'
 
-export const TGR = '__TIME_TRIGGER__'
+export const TGR = '_T_'
 
 /**
  * define table
@@ -85,13 +85,13 @@ type Options<T = any, NotNull extends true | null = true | null> = {
   notNull?: NotNull
 }
 
-function parse(type: ColumnType, options?: Options) {
+function parse(type: ColumnTypeString, options?: Options) {
   const data = { type, ...options }
   return { ...data, $cast: () => data }
 }
 
 type ColumnBuilder<
-  T extends ColumnType,
+  T extends ColumnTypeString,
   Type extends InferColumnTypeByString<T> | null,
   NotNull extends true | null,
   HasDefaultTo = IsNotNull<Type>,
@@ -136,7 +136,7 @@ export const column = {
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  boolean: <T extends boolean | null, NotNull extends true | null>(
+  boolean: <T extends ColumnType<0 | 1, boolean, boolean> | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse('boolean', options as any) as ColumnBuilder<'boolean', T, NotNull>,
   /**
