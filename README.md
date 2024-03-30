@@ -32,7 +32,7 @@ const testTable = defineTable({
     person: column.object({ defaultTo: { name: 'test' } }),
     gender: column.boolean({ notNull: true }),
     // or
-    // gender: { type: 'boolean', notNull: true },
+    // gender: { type: DataType.boolean, notNull: true },
     array: column.object().$cast<string[]>(),
     literal: column.string().$cast<'l1' | 'l2'>(),
     buffer: column.blob(),

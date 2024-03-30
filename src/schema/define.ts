@@ -1,14 +1,16 @@
-import type { ColumnType, RawBuilder } from 'kysely'
+import type { RawBuilder } from 'kysely'
 import type { IsNotNull } from '@subframe7536/type-utils'
-import type {
-  ColumnProperty,
-  ColumnTypeString,
-  Columns,
-  ColumnsWithErrorInfo,
-  InferColumnTypeByString,
-  Table,
-  TableProperty,
-  TimeTriggerOptions,
+import {
+  type ColumnProperty,
+  type Columns,
+  type ColumnsWithErrorInfo,
+  DataType,
+  type DataTypeValue,
+  type InferColumnTypeByNumber,
+  type Table,
+  type TableProperty,
+  type TimeTriggerOptions,
+  type _DataType,
 } from './types'
 
 export const TGR = '_T_'
@@ -85,19 +87,19 @@ type Options<T = any, NotNull extends true | null = true | null> = {
   notNull?: NotNull
 }
 
-function parse(type: ColumnTypeString, options?: Options) {
+function parse(type: DataTypeValue, options?: Options) {
   const data = { type, ...options }
   return { ...data, $cast: () => data }
 }
 
 type ColumnBuilder<
-  T extends ColumnTypeString,
-  Type extends InferColumnTypeByString<T> | null,
+  T extends DataTypeValue,
+  Type extends InferColumnTypeByNumber<T> | null,
   NotNull extends true | null,
   HasDefaultTo = IsNotNull<Type>,
 > = ColumnProperty<T, HasDefaultTo extends true ? Type : Type | null, NotNull> & {
   $cast: <
-    NarrowedType extends InferColumnTypeByString<T>,
+    NarrowedType extends InferColumnTypeByNumber<T>,
   >() => ColumnProperty<T, HasDefaultTo extends true ? NarrowedType : NarrowedType | null, NotNull>
 }
 
@@ -108,47 +110,47 @@ export const column = {
   /**
    * column type: INTEGER AUTO INCREMENT
    */
-  increments: () => ({ type: 'increments' as const }),
+  increments: () => ({ type: DataType.increments } as const),
   /**
    * column type: INTEGER
    */
   int: <T extends number | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('int', options as any) as ColumnBuilder<'int', T, NotNull>,
+  ) => parse(DataType.int, options as any) as ColumnBuilder<_DataType['int'], T, NotNull>,
   /**
    * column type: REAL
    */
   float: <T extends number | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('float', options as any) as ColumnBuilder<'float', T, NotNull>,
+  ) => parse(DataType.float, options as any) as ColumnBuilder<_DataType['float'], T, NotNull>,
   /**
    * column type: text
    */
   string: <T extends string | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('string', options as any) as ColumnBuilder<'string', T, NotNull>,
+  ) => parse(DataType.string, options as any) as ColumnBuilder<_DataType['string'], T, NotNull>,
   /**
    * column type: BLOB
    */
   blob: <NotNull extends true | null>(
     options?: Omit<Options<ArrayBufferLike, NotNull>, 'defaultTo'>,
-  ) => parse('blob', options as any) as ColumnProperty<'blob', ArrayBufferLike | null, NotNull>,
+  ) => parse(DataType.blob, options as any) as ColumnProperty<_DataType['blob'], ArrayBufferLike | null, NotNull>,
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  boolean: <T extends ColumnType<0 | 1, boolean, boolean> | null, NotNull extends true | null>(
+  boolean: <T extends boolean | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('boolean', options as any) as ColumnBuilder<'boolean', T, NotNull>,
+  ) => parse(DataType.boolean, options as any) as ColumnBuilder<_DataType['boolean'], T, NotNull>,
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
   date: <T extends Date | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('date', options as any) as ColumnBuilder<'date', T, NotNull>,
+  ) => parse(DataType.date, options as any) as ColumnBuilder<_DataType['date'], T, NotNull>,
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
   object: <T extends object | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
-  ) => parse('object', options as any) as ColumnBuilder<'object', T, NotNull>,
+  ) => parse(DataType.object, options as any) as ColumnBuilder<_DataType['object'], T, NotNull>,
 }

@@ -190,7 +190,7 @@ function getRestoreColumnList(
   for (const [col, targetColumn] of Object.entries(targetColumns as Columns)) {
     if (
       col in existColumns
-      && parseColumnType(targetColumn.type).dataType === existColumns[col].type
+      && parseColumnType(targetColumn.type)[0] === existColumns[col].type
       && (targetColumn.notNull || false) === (existColumns[col].notNull || false)
     ) {
       list.push(col)

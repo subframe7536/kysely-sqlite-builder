@@ -20,7 +20,11 @@ export const defaultDeserializer: Deserializer = (parameter) => {
     return parameter
   }
   if (typeof parameter === 'string') {
-    if (dateRegex.test(parameter)) {
+    if (parameter === 'true') {
+      return true
+    } else if (parameter === 'false') {
+      return false
+    } else if (dateRegex.test(parameter)) {
       return new Date(parameter)
     } else if (
       (parameter[0] === '{' && parameter[parameter.length - 1] === '}')

@@ -1,10 +1,11 @@
 import type { ColumnDataType, Kysely, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
-import type {
-  ColumnProperty,
-  ColumnTypeString,
-  Table,
+import {
+  type ColumnProperty,
+  DataType,
+  type DataTypeValue,
+  type Table,
 } from './types'
 import { TGR } from './define'
 
@@ -14,32 +15,29 @@ type ParsedColumnType =
   | 'blob'
   | 'real'
 
-export function parseColumnType(type: ColumnTypeString) {
-  let dataType: ParsedColumnType = 'text'
-  let haveIncrements = false
+export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isIncrements: boolean] {
+  let dataType: ParsedColumnType
+  let isIncrements = false
   switch (type) {
-    case 'boolean':
-    case 'date':
-    case 'object':
-    case 'string':
+    case DataType.date:
+    case DataType.object:
+    case DataType.boolean:
+    case DataType.string:
       dataType = 'text'
       break
-    case 'float':
+    case DataType.float:
       dataType = 'real'
       break
-    case 'increments':
-      haveIncrements = true
+    case DataType.increments:
+      isIncrements = true
       // eslint-disable-next-line no-fallthrough
-    case 'int':
+    case DataType.int:
       dataType = 'integer'
       break
     default:
-      dataType = type
+      dataType = 'blob'
   }
-  return {
-    dataType,
-    isIncrements: haveIncrements,
-  }
+  return [dataType, isIncrements]
 }
 
 export function parseArray<T>(arr: Arrayable<T>): T[] {
@@ -101,15 +99,12 @@ export async function runCreateTable(
   }
 
   for (const [columnName, columnProperty] of Object.entries(columns)) {
-    let dataType: ColumnDataType = 'text'
-
     const { type, notNull, defaultTo } = columnProperty as ColumnProperty
 
-    const parsedType = parseColumnType(type)
-    dataType = parsedType.dataType
+    const [dataType, isIncrements] = parseColumnType(type)
 
     tableSql = tableSql.addColumn(columnName, dataType, (builder) => {
-      if (parsedType.isIncrements) {
+      if (isIncrements) {
         _haveAutoKey = true
         if (_triggerOptions) {
           _triggerOptions.triggerKey = columnName

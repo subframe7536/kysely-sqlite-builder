@@ -3,7 +3,7 @@ import { NodeWasmDialect } from 'kysely-wasm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SqliteBuilder, createSoftDeleteExecutorFn } from '../src'
 import type { InferDatabase } from '../src/schema'
-import { column, defineTable, useSchema } from '../src/schema'
+import { DataType, column, defineTable, useSchema } from '../src/schema'
 import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
 
 const testTable = defineTable({
@@ -46,8 +46,8 @@ describe('test sync table', async () => {
   it('should create new table', async () => {
     const foo = defineTable({
       columns: {
-        col1: { type: 'increments' },
-        col2: { type: 'string' },
+        col1: { type: DataType.increments },
+        col2: { type: DataType.string },
       },
     })
 
@@ -105,7 +105,7 @@ describe('test sync table', async () => {
   })
 })
 describe('test builder', async () => {
-  const builder = getDatabaseBuilder()
+  const builder = getDatabaseBuilder(true)
   await getOrSetDBVersion(builder.kysely, 2)
   //  generate table
   await builder.syncDB(useSchema(baseTables))
