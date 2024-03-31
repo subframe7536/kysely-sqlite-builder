@@ -17,6 +17,14 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
 
 ## Usage
 
+### Dialect choice
+
+For normal usage, you can just use official `SqliteDialect` with `better-sqlite3`
+
+- If you want to run sql in worker thread, you can use [`SqliteWorkerDialect`](https://github.com/subframe7536/kysely-sqlite-tools/tree/master/packages/dialect-sqlite-worker)
+- If you have trouble in the compilation of `better-sqlite3`, you can use [`NodeWasmDialect`](https://github.com/subframe7536/kysely-sqlite-tools/tree/master/packages/dialect-wasm#nodewasmdialect-no-compile) with [`node-sqlite3-wasm`](https://github.com/tndrle/node-sqlite3-wasm), just use wasm to load sqlite
+- If you want to use sqlite in browser, you can use [`WaSqliteWorkerDialect`](https://github.com/subframe7536/kysely-sqlite-tools/tree/master/packages/dialect-wasqlite-worker), it run sql in Web Worker and persist data in IndexedDB or OPFS
+
 ### Definition
 
 ```ts
