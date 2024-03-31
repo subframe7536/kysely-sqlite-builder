@@ -2,6 +2,8 @@
 
 Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
 
+- Breaking updates may occur, use at your own risk
+
 ## Features
 
 - table schema
