@@ -40,8 +40,9 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
   return [dataType, isIncrements]
 }
 
-export function parseArray<T>(arr: Arrayable<T>): T[] {
-  return Array.isArray(arr) ? arr : [arr]
+export function parseArray<T>(arr: Arrayable<T>): [key: string, value: T[]] {
+  const value = Array.isArray(arr) ? arr : [arr]
+  return [value.reduce((a, b) => a + '_' + b, ''), value]
 }
 
 function isFunction(value: any): value is (...args: any) => any {
@@ -68,11 +69,11 @@ export async function runCreateTableIndex(
   index: Arrayable<string>[] | undefined,
 ) {
   for (const i of index || []) {
-    const _i = parseArray(i)
+    const [key, value] = parseArray(i)
 
-    await trx.schema.createIndex('idx_' + tableName + '_' + _i.reduce((a, b) => a + '_' + b, ''))
+    await trx.schema.createIndex('idx_' + tableName + key)
       .on(tableName)
-      .columns(_i as string[])
+      .columns(value)
       .ifNotExists()
       .execute()
   }
@@ -82,7 +83,6 @@ export async function runCreateTable(
   trx: Transaction<any>,
   tableName: string,
   { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-  temporary = false,
 ) {
   const _triggerOptions: RunTriggerOptions | undefined = timeTrigger
     ? {
@@ -93,10 +93,6 @@ export async function runCreateTable(
 
   let _haveAutoKey = false
   let tableSql = trx.schema.createTable(tableName)
-
-  if (temporary) {
-    tableSql = tableSql.temporary()
-  }
 
   for (const [columnName, columnProperty] of Object.entries(columns)) {
     const { type, notNull, defaultTo } = columnProperty as ColumnProperty
@@ -139,18 +135,18 @@ export async function runCreateTable(
   // primary/unique key is jointable, so can not be set as trigger key
 
   if (!_haveAutoKey && primary) {
-    const _p = parseArray(primary)
+    const [key, value] = parseArray(primary)
     tableSql = tableSql.addPrimaryKeyConstraint(
-      'pk_' + _p.reduce((a, b) => a + '_' + b, ''),
-      _p as any,
+      'pk' + key,
+      value as any,
     )
   }
 
   for (const uk of unique || []) {
-    const _u = parseArray(uk)
+    const [key, value] = parseArray(uk)
     tableSql = tableSql.addUniqueConstraint(
-      'uk_' + _u.reduce((a, b) => a + '_' + b, ''),
-      _u as any,
+      'uk' + key,
+      value as any,
     )
   }
 
@@ -172,19 +168,17 @@ export async function runCreateTimeTrigger(
   tableName: string,
   options?: RunTriggerOptions,
 ) {
-  if (!options || !options.update) {
+  if (!options?.update) {
     return
   }
-  const { triggerKey, update } = options
-
-  const triggerName = 'tgr_' + tableName + '_' + update
+  const triggerName = 'tgr_' + tableName + '_' + options.update
   await sql`create trigger if not exists ${sql.ref(triggerName)}
 after update
 on ${sql.table(tableName)}
 begin
   update ${sql.table(tableName)}
-  set ${sql.ref(update)} = CURRENT_TIMESTAMP
-  where ${sql.ref(triggerKey)} = NEW.${sql.ref(triggerKey)};
+  set ${sql.ref(options.update)} = CURRENT_TIMESTAMP
+  where ${sql.ref(options.triggerKey)} = NEW.${sql.ref(options.triggerKey)};
 end`.execute(trx)
 }
 
