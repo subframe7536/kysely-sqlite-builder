@@ -1,4 +1,4 @@
-import type { Generated, RawBuilder } from 'kysely'
+import type { ColumnType, Generated, RawBuilder } from 'kysely'
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 
 /**
@@ -19,9 +19,11 @@ export type _DataType = typeof DataType
 
 export type DataTypeValue = _DataType[keyof _DataType]
 
+export type BooleanColumnType = ColumnType<0 | 1, boolean, boolean>
+
 export type InferColumnTypeByNumber<T extends DataTypeValue> =
   T extends _DataType['string'] ? string :
-    T extends _DataType['boolean'] ? boolean :
+    T extends _DataType['boolean'] ? BooleanColumnType :
       T extends _DataType['int'] | _DataType['float'] ? number :
         T extends _DataType['increments'] ? Generated<number> :
           T extends _DataType['date'] ? Date :
@@ -31,7 +33,7 @@ export type InferColumnTypeByNumber<T extends DataTypeValue> =
 
 export type InferStringByColumnType<T> =
   T extends string ? _DataType['string'] :
-    T extends boolean ? _DataType['boolean'] :
+    T extends BooleanColumnType ? _DataType['boolean'] :
       T extends Generated<number> ? _DataType['increments'] | _DataType['int'] | _DataType['float'] :
         T extends number ? _DataType['int'] | _DataType['float'] :
           T extends Date ? _DataType['date'] :

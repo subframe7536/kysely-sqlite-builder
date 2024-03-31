@@ -20,11 +20,7 @@ export const defaultDeserializer: Deserializer = (parameter) => {
     return parameter
   }
   if (typeof parameter === 'string') {
-    if (parameter === 'true') {
-      return true
-    } else if (parameter === 'false') {
-      return false
-    } else if (dateRegex.test(parameter)) {
+    if (dateRegex.test(parameter)) {
       return new Date(parameter)
     } else if (
       (parameter[0] === '{' && parameter[parameter.length - 1] === '}')
@@ -39,14 +35,17 @@ export const defaultDeserializer: Deserializer = (parameter) => {
 }
 
 /**
- * check if the parameter does not need to be transformed
+ * check if the parameter is no need to transform
  *
- * skip type: `undefined`/`null`, `bigint`/`number`, `ArrayBuffer`/`Buffer`
+ * skip type: `undefined`/`null`, `boolean`/`bigint`/`number`, `ArrayBuffer`/`Buffer`
  */
 export function skipTransform(parameter: unknown) {
-  return parameter === undefined
-    || parameter === null
-    || typeof parameter === 'bigint'
-    || typeof parameter === 'number'
-    || (typeof parameter === 'object' && 'buffer' in parameter)
+  if (parameter === null || parameter === undefined || parameter instanceof ArrayBuffer) {
+    return true
+  }
+  const type = typeof parameter
+  return type === 'bigint'
+    || type === 'number'
+    || type === 'boolean'
+    || (type === 'object' && 'buffer' in (parameter as any))
 }

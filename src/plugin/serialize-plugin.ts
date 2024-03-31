@@ -7,14 +7,13 @@ import type {
   UnknownRow,
 } from 'kysely'
 import { SerializeParametersTransformer } from './serialize-transformer'
-import type { Deserializer, Serializer } from './serializer'
-import { defaultDeserializer, defaultSerializer } from './serializer'
+import { defaultDeserializer } from './serializer'
 
 export class SerializePlugin implements KyselyPlugin {
   private transformer: SerializeParametersTransformer
 
   public constructor() {
-    this.transformer = new SerializeParametersTransformer(defaultSerializer)
+    this.transformer = new SerializeParametersTransformer()
   }
 
   public transformQuery({ node }: PluginTransformQueryArgs): RootOperationNode {

@@ -21,7 +21,6 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
   switch (type) {
     case DataType.date:
     case DataType.object:
-    case DataType.boolean:
     case DataType.string:
       dataType = 'text'
       break
@@ -31,6 +30,7 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
     case DataType.increments:
       isIncrements = true
       // eslint-disable-next-line no-fallthrough
+    case DataType.boolean:
     case DataType.int:
       dataType = 'integer'
       break

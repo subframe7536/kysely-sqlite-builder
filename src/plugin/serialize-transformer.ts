@@ -1,13 +1,10 @@
 import type { ColumnUpdateNode, PrimitiveValueListNode, ValueNode } from 'kysely'
 import { OperationNodeTransformer } from 'kysely'
-import type { Serializer } from './serializer'
+import { defaultSerializer } from './serializer'
 
 export class SerializeParametersTransformer extends OperationNodeTransformer {
-  private serializer: Serializer
-
-  public constructor(serializer: Serializer) {
+  public constructor() {
     super()
-    this.serializer = serializer
   }
 
   protected override transformPrimitiveValueList(
@@ -15,7 +12,7 @@ export class SerializeParametersTransformer extends OperationNodeTransformer {
   ): PrimitiveValueListNode {
     return {
       ...node,
-      values: node.values.map(this.serializer),
+      values: node.values.map(defaultSerializer),
     }
   }
 
@@ -29,7 +26,7 @@ export class SerializeParametersTransformer extends OperationNodeTransformer {
 
     const { value, ...item } = valueNode as ValueNode
 
-    const serializedValue = this.serializer(value)
+    const serializedValue = defaultSerializer(value)
 
     return value === serializedValue
       ? super.transformColumnUpdate(node)
@@ -42,7 +39,7 @@ export class SerializeParametersTransformer extends OperationNodeTransformer {
   protected override transformValue(node: ValueNode): ValueNode {
     return {
       ...node,
-      value: this.serializer(node.value),
+      value: defaultSerializer(node.value),
     }
   }
 }

@@ -1,6 +1,7 @@
 import type { RawBuilder } from 'kysely'
 import type { IsNotNull } from '@subframe7536/type-utils'
 import {
+  type BooleanColumnType,
   type ColumnProperty,
   type Columns,
   type ColumnsWithErrorInfo,
@@ -138,7 +139,7 @@ export const column = {
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  boolean: <T extends boolean | null, NotNull extends true | null>(
+  boolean: <T extends BooleanColumnType | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.boolean, options as any) as ColumnBuilder<_DataType['boolean'], T, NotNull>,
   /**
