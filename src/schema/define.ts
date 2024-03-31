@@ -133,9 +133,9 @@ export const column = {
   /**
    * column type: BLOB
    */
-  blob: <NotNull extends true | null>(
-    options?: Omit<Options<ArrayBufferLike, NotNull>, 'defaultTo'>,
-  ) => parse(DataType.blob, options as any) as ColumnProperty<_DataType['blob'], ArrayBufferLike | null, NotNull>,
+  blob: <T extends Buffer | Uint8Array | null, NotNull extends true | null>(
+    options?: { notNull?: NotNull },
+  ) => parse(DataType.blob, options as any) as ColumnBuilder<_DataType['blob'], T, NotNull>,
   /**
    * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
