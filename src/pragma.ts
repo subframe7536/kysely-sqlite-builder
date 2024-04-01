@@ -1,12 +1,12 @@
 import { CompiledQuery } from 'kysely'
 import type { DatabaseConnection, Kysely, Transaction } from 'kysely'
 
-type Executor = DatabaseConnection | Kysely<any> | Transaction<any>
+type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
 
 /**
  * check integrity_check pragma
  */
-export async function checkIntegrity(db: Executor): Promise<boolean> {
+export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
   const { rows } = await db.executeQuery(CompiledQuery.raw('PRAGMA integrity_check'))
   if (!rows.length) {
     throw new Error('fail to check integrity')
@@ -18,14 +18,14 @@ export async function checkIntegrity(db: Executor): Promise<boolean> {
 /**
  * control whether to enable foreign keys, **no param check**
  */
-export async function foreignKeys(db: Executor, enable: boolean): Promise<void> {
+export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void> {
   await db.executeQuery(CompiledQuery.raw('PRAGMA foreign_keys = ' + enable))
 }
 
 /**
  * get or set user_version pragma, **no param check**
  */
-export async function getOrSetDBVersion(db: Executor, version?: number): Promise<number> {
+export async function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number> {
   if (version) {
     await db.executeQuery(CompiledQuery.raw('PRAGMA user_version = ' + version))
     return version
@@ -83,7 +83,7 @@ export type OptimizePragmaOptions = {
  * @param options pragma options, {@link OptimizePragmaOptions details}
  */
 export async function optimizePragma(
-  db: Executor,
+  db: KyselyInstance,
   options: OptimizePragmaOptions = {},
 ) {
   const entries = Object.entries({
@@ -98,4 +98,15 @@ export async function optimizePragma(
   for (const [pragma, value] of entries) {
     await db.executeQuery(CompiledQuery.raw('PRAGMA ' + pragma + ' = ' + value))
   }
+}
+/**
+ * optimize db file
+ * @param db database connection
+ * @param rebuild if is true, run `vacuum` instead of `pragma optimize`
+ * @see https://sqlite.org/pragma.html#pragma_optimize
+ * @see https://www.sqlite.org/lang_vacuum.html
+ */
+
+export async function optimizeSize(db: KyselyInstance, rebuild = false) {
+  return await db.executeQuery(CompiledQuery.raw(rebuild ? 'vacuum' : 'pragma optimize'))
 }

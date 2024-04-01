@@ -5,8 +5,7 @@ import type { SqliteBuilderOptions } from './builder'
 
 export type CreateSqliteBuilderOptions<
   T extends Schema,
-  Extra extends Record<string, any>,
-> = SqliteBuilderOptions<InferDatabase<T>, Extra> & {
+> = SqliteBuilderOptions & {
   /**
    * {@link Schema}
    */
@@ -24,10 +23,10 @@ export type CreateSqliteBuilderOptions<
 /**
  * {@link SqliteBuilder}
  */
-export async function createSqliteBuilder<T extends Schema, Extra extends Record<string, any>>(
-  options: CreateSqliteBuilderOptions<T, Extra>,
-): Promise<Omit<SqliteBuilder<InferDatabase<T>, Extra>, 'syncDB'>> {
-  const builder = new SqliteBuilder(options)
+export async function createSqliteBuilder<T extends Schema>(
+  options: CreateSqliteBuilderOptions<T>,
+): Promise<Omit<SqliteBuilder<InferDatabase<T>>, 'syncDB'>> {
+  const builder = new SqliteBuilder<InferDatabase<T>>(options)
   await builder.syncDB(useSchema(options.schema, options.sync), options.checkIntegrity)
   return builder
 }

@@ -34,15 +34,15 @@ import { FileMigrationProvider, SqliteDialect } from 'kysely'
 import { SqliteBuilder, useMigrator } from 'kysely-sqlite-builder'
 import Database from 'better-sqlite3'
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
-import { column, defineTable } from 'kysely-sqlite-builder/schema'
+import { DataType, column, defineTable } from 'kysely-sqlite-builder/schema'
 
 const testTable = defineTable({
   columns: {
     id: column.increments(),
     person: column.object({ defaultTo: { name: 'test' } }),
     gender: column.boolean({ notNull: true }),
-    // or
-    // gender: { type: DataType.boolean, notNull: true },
+    // or just object
+    manual: { type: DataType.boolean },
     array: column.object().$cast<string[]>(),
     literal: column.string().$cast<'l1' | 'l2'>(),
     buffer: column.blob(),
@@ -65,44 +65,46 @@ const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
 })
 
 // update table using schema
-await builder.syncDB(useSchema(DBSchema, { logger: false }))
+await db.syncDB(useSchema(DBSchema, { logger: false }))
 
 // update table using migrator
-await builder.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
+await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
 ```
 
 ### Execute queries
 
 ```ts
-await builder.execute(db => db.insertInto('test').values({ person: { name: 'test' }, gender: true }))
+// usage: insertInto / selectFrom / updateTable / deleteFrom
+await db.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
 
-builder.transaction(async (trx) => {
+db.transaction(async (trx) => {
   // auto load transaction
-  await builder.execute(db => db.insertInto('test').values({ gender: true }))
+  await db.insertInto('test').values({ gender: true }).execute()
   // or
-  // await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
-  builder.transaction(async () => {
+  await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
+  db.transaction(async () => {
     // nest transaction, use savepoint
-    await builder.execute(db => db.selectFrom('test').where('gender', '=', true))
+    await db.selectFrom('test').where('gender', '=', true).execute()
   })
 })
 
-// use origin instance
-await builder.kysely.insertInto('test').values({ gender: false }).execute()
+// use origin instance: Kysely or Transaction
+await db.kysely.insertInto('test').values({ gender: false }).execute()
 
 // run raw sql
-await builder.raw(sql`PRAGMA user_version = 2`)
+await db.execute(sql`PRAGMA user_version = ${2}`)
+await db.execute('PRAGMA user_version = ?', [2])
 
 // destroy
-await builder.destroy()
+await db.destroy()
 ```
 
 ### Precompile
 
-inspired by [kysely-params](https://github.com/jtlapp/kysely-params), optimized for sqlite
+inspired by [kysely-params](https://github.com/jtlapp/kysely-params)
 
 ```ts
-const select = builder.precompile<{ name: string }>()
+const select = db.precompile<{ name: string }>()
   .query((db, param) =>
     db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
@@ -112,10 +114,11 @@ const compileResult = select.compile({ name: 'test' })
 //   parameters: ['test'],
 //   query: { kind: 'SelectQueryNode' } // only node kind by default
 // }
+await db.execute(compileResult)
 select.dispose() // clear cached query
 
 // or auto disposed by using
-using selectWithUsing = builder.precompile<{ name: string }>()
+using selectWithUsing = db.precompile<{ name: string }>()
   .query((db, param) =>
     db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
@@ -128,7 +131,7 @@ import { SqliteDialect } from 'kysely'
 import Database from 'better-sqlite3'
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import { column, defineTable } from 'kysely-sqlite-builder/schema'
-import { SqliteBuilder, createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
+import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
 
 const softDeleteTable = defineTable({
   columns: {
@@ -141,34 +144,48 @@ const softDeleteTable = defineTable({
 const softDeleteSchema = {
   testSoftDelete: softDeleteTable,
 }
+const { executor, withNoDelete } = createSoftDeleteExecutor()
 
 const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
   dialect: new SqliteDialect({
     database: new Database(':memory:'),
   }),
-  // use soft delete
-  executorFn: createSoftDeleteExecutorFn(),
+  // use soft delete executor
+  executor,
 })
 
-await builder.executeTakeFirst(db => db.deleteFrom('testSoftDelete').where('id', '=', 1))
+await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
+```
+
+### Util
+
+```ts
+import { createSqliteBuilder } from 'kysely-sqlite-builder'
+
+const db = await createSqliteBuilder({
+  dialect,
+  schema: { test: testTable },
+  // other options
+})
 ```
 
 ### Pragma
 
 ```ts
+type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
 /**
  * check integrity_check pragma
  */
-function checkIntegrity(db: Executor): Promise<boolean>
+function checkIntegrity(db: KyselyInstance): Promise<boolean>
 /**
  * control whether to enable foreign keys, **no param check**
  */
-function foreignKeys(db: Executor, enable: boolean): Promise<void>
+function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void>
 /**
  * get or set user_version pragma, **no param check**
  */
-function getOrSetDBVersion(db: Executor, version?: number): Promise<number>
+function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number>
 
 type PragmaJournalMode = 'DELETE' | 'TRUNCATE' | 'PERSIST' | 'MEMORY' | 'WAL' | 'OFF'
 type PragmaTempStore = 0 | 'DEFAULT' | 1 | 'FILE' | 2 | 'MEMORY'
@@ -210,7 +227,16 @@ type OptimizePragmaOptions = {
  * @param db database connection
  * @param options pragma options, {@link OptimizePragmaOptions details}
  */
-function optimizePragma(db: Executor, options?: OptimizePragmaOptions): Promise<void>
+function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Promise<void>
+
+/**
+ * optimize db file
+ * @param db database connection
+ * @param rebuild if is true, run `vacuum` instead of `pragma optimize`
+ * @see https://sqlite.org/pragma.html#pragma_optimize
+ * @see https://www.sqlite.org/lang_vacuum.html
+ */
+function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
 ```
 
 ## License

@@ -1,29 +1,29 @@
 import type {
   Compilable,
+  DeleteQueryBuilder,
+  DeleteResult,
   Dialect,
   KyselyPlugin,
   QueryResult,
   RawBuilder,
   RootOperationNode,
-  SelectQueryBuilder,
-  Simplify,
   Transaction,
 } from 'kysely'
-import { CompiledQuery, Kysely, SelectQueryNode } from 'kysely'
+import { CompiledQuery, Kysely } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
+import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
 import { SerializePlugin, defaultSerializer } from './plugin'
 
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 
 import type {
-  AvailableBuilder,
   DBLogger,
   QueryBuilderOutput,
   StatusResult,
   TableUpdater,
 } from './types'
 import { type LoggerOptions, createKyselyLogger } from './logger'
-import { type SqliteExecutor, type SqliteExecutorFn, basicExecutorFn } from './executor'
+import { type Executor, type JoinFnName, baseExecutor } from './executor'
 import { savePoint } from './savepoint'
 
 export class IntegrityError extends Error {
@@ -32,7 +32,7 @@ export class IntegrityError extends Error {
   }
 }
 
-export interface SqliteBuilderOptions<T extends Record<string, any>, Extra extends Record<string, any>> {
+export interface SqliteBuilderOptions {
   dialect: Dialect
   /**
    * like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
@@ -65,7 +65,7 @@ export interface SqliteBuilderOptions<T extends Record<string, any>, Extra exten
    *   executorFn: softDeleteExecutorFn,
    * })
    */
-  executorFn?: SqliteExecutorFn<T, Extra>
+  executor?: Executor
 }
 
 interface TransactionOptions<T> {
@@ -82,7 +82,7 @@ interface TransactionOptions<T> {
 
 type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, any>> = {
   build: <O>(
-    queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
+    queryBuilder: (db: Kysely<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
   ) => {
     [Symbol.dispose]: VoidFunction
     dispose: VoidFunction
@@ -90,12 +90,12 @@ type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, 
   }
 }
 
-export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<string, any> = {}> {
+export class SqliteBuilder<DB extends Record<string, any>> {
   private _kysely: Kysely<DB>
   public trxCount = 0
   private trx?: Transaction<DB>
   private logger?: DBLogger
-  private executor: SqliteExecutor<DB, Extra>
+  private executor: Executor
   private serializer = defaultSerializer
 
   /**
@@ -105,24 +105,40 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     return this.trx || this._kysely
   }
 
+  public insertInto: Kysely<DB>['insertInto'] = tb => this.executor.insertInto(this.kysely, tb)
+  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.executor.selectFrom(this.kysely, tb)
+  public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.executor.updateTable(this.kysely, tb)
+  public deleteFrom: {
+    <TR extends keyof DB & string>(from: TR): Omit<
+      DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
+      JoinFnName
+    >
+    <TR extends TableReference<DB>>(table: TR): Omit<
+      DeleteQueryBuilder<From<DB, TR>, FromTables<DB, never, TR>, DeleteResult>,
+      JoinFnName
+    >
+  } = (tb: any) => this.executor.deleteFrom(this.kysely, tb) as any
+
   /**
    * sqlite builder
    * @param options options
    * @example
-   * import { SqliteDialect } from 'kysely'
-   * import { SqliteBuilder } from 'kysely-sqlite-builder'
+   * ### Definition
+   *
+   * ```ts
+   * import { FileMigrationProvider, SqliteDialect, createSoftDeleteExecutor } from 'kysely'
+   * import { SqliteBuilder, useMigrator } from 'kysely-sqlite-builder'
    * import Database from 'better-sqlite3'
    * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
-   * import { column, defineTable } from 'kysely-sqlite-builder/schema'
-   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
+   * import { DataType, column, defineTable } from 'kysely-sqlite-builder/schema'
    *
    * const testTable = defineTable({
    *   columns: {
    *     id: column.increments(),
    *     person: column.object({ defaultTo: { name: 'test' } }),
    *     gender: column.boolean({ notNull: true }),
-   *     // or
-   *     // gender: { type: 'boolean', notNull: true },
+   *     // or just object
+   *     manual: { type: DataType.boolean },
    *     array: column.object().$cast<string[]>(),
    *     literal: column.string().$cast<'l1' | 'l2'>(),
    *     buffer: column.blob(),
@@ -130,13 +146,14 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    *   primary: 'id',
    *   index: ['person', ['id', 'gender']],
    *   timeTrigger: { create: true, update: true },
-   *   // enable soft delete
-   *   softDelete: true,
    * })
    *
    * const DBSchema = {
    *   test: testTable,
    * }
+   *
+   * // create soft delete executor
+   * const { executor, withNoDelete } = createSoftDeleteExecutor()
    *
    * const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
    *   dialect: new SqliteDialect({
@@ -144,38 +161,47 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    *   }),
    *   logger: console,
    *   onQuery: true,
-   *   // use soft delete
-   *   executorFn: createSoftDeleteExecutorFn(),
+   *   executor, // use soft delete executor
    * })
-   * await builder.execute(db => db.insertInto('test').values({ person: { name: 'test' }, gender: true }))
    *
-   * builder.transaction(async (trx) => {
+   * // update table using schema
+   * await db.syncDB(useSchema(DBSchema, { logger: false }))
+   *
+   * // update table using migrator
+   * await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), { options}))
+   *
+   * // usage: insertInto / selectFrom / updateTable / deleteFrom
+   * await db.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
+   *
+   * db.transaction(async (trx) => {
    *   // auto load transaction
-   *   await builder.execute(db => db.insertInto('test').values({ gender: true }))
+   *   await db.insertInto('test').values({ gender: true }).execute()
    *   // or
-   *   // await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
-   *   builder.transaction(async () => {
+   *   await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
+   *   db.transaction(async () => {
    *     // nest transaction, use savepoint
-   *     await builder.execute(db => db.selectFrom('test').where('gender', '=', true))
+   *     await db.selectFrom('test').where('gender', '=', true).execute()
    *   })
    * })
    *
-   * // use origin instance
-   * await builder.kysely.insertInto('test').values({ gender: false }).execute()
+   * // use origin instance: Kysely or Transaction
+   * await db.kysely.insertInto('test').values({ gender: false }).execute()
    *
    * // run raw sql
-   * await builder.raw(sql`PRAGMA user_version = 2`)
+   * await db.execute(sql`PRAGMA user_version = ${2}`)
+   * await db.execute('PRAGMA user_version = ?', [2])
    *
    * // destroy
-   * await builder.destroy()
+   * await db.destroy()
+   * ```
    */
-  constructor(options: SqliteBuilderOptions<DB, Extra>) {
+  constructor(options: SqliteBuilderOptions) {
     const {
       dialect,
       logger,
       onQuery,
       plugins = [],
-      executorFn = basicExecutorFn<DB>,
+      executor = baseExecutor,
     } = options
     this.logger = logger
     plugins.push(new SerializePlugin())
@@ -191,7 +217,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     }
 
     this._kysely = new Kysely<DB>({ dialect, log, plugins })
-    this.executor = executorFn(() => this.kysely) as any
+    this.executor = executor
   }
 
   /**
@@ -233,9 +259,20 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
 
   /**
    * run in transaction, support nest call (using `savepoint`)
+   * @example
+   * db.transaction(async (trx) => {
+   *   // auto load transaction
+   *   await db.insertInto('test').values({ gender: true }).execute()
+   *   // or
+   *   await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
+   *   db.transaction(async () => {
+   *     // nest transaction, use savepoint
+   *     await db.selectFrom('test').where('gender', '=', true).execute()
+   *   })
+   * })
    */
   public async transaction<O>(
-    fn: (trx: SqliteExecutor<DB, Extra>) => Promise<O>,
+    fn: (trx: Transaction<DB>) => Promise<O>,
     options: TransactionOptions<O> = {},
   ): Promise<O | undefined> {
     if (!this.trx) {
@@ -243,7 +280,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
         .execute(async (trx) => {
           this.trx = trx
           this.logger?.debug('run in transaction')
-          return await fn(this.executor)
+          return await fn(trx)
         })
         .then(async (result) => {
           await options.onCommit?.(result)
@@ -261,7 +298,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     this.logger?.debug('run in savepoint: sp_' + this.trxCount)
     const { release, rollback } = await savePoint(this.kysely, 'sp_' + this.trxCount)
 
-    return await fn(this.executor)
+    return await fn(this.kysely as Transaction<DB>)
       .then(async (result) => {
         await release()
         await options.onCommit?.(result)
@@ -277,44 +314,41 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
   }
 
   /**
+   * execute raw sql, auto detect transaction
+   */
+  public async execute<O>(
+    rawSql: RawBuilder<O>,
+  ): Promise<QueryResult<O>>
+  /**
+   * execute sql string, auto detect transaction
+   */
+  public async execute<O>(
+    rawSql: string,
+    parameters?: unknown[]
+  ): Promise<QueryResult<O>>
+  /**
    * execute compiled query and return result list, auto detect transaction
    */
   public async execute<O>(
     query: CompiledQuery<O>,
   ): Promise<QueryResult<O>>
-  /**
-   * execute function and return result list, auto detect transaction
-   */
   public async execute<O>(
-    fn: (db: SqliteExecutor<DB, Extra>) => AvailableBuilder<DB, O>,
-  ): Promise<Simplify<O>[] | undefined>
-  public async execute<O>(
-    data: CompiledQuery<O> | ((db: SqliteExecutor<DB, Extra>) => AvailableBuilder<DB, O>),
-  ): Promise<QueryResult<O> | Simplify<O>[] | undefined> {
-    return typeof data === 'function'
-      ? await data(this.executor).execute()
-      : await this.kysely.executeQuery(data)
-  }
-
-  /**
-   * execute and return first result, auto detect transaction
-   *
-   * if is `select`, auto append `.limit(1)`
-   */
-  public async executeTakeFirst<O>(
-    fn: (db: SqliteExecutor<DB, Extra>) => AvailableBuilder<DB, O>,
-  ): Promise<Simplify<O> | undefined> {
-    let _sql = fn(this.executor)
-    if (SelectQueryNode.is(_sql.toOperationNode())) {
-      _sql = (_sql as SelectQueryBuilder<DB, any, any>).limit(1)
+    data: CompiledQuery<O> | RawBuilder<O> | string,
+    parameters?: unknown[],
+  ): Promise<QueryResult<O>> {
+    if (typeof data === 'string') {
+      return await this.kysely.executeQuery<O>(CompiledQuery.raw(data, parameters))
+    } else if ('sql' in data) {
+      return await this.kysely.executeQuery<O>(data)
+    } else {
+      return await data.execute(this.kysely)
     }
-    return await _sql.executeTakeFirst()
   }
 
   /**
    * precompile query, call it with different params later, design for better performance
    * @example
-   * const select = builder.precompile<{ name: string }>()
+   * const select = db.precompile<{ name: string }>()
    *   .query((db, param) =>
    *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
    *   )
@@ -327,7 +361,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
    * select.dispose() // clear cached query
    *
    * // or auto disposed by using
-   * using selectWithUsing = builder.precompile<{ name: string }>()
+   * using selectWithUsing = db.precompile<{ name: string }>()
    *   .query((db, param) =>
    *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
    *   )
@@ -338,7 +372,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
     this.logger?.debug?.('precompile')
     return {
       build: <O>(
-        queryBuilder: (db: SqliteExecutor<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
+        queryBuilder: (db: Kysely<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
       ) => {
         let compiled: CompiledQuery<Compilable<O>> | null
         const dispose = () => compiled = null
@@ -347,7 +381,7 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
           dispose,
           compile: (param: T) => {
             if (!compiled) {
-              const { query: node, ...data } = queryBuilder(this.executor, name => ('_P_' + name) as any).compile()
+              const { query: node, ...data } = queryBuilder(this.kysely, name => ('_P_' + name) as any).compile()
               compiled = { ...data, query: processRootOperatorNode(node) as any }
             }
             return {
@@ -361,38 +395,6 @@ export class SqliteBuilder<DB extends Record<string, any>, Extra extends Record<
         }
       },
     }
-  }
-
-  /**
-   * execute raw sql, auto detect transaction
-   */
-  public async raw<O = unknown>(
-    rawSql: RawBuilder<O>,
-  ): Promise<QueryResult<O | unknown>>
-  /**
-   * execute sql string, auto detect transaction
-   */
-  public async raw<O = unknown>(
-    rawSql: string,
-    parameters?: unknown[]
-  ): Promise<QueryResult<O | unknown>>
-  public async raw<O = unknown>(
-    rawSql: RawBuilder<O> | string,
-    parameters?: unknown[],
-  ): Promise<QueryResult<O | unknown>> {
-    return typeof rawSql === 'string'
-      ? await this.kysely.executeQuery(CompiledQuery.raw(rawSql, parameters))
-      : await rawSql.execute(this.kysely)
-  }
-
-  /**
-   * optimize db file
-   * @param rebuild if is true, run `vacuum` instead of `pragma optimize`
-   * @see https://sqlite.org/pragma.html#pragma_optimize
-   * @see https://www.sqlite.org/lang_vacuum.html
-   */
-  public async optimize(rebuild?: boolean) {
-    await this.raw(rebuild ? 'vacuum' : 'pragma optimize')
   }
 
   /**
