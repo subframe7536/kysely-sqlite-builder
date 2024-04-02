@@ -1,4 +1,4 @@
-import type { ColumnDataType, Kysely, Transaction } from 'kysely'
+import type { Kysely, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
 import {

@@ -40,8 +40,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "vitest --run",
-    "test:bench": "vitest bench",
+    "test": "bun test",
     "release": "pnpm test && pnpm run build && bumpp --all && npm publish"
   },
   "peerDependencies": {
@@ -50,7 +49,7 @@
   "devDependencies": {
     "@subframe7536/eslint-config": "^0.5.13",
     "@subframe7536/type-utils": "^0.1.6",
-    "@types/node": "^20.11.30",
+    "@types/bun": "^1.0.12",
     "bumpp": "^9.4.0",
     "eslint": "^8.57.0",
     "kysely": "^0.27.3",

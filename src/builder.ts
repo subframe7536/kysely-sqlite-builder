@@ -120,7 +120,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   } = (tb: any) => this.executor.deleteFrom(this.kysely, tb) as any
 
   /**
-   * sqlite builder
+   * sqlite builder. All methods will run in current transaction
    * @param options options
    * @example
    * ### Definition
@@ -314,20 +314,20 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   /**
-   * execute raw sql, auto detect transaction
+   * execute raw sql
    */
   public async execute<O>(
     rawSql: RawBuilder<O>,
   ): Promise<QueryResult<O>>
   /**
-   * execute sql string, auto detect transaction
+   * execute sql string
    */
   public async execute<O>(
     rawSql: string,
     parameters?: unknown[]
   ): Promise<QueryResult<O>>
   /**
-   * execute compiled query and return result list, auto detect transaction
+   * execute compiled query and return result list
    */
   public async execute<O>(
     query: CompiledQuery<O>,

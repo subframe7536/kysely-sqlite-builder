@@ -27,7 +27,7 @@ export type InferColumnTypeByNumber<T extends DataTypeValue> =
       T extends _DataType['int'] | _DataType['float'] ? number :
         T extends _DataType['increments'] ? Generated<number> :
           T extends _DataType['date'] ? Date :
-            T extends _DataType['blob'] ? ArrayBufferLike :
+            T extends _DataType['blob'] ? Uint8Array :
               T extends _DataType['object'] ? object :
                 never
 

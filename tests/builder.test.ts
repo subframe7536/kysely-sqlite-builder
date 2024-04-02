@@ -1,6 +1,6 @@
 import { Database } from 'node-sqlite3-wasm'
 import { NodeWasmDialect } from 'kysely-wasm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { SqliteBuilder, createSoftDeleteExecutor } from '../src'
 import type { InferDatabase } from '../src/schema'
 import { DataType, column, defineTable, useSchema } from '../src/schema'
