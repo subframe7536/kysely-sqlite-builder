@@ -41,7 +41,7 @@
   "scripts": {
     "build": "tsup",
     "test": "bun test",
-    "release": "pnpm test && pnpm run build && bumpp --all && npm publish"
+    "release": "bun test && bun run build && bumpp --all && npm publish"
   },
   "peerDependencies": {
     "kysely": "^0.27.3"

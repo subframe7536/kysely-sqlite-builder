@@ -161,12 +161,17 @@ await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 ### Util
 
 ```ts
-import { createSqliteBuilder } from 'kysely-sqlite-builder'
+import { createSoftDeleteSqliteBuilder, createSqliteBuilder } from 'kysely-sqlite-builder'
 
 const db = await createSqliteBuilder({
   dialect,
   schema: { test: testTable },
   // other options
+})
+
+const softDeleteDB = createSoftDeleteSqliteBuilder({
+  dialect,
+  schema: { test: testTable },
 })
 ```
 
