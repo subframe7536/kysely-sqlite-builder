@@ -169,7 +169,7 @@ const db = await createSqliteBuilder({
   // other options
 })
 
-const softDeleteDB = createSoftDeleteSqliteBuilder({
+const [softDeleteDB, withNoDelete] = createSoftDeleteSqliteBuilder({
   dialect,
   schema: { test: testTable },
 })
