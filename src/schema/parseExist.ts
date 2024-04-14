@@ -1,5 +1,4 @@
 import type { Kysely } from 'kysely'
-import { DEFAULT_MIGRATION_LOCK_TABLE, DEFAULT_MIGRATION_TABLE } from 'kysely'
 
 export type ParsedSchema = {
   existTables: ParsedTables
@@ -71,8 +70,6 @@ export async function parseExistDB(
   const tables = await db
     .selectFrom('sqlite_master')
     .where('type', 'in', ['table', 'trigger', 'index'])
-    .where('name', '!=', DEFAULT_MIGRATION_TABLE)
-    .where('name', '!=', DEFAULT_MIGRATION_LOCK_TABLE)
     .where('name', 'not like', 'sqlite_%')
     .$if(!!prefix.length, qb => qb.where(
       eb => eb.and(
