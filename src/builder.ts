@@ -13,7 +13,6 @@ import { CompiledQuery, Kysely } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
 import { SerializePlugin, defaultSerializer } from './plugin'
-
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 
 import type {
