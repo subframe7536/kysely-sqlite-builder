@@ -1,4 +1,4 @@
-import type { TransformOptions } from '.'
+import type { TransformOptions } from './plugin'
 
 const methodRegexWithSemicolon = (methodName: string, tail = '') => new RegExp(`${methodName}\\(([^)]*)\\) \\{[\\s\\S]*?;[\\s\\S]*?}${tail}`, 'gm')
 
@@ -6,13 +6,13 @@ const methodRegexWithoutSemicolon = (methodName: string) => new RegExp(`${method
 
 /**
  * trim kysely method or class names
- * - append -> _a
- * - create -> _c
- * - visit -> _v
- * - cloneWith -> _clw
- * - createWith -> _crw
- * - Wrapper -> _W
- * - BuilderImpl -> _BI
+ * - `append -> _a`
+ * - `create -> _c`
+ * - `visit -> _v`
+ * - `cloneWith -> _clw`
+ * - `createWith -> _crw`
+ * - `Wrapper -> _W`
+ * - `BuilderImpl -> _BI`
  */
 export function trimNames(code: string) {
   return code

@@ -244,6 +244,40 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
 ```
 
+## Unplugin
+
+v0.7.1 introduced a experimental plugin (using `unplugin`) to reduce the bundle size.
+
+**use at your own risk!**
+
+you need to install `unplugin` first (auto installed by peerDependencies)
+
+### Usage
+
+```ts
+import { defineConfig } from 'vite'
+import { plugin } from 'kysely-sqlite-builder/plugin'
+
+export default defineConfig({
+  plugins: [plugin.vite({ dropMigrator: true })],
+})
+```
+
+types:
+```ts
+export type TransformOptions = {
+  /**
+   * use dynamic node transformer, maybe impact performance
+   * @default true
+   */
+  useDynamicTransformer?: boolean
+  /**
+   * drop support of migrator, instropection and remove all props in adapter except `supportsReturning: true`
+   */
+  dropMigrator?: boolean
+}
+```
+
 ## License
 
 MIT
