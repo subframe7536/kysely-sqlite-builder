@@ -51,7 +51,7 @@ export function defineTable<
   const { columns, ...rest } = options
   const { timeTrigger: { create, update } = {}, softDelete } = rest
 
-  const triggerOptions = { type: 'date', defaultTo: TGR }
+  const triggerOptions = { type: DataType.date, defaultTo: TGR }
   if (create === true) {
     // @ts-expect-error assign
     columns.createAt = triggerOptions
@@ -68,7 +68,7 @@ export function defineTable<
     // @ts-expect-error assign
     columns[update] = { ...triggerOptions, notNull: true }
   }
-  const softDeleteOptions = { type: 'int', defaultTo: 0 }
+  const softDeleteOptions = { type: DataType.int, defaultTo: 0 }
   if (softDelete === true) {
     // @ts-expect-error assign
     columns.isDeleted = softDeleteOptions
