@@ -18,14 +18,15 @@ export type ParsedColumnProperty = {
   defaultTo?: any
 }
 
+const baseRegex = /create table (?:if not exist)?\s*"([^"]+)".*?\((.*)\)/i
+const columnRegex = /"([^"]+)"\s+(\w+)\s?(not null)?/gi
+
 /**
  * parse table object
  * @param definition create table sql
  * @todo support extra constraints
  */
 export function parseCreateTableSQL(definition: string): ParsedCreateTableSQL {
-  const baseRegex = /create table (?:if not exist)?\s*"([^"]+)".*?\((.*)\)/i
-  const columnRegex = /"([^"]+)"\s+(\w+)\s?(not null)?/gi
   const [, tableName, cols] = definition.replace(/\r?\n/g, '').match(baseRegex)!
 
   const ret: ParsedCreateTableSQL = {

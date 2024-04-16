@@ -1,6 +1,7 @@
-import type { Kysely, Transaction } from 'kysely'
+import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
+import { defaultSerializer } from '../plugin'
 import {
   type ColumnProperty,
   DataType,
@@ -45,12 +46,8 @@ export function parseArray<T>(arr: Arrayable<T>): [key: string, value: T[]] {
   return [value.reduce((a, b) => a + '_' + b, ''), value]
 }
 
-function isFunction(value: any): value is (...args: any) => any {
-  return typeof value === 'function'
-}
-
 export async function runDropTable(db: Kysely<any>, tableName: string) {
-  await db.schema.dropTable(tableName).execute()
+  await sql`drop table if exists ${sql.table(tableName)}`.execute(db)
 }
 
 export async function runCreateTableWithIndexAndTrigger(
@@ -63,6 +60,7 @@ export async function runCreateTableWithIndexAndTrigger(
   await runCreateTimeTrigger(trx, tableName, triggerOptions)
   await runCreateTableIndex(trx, tableName, index)
 }
+
 export async function runCreateTableIndex(
   trx: Transaction<any>,
   tableName: string,
@@ -71,11 +69,7 @@ export async function runCreateTableIndex(
   for (const i of index || []) {
     const [key, value] = parseArray(i)
 
-    await trx.schema.createIndex('idx_' + tableName + key)
-      .on(tableName)
-      .columns(value)
-      .ifNotExists()
-      .execute()
+    await sql`create index if not exists ${sql.ref('idx_' + tableName + key)} on ${sql.table(tableName)} (${sql.join(value.map(sql.ref))})`.execute(trx)
   }
 }
 
@@ -92,66 +86,57 @@ export async function runCreateTable(
     : undefined
 
   let _haveAutoKey = false
-  let tableSql = trx.schema.createTable(tableName)
+
+  const columnList: string[] = []
 
   for (const [columnName, columnProperty] of Object.entries(columns)) {
     const { type, notNull, defaultTo } = columnProperty as ColumnProperty
 
     const [dataType, isIncrements] = parseColumnType(type)
 
-    tableSql = tableSql.addColumn(columnName, dataType, (builder) => {
-      if (isIncrements) {
-        _haveAutoKey = true
-        if (_triggerOptions) {
-          _triggerOptions.triggerKey = columnName
-        }
-        return builder.autoIncrement().primaryKey()
+    if (isIncrements) {
+      _haveAutoKey = true
+      if (_triggerOptions) {
+        _triggerOptions.triggerKey = columnName
       }
-
+      columnList.push('"' + columnName + '" ' + dataType + ' primary key autoincrement')
+    } else if (
       // see hacks in `./define.ts`
       // time trigger column is default with TGR
-      if (defaultTo === TGR) {
-        // update trigger column is not null
-        // #hack to detect update column
-        if (_triggerOptions && notNull) {
-          _triggerOptions.update = columnName
-        }
-        // default with current_timestamp
-        return builder.defaultTo(sql`CURRENT_TIMESTAMP`)
+      defaultTo === TGR
+    ) {
+      // update trigger column is not null
+      // #hack to detect update column
+      if (_triggerOptions && notNull) {
+        _triggerOptions.update = columnName
       }
-
-      if (notNull === true) {
-        builder = builder.notNull()
-      }
-
+      // default with current_timestamp
+      columnList.push('"' + columnName + '" ' + dataType + ' default CURRENT_TIMESTAMP')
+    } else {
+      let _defaultTo
       if (defaultTo !== undefined) {
-        builder = builder.defaultTo(isFunction(defaultTo) ? defaultTo(sql) : defaultTo)
+        _defaultTo = (defaultTo && typeof defaultTo === 'object' && '$cast' in defaultTo)
+          ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
+          : defaultSerializer(defaultTo)
+        _defaultTo = typeof _defaultTo === 'string' ? '\'' + _defaultTo + '\'' : _defaultTo
       }
-
-      return builder
-    })
+      columnList.push('"' + columnName + '" ' + dataType + (notNull ? ' not null' : '') + (defaultTo !== undefined ? ' default ' + _defaultTo : ''))
+    }
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
 
   if (!_haveAutoKey && primary) {
     const [key, value] = parseArray(primary)
-    tableSql = tableSql.addPrimaryKeyConstraint(
-      'pk' + key,
-      value as any,
-    )
+    columnList.push('constraint pk' + key + ' primary key (' + value.map(v => '"' + v + '"') + ')')
   }
 
   for (const uk of unique || []) {
     const [key, value] = parseArray(uk)
-    tableSql = tableSql.addUniqueConstraint(
-      'uk' + key,
-      value as any,
-    )
+    columnList.push('constraint uk' + key + ' unique (' + value.map(v => '"' + v + '"') + ')')
   }
 
-  await tableSql.ifNotExists().execute()
-
+  await sql`create table if not exists ${sql.table(tableName)} (${sql.raw(columnList.join(', '))})`.execute(trx)
   return _triggerOptions
 }
 
@@ -187,5 +172,5 @@ export async function runRenameTable(
   tableName: string,
   newTableName: string,
 ) {
-  await trx.schema.alterTable(tableName).renameTo(newTableName).execute()
+  await sql`alter table ${sql.table(tableName)} rename to ${sql.table(newTableName)}`.execute(trx)
 }

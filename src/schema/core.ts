@@ -77,8 +77,8 @@ export async function syncTables<T extends Schema>(
   }
 
   const debug = (e: any) => log && logger?.debug(e)
-  const { existTables, indexList, triggerList } = await parseExistDB(db, excludeTablePrefix)
   debug('====== update tables start ======')
+  const { existTables, indexList, triggerList } = await parseExistDB(db, excludeTablePrefix)
 
   const truncateTableSet = new Set(
     Array.isArray(truncateIfExists)
@@ -92,16 +92,16 @@ export async function syncTables<T extends Schema>(
     .execute(async (trx) => {
       for (const idx of indexList) {
         await trx.schema.dropIndex(idx).ifExists().execute()
+        debug('drop index: ' + idx)
       }
+
       for (const tgr of triggerList) {
         await sql`drop trigger if exists ${sql.ref(tgr)}`.execute(trx)
+        debug('drop trigger: ' + tgr)
       }
 
       for (const [existTableName, existColumns] of Object.entries(existTables)) {
-        if (!(existTableName in targetTables)) {
-          debug('remove table: ' + existTableName)
-          await runDropTable(trx, existTableName)
-        } else {
+        if (existTableName in targetTables) {
           debug('diff table: ' + existTableName)
           try {
             await diffTable(trx, existTableName, existColumns, targetTables[existTableName])
@@ -109,6 +109,9 @@ export async function syncTables<T extends Schema>(
             logger?.error('fail to sync ' + existTableName, e as any)
             throw e
           }
+        } else {
+          debug('drop table: ' + existTableName)
+          await runDropTable(trx, existTableName)
         }
       }
 
