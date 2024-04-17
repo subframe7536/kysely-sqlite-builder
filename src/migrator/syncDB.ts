@@ -1,5 +1,5 @@
 import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } from 'kysely'
-import type { DBLogger, TableUpdater } from './types'
+import type { DBLogger, TableUpdater } from '../types'
 
 /**
  * use migrator to migrate to latest
@@ -30,4 +30,4 @@ export function useMigrator(
     return { ready: false as const, error }
   }
 }
-export type { DBLogger } from './types'
+export type { DBLogger } from '../types'

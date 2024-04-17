@@ -1,7 +1,6 @@
 export * from './builder'
 export * from './create'
 export * from './pragma'
-export * from './migrator'
 export * from './executor'
 export * from './logger'
 export * from './savepoint'

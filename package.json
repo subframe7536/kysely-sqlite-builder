@@ -21,6 +21,10 @@
       "import": "./dist/schema.js",
       "require": "./dist/schema.cjs"
     },
+    "./migrator": {
+      "import": "./dist/migrator.js",
+      "require": "./dist/migrator.cjs"
+    },
     "./plugin": {
       "import": "./dist/plugin.js",
       "require": "./dist/plugin.cjs"
@@ -32,6 +36,9 @@
     "*": {
       "schema": [
         "./dist/schema.d.ts"
+      ],
+      "migrator": [
+        "./dist/migrator.d.ts"
       ],
       "plugin": [
         "./dist/plugin.d.ts"
