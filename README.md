@@ -31,7 +31,8 @@ For normal usage, you can just use official `SqliteDialect` with `better-sqlite3
 
 ```ts
 import { FileMigrationProvider, SqliteDialect } from 'kysely'
-import { SqliteBuilder, useMigrator } from 'kysely-sqlite-builder'
+import { SqliteBuilder } from 'kysely-sqlite-builder'
+import { useMigrator } from 'kysely-sqlite-builder/migrator'
 import Database from 'better-sqlite3'
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import { DataType, column, defineTable } from 'kysely-sqlite-builder/schema'

@@ -14,7 +14,6 @@ import type { Promisable } from '@subframe7536/type-utils'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
 import { SerializePlugin, defaultSerializer } from './plugin'
 import { checkIntegrity as runCheckIntegrity } from './pragma'
-
 import type {
   DBLogger,
   QueryBuilderOutput,
@@ -126,7 +125,8 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    *
    * ```ts
    * import { FileMigrationProvider, SqliteDialect, createSoftDeleteExecutor } from 'kysely'
-   * import { SqliteBuilder, useMigrator } from 'kysely-sqlite-builder'
+   * import { SqliteBuilder } from 'kysely-sqlite-builder'
+   * import { useMigrator } from 'kysely-sqlite-builder/migrator'
    * import Database from 'better-sqlite3'
    * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
    * import { DataType, column, defineTable } from 'kysely-sqlite-builder/schema'

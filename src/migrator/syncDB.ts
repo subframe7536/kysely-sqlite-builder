@@ -6,7 +6,6 @@ import type { DBLogger, TableUpdater } from '../types'
  * @param provider migration provider
  * @param options migrator options
  */
-
 export function useMigrator(
   provider: MigrationProvider,
   options?: Omit<MigratorProps, 'db' | 'provider'>,
