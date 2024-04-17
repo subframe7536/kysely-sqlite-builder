@@ -23,14 +23,14 @@ export const TGR = '_T_'
  *
  * @example
  * const testTable = defineTable({
- *   id: Column.Increments(),
+ *   id: column.increments(),
  *   // or just object
  *   simple: { type: 'string', defaultTo: 'test' }
- *   person: Column.Object({ name: 'test' }),
- *   gender: Column.Boolean().NotNull(),
- *   array: Column.Object<string[]>(),
- *   literal: Column.String<'l1' | 'l2'>(),
- *   buffer: Column.Blob(),
+ *   person: column.object({ name: 'test' }),
+ *   gender: column.boolean().NotNull(),
+ *   array: column.object<string[]>(),
+ *   literal: column.string<'l1' | 'l2'>(),
+ *   buffer: column.blob(),
  * }, {
  *   primary: 'id',
  *   index: ['person', ['id', 'gender']],
@@ -43,10 +43,12 @@ export function defineTable<
   U extends string | true | null = null,
   D extends string | true | null = null,
 >(
-  options: { columns: T } & Omit<TableProperty<T>, 'timeTrigger' | 'softDelete'> & {
-    timeTrigger?: TimeTriggerOptions<C, U>
-    softDelete?: D
-  },
+  options: {
+    /**
+     * table columns
+     */
+    columns: T
+  } & TableProperty<T, C, U, D>,
 ): Table<T, C, U, D> {
   const { columns, ...rest } = options
   const { timeTrigger: { create, update } = {}, softDelete } = rest

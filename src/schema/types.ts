@@ -66,10 +66,25 @@ export type TableProperty<
   Update extends string | true | null = null,
   Delete extends string | true | null = null,
 > = {
+  /**
+   * primary key constraint, only if have no `column.increments()` key
+   */
   primary?: Arrayable<keyof Cols & string>
+  /**
+   * unique constraint
+   */
   unique?: Arrayable<keyof Cols & string>[]
+  /**
+   * column indexes, allow multiple, no unique index support
+   */
   index?: Arrayable<keyof Cols & string>[]
+  /**
+   * time trigger for `createAt` and `updateAt`
+   */
   timeTrigger?: TimeTriggerOptions<Create, Update>
+  /**
+   * whether to use soft delete
+   */
   softDelete?: Delete
 }
 
