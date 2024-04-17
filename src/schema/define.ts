@@ -10,7 +10,6 @@ import {
   type InferColumnTypeByNumber,
   type Table,
   type TableProperty,
-  type TimeTriggerOptions,
   type _DataType,
 } from './types'
 
