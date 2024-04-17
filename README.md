@@ -249,6 +249,8 @@ function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResul
 
 v0.7.1 introduced a experimental plugin (using `unplugin`) to reduce the bundle size.
 
+About 35% of the minified bundle size is reduced when turn on all options.
+
 **use at your own risk!**
 
 you need to install `unplugin` first (auto installed by peerDependencies)
@@ -273,13 +275,9 @@ export type TransformOptions = {
    */
   useDynamicTransformer?: boolean
   /**
-   * drop support of `migrator`, `instropection` and remove all props in `adapter` except `supportsReturning: true`
+   * drop support of `migrator`, `instropection`, `schema` and remove all props in `adapter` except `supportsReturning: true`
    */
   dropMigrator?: boolean
-  /**
-   * drop support of `schema`
-   */
-  dropSchema?: boolean
 }
 ```
 

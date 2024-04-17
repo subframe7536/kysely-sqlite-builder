@@ -49,11 +49,8 @@ export function transformKyselyCode(code: string, id: string, options: Transform
   get supportsReturning() {
     return true;
   }
-}`
+  }`
     }
-  }
-
-  if (options.dropSchema) {
     if (id.includes('expression-builder')) {
       code = code.replace(/withSchema\(.*?\) \{[\s\S]*?\},/m, '')
     } else if (id.includes('kysely.js') || id.includes('query-creator')) {
