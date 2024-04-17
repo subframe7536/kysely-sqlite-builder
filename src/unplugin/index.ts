@@ -1,2 +1,2 @@
 export * from './plugin'
-export { trimNames } from './transform'
+export { trimNames, removeVisitSchema } from './transform'

@@ -11,6 +11,10 @@ export type TransformOptions = {
    * drop support of `migrator`, `instropection` and remove all props in `adapter` except `supportsReturning: true`
    */
   dropMigrator?: boolean
+  /**
+   * drop support of `schema`
+   */
+  dropSchema?: boolean
 }
 
 /**

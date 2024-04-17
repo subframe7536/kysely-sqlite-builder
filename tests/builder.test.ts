@@ -44,7 +44,7 @@ function getDatabaseBuilder(debug = false) {
         await optimizePragma(connection)
       },
     }),
-    logger: debug ? console : undefined,
+    logger: console,
     onQuery: debug,
   })
 }
@@ -65,7 +65,7 @@ describe('test sync table', async () => {
     await db.syncDB(useSchema({
       ...baseTables,
       foo,
-    }, { log: false }))
+    }, { log: true }))
 
     const _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(3)
@@ -74,7 +74,7 @@ describe('test sync table', async () => {
     expect(_tables[2].name).toBe('test')
   })
   it('should drop old table', async () => {
-    await db.syncDB(useSchema({ }, { log: false }))
+    await db.syncDB(useSchema({ }, { log: true }))
 
     const _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(0)
@@ -92,7 +92,7 @@ describe('test sync table', async () => {
       primary: 'id',
       timeTrigger: { create: true, update: true },
     })
-    await db.syncDB(useSchema({ test: foo }, { log: false }))
+    await db.syncDB(useSchema({ test: foo }, { log: true }))
     const [_tables] = await db.kysely.introspection.getTables()
     expect(_tables
       .columns

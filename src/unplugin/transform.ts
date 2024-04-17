@@ -25,7 +25,55 @@ export function trimNames(code: string) {
     .replace(/BuilderImpl/g, '_BI')
 }
 
+export function removeVisitSchema(code: string) {
+  return code
+    .replace(/visitCreateTable[\s\S]*(?=visitList)/m, '')
+    .replace(/visitAlterTable[\s\S]*(?=visitSetOperation)/m, '')
+    .replace(/visitCreateView[\s\S]*(?=visitGenerated)/m, '')
+    .replace(/visitCreateType[\s\S]*(?=visitExplain)/m, '')
+}
+
 export function transformKyselyCode(code: string, id: string, options: TransformOptions) {
+  if (options.dropMigrator) {
+    if (id.includes('migration')) {
+      return ';'
+    }
+    if (id.includes('kysely.js')) {
+      code = code.replace(/get introspection\(\) \{[\s\S]*?\}/m, '')
+    }
+    if (id.includes('sqlite-introspector')) {
+      return 'export class SqliteIntrospector {}'
+    }
+    if (id.includes('sqlite-adapter')) {
+      return `export class SqliteAdapter {
+  get supportsReturning() {
+    return true;
+  }
+}`
+    }
+  }
+
+  if (options.dropSchema) {
+    if (id.includes('expression-builder')) {
+      code = code.replace(/withSchema\(.*?\) \{[\s\S]*?\},/m, '')
+    } else if (id.includes('kysely.js') || id.includes('query-creator')) {
+      code = code
+        .replace(methodRegexWithSemicolon('withSchema'), '')
+        .replace(/get schema\(\) \{[\s\S]*?\}/gm, '')
+    } else if (
+      id.includes('create-view-node')
+      || id.includes('create-table-node')
+    ) {
+      return ';'
+    } else if (id.includes('default-query-compiler')) {
+      code = removeVisitSchema(
+        code
+          .replace('!CreateTableNode.is(this.parentNode) &&', '')
+          .replace('!CreateViewNode.is(this.parentNode) &&', ''),
+      )
+    }
+  }
+
   if (
     id.includes('prevent-await')
     || id.includes('require-all-props')
@@ -125,25 +173,6 @@ export function transformKyselyCode(code: string, id: string, options: Transform
   }
   if (id.includes('query-executor-base')) {
     code = code.replace('warnOfOutdatedDriverOrPlugins(result, transformedResult);', '')
-  }
-
-  if (options.dropMigrator) {
-    if (id.includes('migration')) {
-      return ';'
-    }
-    if (id.includes('kysely.js')) {
-      code = code.replace(/get introspection\(\) \{[\s\S]*?\}/m, '')
-    }
-    if (id.includes('sqlite-introspector')) {
-      return 'export class SqliteIntrospector {}'
-    }
-    if (id.includes('sqlite-adapter')) {
-      return `export class SqliteAdapter {
-  get supportsReturning() {
-    return true;
-  }
-}`
-    }
   }
 
   return trimNames(
