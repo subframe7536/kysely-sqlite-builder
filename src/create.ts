@@ -33,6 +33,7 @@ export async function createSqliteBuilder<T extends Schema>(
   return builder
 }
 
+// todo)) add type check
 export async function createSoftDeleteSqliteBuilder<T extends Schema>(
   options: Omit<CreateSqliteBuilderOptions<T>, 'executor'>,
 ): Promise<[
