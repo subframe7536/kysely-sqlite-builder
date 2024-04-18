@@ -36,7 +36,7 @@ export type SyncOptions<T extends Schema> = {
   /**
    * exclude table prefix list, append with `%`
    *
-   * `sqlite_%` and default Kysely migration table is built-in
+   * `sqlite_%` by default
    */
   excludeTablePrefix?: string[]
   /**
@@ -76,8 +76,8 @@ export async function syncTables<T extends Schema>(
     await getOrSetDBVersion(db, current)
   }
 
-  const debug = (e: any) => log && logger?.debug(e)
-  debug('====== update tables start ======')
+  const debug = (e: string) => log && logger?.debug('[ schema sync ] ' + e)
+  debug('======== update tables start ========')
   const { existTables, indexList, triggerList } = await parseExistDB(db, excludeTablePrefix)
 
   const truncateTableSet = new Set(
@@ -117,7 +117,7 @@ export async function syncTables<T extends Schema>(
 
       for (const [targetTableName, targetTable] of Object.entries(targetTables)) {
         if (!(targetTableName in existTables)) {
-          debug('create table: ' + targetTableName)
+          debug('create table with index and trigger: ' + targetTableName)
           await runCreateTableWithIndexAndTrigger(trx, targetTableName, targetTable)
         }
       }
@@ -129,7 +129,7 @@ export async function syncTables<T extends Schema>(
     })
     .catch((e) => {
       onSyncFail?.(e)
-      debug('======= update tables fail =======')
+      debug('======== update tables fail =========')
       return { ready: false, error: e }
     })
 
@@ -142,7 +142,7 @@ export async function syncTables<T extends Schema>(
     if (truncateTableSet.has(tableName)) {
       await runDropTable(trx, tableName)
       await runCreateTableWithIndexAndTrigger(trx, tableName, targetColumns)
-      debug('clear and sync structure')
+      debug('clear and sync structure for table "' + tableName + '"')
       return
     }
     const { index, ...props } = targetColumns
@@ -151,14 +151,14 @@ export async function syncTables<T extends Schema>(
 
     // if all columns are in same table structure, skip
     if (restoreColumnList.length === Object.keys(existColumns.columns).length) {
-      debug('same table structure, skip')
+      debug('same table structure, skip table "' + tableName + '"')
       return
     }
     //
     // migrate table data
     // see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
     //
-    debug('different table structure, update')
+    debug('different table structure, update table "' + tableName + '"')
     const tempTableName = '_temp_' + tableName
 
     // 1. create target table with temp name

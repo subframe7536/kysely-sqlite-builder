@@ -11,14 +11,24 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       return ';'
     }
     if (id.includes('sqlite-introspector')) {
-      return 'export class SqliteIntrospector {}'
+      return {
+        code: 'export class SqliteIntrospector {}',
+        map: 'export class SqliteIntrospector {}',
+      }
     }
     if (id.includes('sqlite-adapter')) {
-      return `export class SqliteAdapter {
-        get supportsReturning() {
-          return true;
-        }
-    }`
+      return {
+        code: `export class SqliteAdapter {
+    get supportsReturning() {
+      return true;
+    }
+}`,
+        map: `export class SqliteAdapter {
+    get supportsReturning() {
+      return true;
+    }
+}`,
+      }
     }
     if (id.includes('kysely.js')) {
       _code.replace(/get introspection\(\) \{[\s\S]*?\}/m, '')

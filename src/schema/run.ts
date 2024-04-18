@@ -1,6 +1,6 @@
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
-import type { Arrayable } from '@subframe7536/type-utils'
+import type { AnyFunction, Arrayable } from '@subframe7536/type-utils'
 import { defaultSerializer } from '../plugin'
 import {
   type ColumnProperty,
@@ -157,14 +157,7 @@ export async function runCreateTimeTrigger(
     return
   }
   const triggerName = 'tgr_' + tableName + '_' + options.update
-  await sql`create trigger if not exists ${sql.ref(triggerName)}
-after update
-on ${sql.table(tableName)}
-begin
-  update ${sql.table(tableName)}
-  set ${sql.ref(options.update)} = CURRENT_TIMESTAMP
-  where ${sql.ref(options.triggerKey)} = NEW.${sql.ref(options.triggerKey)};
-end`.execute(trx)
+  await sql`create trigger if not exists ${sql.ref(triggerName)} after update on ${sql.table(tableName)} begin   update ${sql.table(tableName)} set ${sql.ref(options.update)} = CURRENT_TIMESTAMP where ${sql.ref(options.triggerKey)} = NEW.${sql.ref(options.triggerKey)}; end`.execute(trx)
 }
 
 export async function runRenameTable(
