@@ -105,7 +105,9 @@ await db.destroy()
 inspired by [kysely-params](https://github.com/jtlapp/kysely-params)
 
 ```ts
-const select = db.precompile<{ name: string }>()
+import { precompile } from 'kysely-sqlite-builder'
+
+const select = precompile<{ name: string }>()
   .query(param =>
     db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )

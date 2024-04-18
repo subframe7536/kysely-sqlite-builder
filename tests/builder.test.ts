@@ -1,7 +1,7 @@
 import { Database } from 'node-sqlite3-wasm'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { SqliteBuilder, createSoftDeleteExecutor } from '../src'
+import { SqliteBuilder, createSoftDeleteExecutor, precompile } from '../src'
 import type { InferDatabase } from '../src/schema'
 import { DataType, column, defineTable, useSchema } from '../src/schema'
 import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
@@ -147,15 +147,15 @@ describe('test builder', async () => {
     expect(result2!.updateAt).toBeInstanceOf(Date)
   })
   it('should precompile', async () => {
-    const select = db.precompile<{ person: { name: string }, test?: 'asd' }>()
+    const select = precompile<{ person: { name: string }, test?: 'asd' }>()
       .build(param =>
         db.selectFrom('test').selectAll().where('person', '=', param('person')),
       )
-    const insert = db.precompile<{ gender: boolean }>()
+    const insert = precompile<{ gender: boolean }>()
       .build(param =>
         db.insertInto('test').values({ gender: param('gender') }),
       )
-    const update = db.precompile<{ gender: boolean }>()
+    const update = precompile<{ gender: boolean }>()
       .build(param =>
         db.updateTable('test').set({ gender: param('gender') }).where('id', '=', 1),
       )

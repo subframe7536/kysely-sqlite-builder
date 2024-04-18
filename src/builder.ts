@@ -1,12 +1,10 @@
 import type {
-  Compilable,
   DeleteQueryBuilder,
   DeleteResult,
   Dialect,
   KyselyPlugin,
   QueryResult,
   RawBuilder,
-  RootOperationNode,
   Transaction,
 } from 'kysely'
 import { CompiledQuery, Kysely } from 'kysely'
@@ -16,7 +14,6 @@ import { SerializePlugin, defaultSerializer } from './plugin'
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 import type {
   DBLogger,
-  QueryBuilderOutput,
   StatusResult,
   TableUpdater,
 } from './types'
@@ -76,16 +73,6 @@ interface TransactionOptions<T> {
    * after rollback hook
    */
   onRollback?: (err: unknown) => Promisable<void>
-}
-
-type PrecompileBuilder<T extends Record<string, any>> = {
-  build: <O>(
-    queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
-  ) => {
-    [Symbol.dispose]: VoidFunction
-    dispose: VoidFunction
-    compile: (param: T) => CompiledQuery<QueryBuilderOutput<Compilable<O>>>
-  }
 }
 
 export class SqliteBuilder<DB extends Record<string, any>> {
@@ -341,58 +328,6 @@ export class SqliteBuilder<DB extends Record<string, any>> {
       return await this.kysely.executeQuery<O>(data)
     } else {
       return await data.execute(this.kysely)
-    }
-  }
-
-  /**
-   * precompile query, call it with different params later, design for better performance
-   * @example
-   * const select = db.precompile<{ name: string }>()
-   *   .query(param =>
-   *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
-   *   )
-   * const compileResult = select.compile({ name: 'test' })
-   * // {
-   * //   sql: 'select * from "test" where "name" = ?',
-   * //   parameters: ['test'],
-   * //   query: { kind: 'SelectQueryNode' } // only node kind by default
-   * // }
-   * select.dispose() // clear cached query
-   *
-   * // or auto disposed by using
-   * using selectWithUsing = db.precompile<{ name: string }>()
-   *   .query((db, param) =>
-   *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
-   *   )
-   */
-  public precompile<T extends Record<string, any>>(
-    processRootOperatorNode: (node: RootOperationNode) => RootOperationNode = v => ({ kind: v.kind }) as any,
-  ): PrecompileBuilder<T> {
-    this.logger?.debug?.('precompile')
-    return {
-      build: <O>(
-        queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
-      ) => {
-        let compiled: CompiledQuery<Compilable<O>> | null
-        const dispose = () => compiled = null
-        return {
-          [Symbol.dispose]: dispose,
-          dispose,
-          compile: (param: T) => {
-            if (!compiled) {
-              const { query: node, ...data } = queryBuilder(name => ('_P_' + name) as any).compile()
-              compiled = { ...data, query: processRootOperatorNode(node) as any }
-            }
-            return {
-              ...compiled,
-              parameters: compiled.parameters.map((p) => {
-                const key = (typeof p === 'string' && p.startsWith('_P_')) ? p.substring(3) : undefined
-                return key ? this.serializer(param[key]) : p
-              }),
-            }
-          },
-        }
-      },
     }
   }
 
