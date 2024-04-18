@@ -10,13 +10,14 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
   - infer tables type
   - auto migration
   - auto generate `createAt` and `updateAt`
-  - auto generate soft delete
+  - auto soft delete
 - auto serialize / deserialize
-- precompile querys
+- precompile query
 - page query
 - auto nest transaction (using `savepoint`) and hooks
 - enhanced logger
 - typesafe SQLite3 pragma
+- treeshake plugin for various bundlers
 
 ## Usage
 
