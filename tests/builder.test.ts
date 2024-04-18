@@ -60,6 +60,9 @@ describe('test sync table', async () => {
         col1: { type: DataType.increments },
         col2: { type: DataType.string },
       },
+      index: ['col2'],
+      timeTrigger: { create: true, update: true },
+      unique: ['col2'],
     })
 
     await db.syncDB(useSchema({
@@ -145,15 +148,15 @@ describe('test builder', async () => {
   })
   it('should precompile', async () => {
     const select = db.precompile<{ person: { name: string }, test?: 'asd' }>()
-      .build((db, param) =>
+      .build(param =>
         db.selectFrom('test').selectAll().where('person', '=', param('person')),
       )
     const insert = db.precompile<{ gender: boolean }>()
-      .build((db, param) =>
+      .build(param =>
         db.insertInto('test').values({ gender: param('gender') }),
       )
     const update = db.precompile<{ gender: boolean }>()
-      .build((db, param) =>
+      .build(param =>
         db.updateTable('test').set({ gender: param('gender') }).where('id', '=', 1),
       )
 

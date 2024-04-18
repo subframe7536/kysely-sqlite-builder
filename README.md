@@ -106,7 +106,7 @@ inspired by [kysely-params](https://github.com/jtlapp/kysely-params)
 
 ```ts
 const select = db.precompile<{ name: string }>()
-  .query((db, param) =>
+  .query(param =>
     db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
 const compileResult = select.compile({ name: 'test' })

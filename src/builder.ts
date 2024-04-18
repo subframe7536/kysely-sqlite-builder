@@ -78,9 +78,9 @@ interface TransactionOptions<T> {
   onRollback?: (err: unknown) => Promisable<void>
 }
 
-type PrecompileBuilder<DB extends Record<string, any>, T extends Record<string, any>> = {
+type PrecompileBuilder<T extends Record<string, any>> = {
   build: <O>(
-    queryBuilder: (db: Kysely<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
+    queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>
   ) => {
     [Symbol.dispose]: VoidFunction
     dispose: VoidFunction
@@ -348,7 +348,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * precompile query, call it with different params later, design for better performance
    * @example
    * const select = db.precompile<{ name: string }>()
-   *   .query((db, param) =>
+   *   .query(param =>
    *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
    *   )
    * const compileResult = select.compile({ name: 'test' })
@@ -367,11 +367,11 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    */
   public precompile<T extends Record<string, any>>(
     processRootOperatorNode: (node: RootOperationNode) => RootOperationNode = v => ({ kind: v.kind }) as any,
-  ): PrecompileBuilder<DB, T> {
+  ): PrecompileBuilder<T> {
     this.logger?.debug?.('precompile')
     return {
       build: <O>(
-        queryBuilder: (db: Kysely<DB>, param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
+        queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
       ) => {
         let compiled: CompiledQuery<Compilable<O>> | null
         const dispose = () => compiled = null
@@ -380,7 +380,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
           dispose,
           compile: (param: T) => {
             if (!compiled) {
-              const { query: node, ...data } = queryBuilder(this.kysely, name => ('_P_' + name) as any).compile()
+              const { query: node, ...data } = queryBuilder(name => ('_P_' + name) as any).compile()
               compiled = { ...data, query: processRootOperatorNode(node) as any }
             }
             return {
