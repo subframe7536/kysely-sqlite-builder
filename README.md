@@ -166,12 +166,14 @@ await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 
 page query, using offset
 
+if num <= 0 or size <= 0, return all records
+
 inspired by Mybatis-Plus PaginationInnerInterceptor
 
 ```ts
 import { pageQuery } from 'kysely-sqlite-builder'
 
-const page = await pageQuery(db.selectFrom('test').selectAll(), { page: 1, pageSize: 10 })
+const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10 })
 // {
 //   total: 100,
 //   current: 1,

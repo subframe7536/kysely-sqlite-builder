@@ -256,6 +256,16 @@ describe('test builder', async () => {
 
     const newPages = page3.convertRecords(r => r.literal)
     expect(newPages.records).toStrictEqual(['l8', 'l9'])
+
+    const page4 = await pageQuery(qb, { num: 4, size: 4 })
+    expect(page4.total).toBe(10)
+    expect(page4.current).toBe(4)
+    expect(page4.size).toBe(0)
+
+    const page5 = await pageQuery(qb, { num: 0, size: -1 })
+    expect(page5.total).toBe(10)
+    expect(page5.current).toBe(0)
+    expect(page5.size).toBe(10)
   })
 })
 

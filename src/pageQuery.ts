@@ -57,15 +57,15 @@ export type PaginationResult<O> = {
 
 /**
  * page query, using offset
+ *
+ * if `num <= 0` or `size <= 0`, return all records
  * @param qb select query builder
  * @param options page options
  * @example
- * inspired by Mybatis-Plus PaginationInnerInterceptor
- *
  * ```ts
  * import { pageQuery } from 'kysely-sqlite-builder'
  *
- * const page = await pageQuery(db.selectFrom('test').selectAll(), { page: 1, pageSize: 10 })
+ * const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10 })
  * // {
  * //   total: 100,
  * //   current: 1,
@@ -84,6 +84,8 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
   options: PageOptions<DB, TB>,
 ): Promise<PaginationResult<O>> {
   const { num, size, asc = [], desc = [] } = options
+  const _num = ~~num
+  const _size = ~~size
   const records = await qb
     .$call((qb1) => {
       for (const _a of asc) {
@@ -94,8 +96,7 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
       }
       return qb1
     })
-    .limit(size)
-    .offset((num - 1) * size)
+    .$if(_size > 0 && _num > 0, qb1 => qb1.offset((_num - 1) * _size).limit(_size))
     .execute() as O[]
   // @ts-expect-error have total
   const { total } = await qb
@@ -107,11 +108,11 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
 
   const data = {
     total,
-    pages: ~~(total / size) + 1,
+    pages: ~~(total / _size) + 1,
     size: records.length,
-    current: num,
-    hasPrevPage: num > 1,
-    hasNextPage: num * size < total,
+    current: _num,
+    hasPrevPage: _num > 1,
+    hasNextPage: _num * _size < total,
   }
   return {
     ...data,
