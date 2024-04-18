@@ -13,6 +13,7 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
   - auto generate soft delete
 - auto serialize / deserialize
 - precompile querys
+- page query
 - auto nest transaction (using `savepoint`) and hooks
 - enhanced logger
 - typesafe SQLite3 pragma
@@ -159,6 +160,29 @@ const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
 
 await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
+```
+
+### Page query
+
+page query, using offset
+
+inspired by Mybatis-Plus PaginationInnerInterceptor
+
+```ts
+import { pageQuery } from 'kysely-sqlite-builder'
+
+const page = await pageQuery(db.selectFrom('test').selectAll(), { page: 1, pageSize: 10 })
+// {
+//   total: 100,
+//   current: 1,
+//   size: 10,
+//   records: [...],
+//   pages: 10
+//   hasPrevPage: false,
+//   hasNextPage: true,
+//   convertRecords: () => {...},
+// }
+console.log(page.convertRecords(p => p.literal).records)
 ```
 
 ### Util

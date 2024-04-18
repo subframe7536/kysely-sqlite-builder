@@ -55,6 +55,30 @@ export type PaginationResult<O> = {
   convertRecords: <T>(fn: (records: O) => T) => Omit<PaginationResult<T>, 'convertRecords'>
 }
 
+/**
+ * page query, using offset
+ * @param qb select query builder
+ * @param options page options
+ * @example
+ * inspired by Mybatis-Plus PaginationInnerInterceptor
+ *
+ * ```ts
+ * import { pageQuery } from 'kysely-sqlite-builder'
+ *
+ * const page = await pageQuery(db.selectFrom('test').selectAll(), { page: 1, pageSize: 10 })
+ * // {
+ * //   total: 100,
+ * //   current: 1,
+ * //   size: 10,
+ * //   records: [...],
+ * //   pages: 10
+ * //   hasPrevPage: false,
+ * //   hasNextPage: true,
+ * //   convertRecords: () => {...},
+ * // }
+ * console.log(page.convertRecords(p => p.literal).records)
+ * ```
+ */
 export async function pageQuery<O, DB extends Record<string, any>, TB extends keyof DB>(
   qb: SelectQueryBuilder<DB, TB, O>,
   options: PageOptions<DB, TB>,
