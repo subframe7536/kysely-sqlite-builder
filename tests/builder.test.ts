@@ -1,7 +1,7 @@
 import { Database } from 'node-sqlite3-wasm'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { SqliteBuilder, createSoftDeleteExecutor, precompile } from '../src'
+import { SqliteBuilder, createSoftDeleteExecutor, pageQuery, precompile } from '../src'
 import type { InferDatabase } from '../src/schema'
 import { DataType, column, defineTable, useSchema } from '../src/schema'
 import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
@@ -12,7 +12,7 @@ const testTable = defineTable({
     person: column.object({ defaultTo: { name: 'test' } }),
     gender: column.boolean({ notNull: true }),
     array: column.object().$cast<string[]>(),
-    literal: column.string().$cast<'l1' | 'l2'>(),
+    literal: column.string().$cast<'l1' | 'l2' | string & {}>(),
   },
   primary: 'id',
   index: ['person', ['id', 'gender']],
@@ -215,6 +215,47 @@ describe('test builder', async () => {
 
     const updateResult = await db.updateTable('testSoftDelete').set({ name: 'test' }).where('id', '=', 1).executeTakeFirst()
     expect(updateResult?.numUpdatedRows).toBe(0n)
+  })
+
+  it('should paginate', async () => {
+    const db = getDatabaseBuilder()
+    await db.syncDB(useSchema(baseTables))
+    for (let i = 0; i < 10; i++) {
+      await db.insertInto('test').values({ gender: true, literal: 'l' + i }).execute()
+    }
+    const qb = db.selectFrom('test').selectAll()
+    const page1 = await pageQuery(qb, { num: 1, size: 4 })
+    expect(page1.total).toBe(10)
+    expect(page1.current).toBe(1)
+    expect(page1.size).toBe(4)
+    expect(page1.records[0].literal).toBe('l0')
+    expect(page1.records[3].literal).toBe('l3')
+    expect(page1.hasPrevPage).toBe(false)
+    expect(page1.hasNextPage).toBe(true)
+    expect(page1.pages).toBe(3)
+
+    const page2 = await pageQuery(qb, { num: 2, size: 4 })
+    expect(page2.total).toBe(10)
+    expect(page2.current).toBe(2)
+    expect(page2.size).toBe(4)
+    expect(page2.records[0].literal).toBe('l4')
+    expect(page2.records[3].literal).toBe('l7')
+    expect(page2.hasPrevPage).toBe(true)
+    expect(page2.hasNextPage).toBe(true)
+    expect(page2.pages).toBe(3)
+
+    const page3 = await pageQuery(qb, { num: 3, size: 4 })
+    expect(page3.total).toBe(10)
+    expect(page3.current).toBe(3)
+    expect(page3.size).toBe(2)
+    expect(page3.records[0].literal).toBe('l8')
+    expect(page3.records[1].literal).toBe('l9')
+    expect(page3.hasPrevPage).toBe(true)
+    expect(page3.hasNextPage).toBe(false)
+    expect(page3.pages).toBe(3)
+
+    const newPages = page3.convertRecords(r => r.literal)
+    expect(newPages.records).toStrictEqual(['l8', 'l9'])
   })
 })
 
