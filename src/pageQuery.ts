@@ -1,7 +1,7 @@
 import type { StringKeys } from '@subframe7536/type-utils'
 import type { SelectQueryBuilder } from 'kysely'
 
-export type PageOptions<DB extends Record<string, any>, TB extends keyof DB> = {
+export type PageOptions<DB extends Record<string, any>, TB extends keyof DB, Total extends boolean> = {
   /**
    * page size
    */
@@ -18,21 +18,17 @@ export type PageOptions<DB extends Record<string, any>, TB extends keyof DB> = {
    * column name to order by desc
    */
   desc?: StringKeys<DB[TB]>
+  /**
+   * whether query total size
+   */
+  queryTotal?: Total
 }
 
-export type PaginationResult<O> = {
+export type PaginationResult<Total extends boolean, O> = {
   /**
    * all records in current page
    */
   records: O[]
-  /**
-   * total page count
-   */
-  pages: number
-  /**
-   * total item count
-   */
-  total: number
   /**
    * page size
    */
@@ -42,6 +38,19 @@ export type PaginationResult<O> = {
    */
   current: number
   /**
+   * convert records to new object
+   */
+  convertRecords: <T>(fn: (records: O) => T) => Omit<PaginationResult<Total, T>, 'convertRecords'>
+} & (Total extends true ? {
+  /**
+   * total page count
+   */
+  pages: number
+  /**
+   * total item count
+   */
+  total: number
+  /**
    * has prev page
    */
   hasPrevPage: boolean
@@ -49,11 +58,7 @@ export type PaginationResult<O> = {
    * has next page
    */
   hasNextPage: boolean
-  /**
-   * convert records to new object
-   */
-  convertRecords: <T>(fn: (records: O) => T) => Omit<PaginationResult<T>, 'convertRecords'>
-}
+} : {})
 
 /**
  * page query, using offset
@@ -65,7 +70,7 @@ export type PaginationResult<O> = {
  * ```ts
  * import { pageQuery } from 'kysely-sqlite-builder'
  *
- * const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10 })
+ * const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10, queryTotal: true })
  * // {
  * //   total: 100,
  * //   current: 1,
@@ -79,11 +84,11 @@ export type PaginationResult<O> = {
  * console.log(page.convertRecords(p => p.literal).records)
  * ```
  */
-export async function pageQuery<O, DB extends Record<string, any>, TB extends keyof DB>(
+export async function pageQuery<O, DB extends Record<string, any>, TB extends keyof DB, Total extends boolean>(
   qb: SelectQueryBuilder<DB, TB, O>,
-  options: PageOptions<DB, TB>,
-): Promise<PaginationResult<O>> {
-  const { num, size, asc = [], desc = [] } = options
+  options: PageOptions<DB, TB, Total>,
+): Promise<PaginationResult<Total, O>> {
+  const { num, size, asc = [], desc = [], queryTotal } = options
   const _num = ~~num
   const _size = ~~size
   const records = await qb
@@ -98,25 +103,33 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
     })
     .$if(_size > 0 && _num > 0, qb1 => qb1.offset((_num - 1) * _size).limit(_size))
     .execute() as O[]
-  // @ts-expect-error have total
-  const { total } = await qb
-    .clearLimit()
-    .clearOffset()
-    .clearSelect()
-    .select(eb => eb.fn.countAll().as('total'))
-    .executeTakeFirstOrThrow()
+
+  const total = queryTotal
+    ? (await qb
+        .clearLimit()
+        .clearOffset()
+        .clearSelect()
+        .select(eb => eb.fn.countAll().as('total'))
+        .executeTakeFirstOrThrow())
+        // @ts-expect-error have total
+        .total
+    : 0
 
   const data = {
-    total,
-    pages: ~~(total / _size) + 1,
+    ...queryTotal
+      ? {
+          total,
+          hasPrevPage: _num > 1,
+          hasNextPage: total ? _num * _size < total : false,
+          pages: total ? ~~(total / _size) + 1 : 0,
+        }
+      : {},
     size: records.length,
     current: _num,
-    hasPrevPage: _num > 1,
-    hasNextPage: _num * _size < total,
   }
   return {
     ...data,
     records,
     convertRecords: fn => ({ ...data, records: records.map(fn) }),
-  }
+  } as PaginationResult<Total, O>
 }

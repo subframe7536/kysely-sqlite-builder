@@ -81,7 +81,6 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   private trx?: Transaction<DB>
   private logger?: DBLogger
   private executor: Executor
-  private serializer = defaultSerializer
 
   /**
    * current kysely / transaction instance

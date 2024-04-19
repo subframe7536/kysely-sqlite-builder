@@ -35,7 +35,7 @@ export const defaultRootOperatorNodeProcessFn: ProcessRootOperatorNodeFn = (
  * select.dispose() // clear cached query
  *
  * // or auto disposed by using
- * using selectWithUsing = db.precompile<{ name: string }>()
+ * using selectWithUsing = precompile<{ name: string }>()
  *   .query((db, param) =>
  *     db.selectFrom('test').selectAll().where('name', '=', param('name')),
  *   )

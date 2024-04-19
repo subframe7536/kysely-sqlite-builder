@@ -123,7 +123,7 @@ await db.execute(compileResult)
 select.dispose() // clear cached query
 
 // or auto disposed by using
-using selectWithUsing = db.precompile<{ name: string }>()
+using selectWithUsing = precompile<{ name: string }>()
   .query((db, param) =>
     db.selectFrom('test').selectAll().where('name', '=', param('name')),
   )
@@ -174,7 +174,7 @@ inspired by Mybatis-Plus PaginationInnerInterceptor
 ```ts
 import { pageQuery } from 'kysely-sqlite-builder'
 
-const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10 })
+const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 10, queryTotal: true })
 // {
 //   total: 100,
 //   current: 1,
