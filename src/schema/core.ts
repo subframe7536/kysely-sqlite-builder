@@ -44,12 +44,12 @@ export type SyncOptions<T extends Schema> = {
    */
   truncateIfExists?: boolean | Array<StringKeys<T> | string & {}>
   /**
-   * trigger on update success
+   * trigger on sync success
    * @param db kysely instance
    */
   onSyncSuccess?: (db: Kysely<InferDatabase<T>>) => Promisable<void>
   /**
-   * trigger on update fail
+   * trigger on sync fail
    */
   onSyncFail?: (err: unknown) => Promisable<void>
 }
@@ -158,7 +158,7 @@ export async function syncTables<T extends Schema>(
     // migrate table data
     // see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
     //
-    debug('different table structure, update table "' + tableName + '"')
+    debug('different table structure, update table "' + tableName + '" with index and trigger, restore columns: ' + restoreColumnList)
     const tempTableName = '_temp_' + tableName
 
     // 1. create target table with temp name
@@ -180,8 +180,6 @@ export async function syncTables<T extends Schema>(
     // 5. add indexes and triggers
     await runCreateTableIndex(trx, tableName, index)
     await runCreateTimeTrigger(trx, tableName, _triggerOptions)
-
-    debug('restore columns: ' + restoreColumnList)
   }
 }
 

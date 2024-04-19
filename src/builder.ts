@@ -10,12 +10,12 @@ import type {
 import { CompiledQuery, Kysely } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
-import { SerializePlugin, defaultSerializer } from './plugin'
+import { SerializePlugin } from './plugin'
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 import type {
   DBLogger,
+  SchemaUpdater,
   StatusResult,
-  TableUpdater,
 } from './types'
 import { type LoggerOptions, createKyselyLogger } from './logger'
 import { type Executor, type JoinFnName, baseExecutor } from './executor'
@@ -27,7 +27,10 @@ export class IntegrityError extends Error {
   }
 }
 
-export interface SqliteBuilderOptions {
+export type SqliteBuilderOptions = {
+  /**
+   * kysely dialect
+   */
   dialect: Dialect
   /**
    * like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
@@ -38,7 +41,7 @@ export interface SqliteBuilderOptions {
   /**
    * additional plugins
    *
-   * **do NOT use camelCase plugin with useSchema**, this will lead to sync table fail
+   * **do NOT use camelCase plugin with syncDB(useSchema(...)), this will lead to sync fail
    */
   plugins?: KyselyPlugin[]
   /**
@@ -48,16 +51,16 @@ export interface SqliteBuilderOptions {
   /**
    * custom executor
    * @example
-   * import { createSoftDeleteExecutorFn } from 'kysely-sqlite-builder'
+   * import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
    *
-   * const softDeleteExecutorFn = createSoftDeleteExecutorFn({
-   *   deleteColumn: 'isDeleted',
-   *   deleteValue: 1,
-   *   notDeleteValue: 0,
-   * })
-   * const builder = new SqliteBuilder({
-   *   dialect,
-   *   executorFn: softDeleteExecutorFn,
+   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   *
+   * const db = new SqliteBuilder<DB>({
+   *   dialect: new SqliteDialect({
+   *     database: new Database(':memory:'),
+   *   }),
+   *   // use soft delete executor
+   *   executor,
    * })
    */
   executor?: Executor
@@ -220,7 +223,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * // update tables using MigrationProvider and migrate to latest
    * await builder.syncDB(useMigrator(new FileMigrationProvider(...)))
    */
-  public async syncDB(updater: TableUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
+  public async syncDB(updater: SchemaUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
       if (checkIntegrity && !(await runCheckIntegrity(this._kysely))) {
         this.logger?.error('integrity check fail')

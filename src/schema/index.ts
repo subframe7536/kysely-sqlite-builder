@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely'
-import type { DBLogger, TableUpdater } from '../types'
+import type { DBLogger, SchemaUpdater } from '../types'
 import type { Schema } from './types'
 import type { SyncOptions } from './core'
 import { syncTables } from './core'
@@ -16,7 +16,7 @@ export { defineTable, column } from './define'
 export function useSchema<T extends Schema>(
   schema: T,
   options: SyncOptions<T> = {},
-): TableUpdater {
+): SchemaUpdater {
   const { log } = options
   return (db: Kysely<any>, logger?: DBLogger) => syncTables(db, schema, options, log ? logger : undefined)
 }

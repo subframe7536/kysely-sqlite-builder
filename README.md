@@ -74,6 +74,49 @@ await db.syncDB(useSchema(DBSchema, { logger: false }))
 await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
 ```
 
+sync options type:
+
+```ts
+export type SyncOptions<T extends Schema> = {
+  /**
+   * whether to enable debug logger
+   */
+  log?: boolean
+  /**
+   * version control
+   */
+  version?: {
+    /**
+     * current version
+     */
+    current: number
+    /**
+     * whether to skip sync when the db's `user_version` is same with `version.current`
+     */
+    skipSyncWhenSame: boolean
+  }
+  /**
+   * exclude table prefix list, append with `%`
+   *
+   * `sqlite_%` by default
+   */
+  excludeTablePrefix?: string[]
+  /**
+   * do not restore data from old table to new table
+   */
+  truncateIfExists?: boolean | Array<StringKeys<T> | string & {}>
+  /**
+   * trigger on sync success
+   * @param db kysely instance
+   */
+  onSyncSuccess?: (db: Kysely<InferDatabase<T>>) => Promisable<void>
+  /**
+   * trigger on sync fail
+   */
+  onSyncFail?: (err: unknown) => Promisable<void>
+}
+```
+
 ### Execute queries
 
 ```ts

@@ -1,5 +1,5 @@
 import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } from 'kysely'
-import type { DBLogger, TableUpdater } from '../types'
+import type { DBLogger, SchemaUpdater } from '../types'
 
 /**
  * use migrator to migrate to latest
@@ -9,7 +9,7 @@ import type { DBLogger, TableUpdater } from '../types'
 export function useMigrator(
   provider: MigrationProvider,
   options?: Omit<MigratorProps, 'db' | 'provider'>,
-): TableUpdater {
+): SchemaUpdater {
   return async (db: Kysely<any>, logger?: DBLogger) => {
     const migrator = new Migrator({ db, provider, ...options })
     const { error, results } = await migrator.migrateToLatest()

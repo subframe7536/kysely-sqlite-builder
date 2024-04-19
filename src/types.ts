@@ -26,6 +26,6 @@ export type StatusResult =
   | { ready: true }
   | { ready: false, error: IntegrityError | unknown }
 
-export type TableUpdater = (db: Kysely<any>, logger?: DBLogger) => Promise<StatusResult>
+export type SchemaUpdater = (db: Kysely<any>, logger?: DBLogger) => Promise<StatusResult>
 
 export type QueryBuilderOutput<QB> = QB extends Compilable<infer O> ? O : never
