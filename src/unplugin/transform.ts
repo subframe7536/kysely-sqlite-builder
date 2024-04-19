@@ -20,12 +20,12 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       return {
         code: `export class SqliteAdapter {
     get supportsReturning() {
-      return true;
+        return true;
     }
 }`,
         map: `export class SqliteAdapter {
     get supportsReturning() {
-      return true;
+        return true;
     }
 }`,
       }
