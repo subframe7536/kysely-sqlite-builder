@@ -183,7 +183,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * await db.destroy()
    * ```
    */
-  constructor(options: SqliteBuilderOptions) {
+  public constructor(options: SqliteBuilderOptions) {
     const {
       dialect,
       logger,
@@ -304,22 +304,15 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   /**
    * execute raw sql
    */
-  public async execute<O>(
-    rawSql: RawBuilder<O>,
-  ): Promise<QueryResult<O>>
+  public async execute<O>(rawSql: RawBuilder<O>): Promise<QueryResult<O>>
   /**
    * execute sql string
    */
-  public async execute<O>(
-    rawSql: string,
-    parameters?: unknown[]
-  ): Promise<QueryResult<O>>
+  public async execute<O>(rawSql: string, parameters?: unknown[]): Promise<QueryResult<O>>
   /**
    * execute compiled query and return result list
    */
-  public async execute<O>(
-    query: CompiledQuery<O>,
-  ): Promise<QueryResult<O>>
+  public async execute<O>(query: CompiledQuery<O>): Promise<QueryResult<O>>
   public async execute<O>(
     data: CompiledQuery<O> | RawBuilder<O> | string,
     parameters?: unknown[],

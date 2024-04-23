@@ -9,7 +9,6 @@ import type {
 import type { IntegrityError } from './builder'
 
 export type DBLogger = {
-  trace?: (args: any) => void
   debug: (args: any) => void
   info: (msg: any) => void
   warn: (msg: any) => void

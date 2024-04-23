@@ -162,7 +162,7 @@ export async function syncTables<T extends Schema>(
     const tempTableName = '_temp_' + tableName
 
     // 1. create target table with temp name
-    const _triggerOptions = await runCreateTable(trx, tempTableName, props)
+    const triggerOptions = await runCreateTable(trx, tempTableName, props)
 
     // 2. diff and restore data from source table to target table
     if (restoreColumnList.length) {
@@ -179,7 +179,7 @@ export async function syncTables<T extends Schema>(
 
     // 5. add indexes and triggers
     await runCreateTableIndex(trx, tableName, index)
-    await runCreateTimeTrigger(trx, tableName, _triggerOptions)
+    await runCreateTimeTrigger(trx, tableName, triggerOptions)
   }
 }
 
