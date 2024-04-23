@@ -159,7 +159,6 @@ export function transformKyselyCode(code: string, id: string, options: Transform
   if (id.includes('query-creator')) {
     _code
       .replace(methodRegexWithSemicolon('replaceInto'), '')
-      .replace(methodRegexWithSemicolon('selectNoFrom'), '')
       .replace(methodRegexWithSemicolon('mergeInto'), '')
     _code.commit()
   }
