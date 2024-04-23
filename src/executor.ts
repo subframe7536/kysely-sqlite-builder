@@ -20,8 +20,27 @@ export const baseExecutor = {
 export type Executor = typeof baseExecutor
 
 type CreateSoftDeleteExecutorReturn = {
+  /**
+   * sqlite builder executor
+   * @example
+   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   *
+   * const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
+   *   dialect: new SqliteDialect({
+   *     database: new Database(':memory:'),
+   *   }),
+   *   // use soft delete executor
+   *   executor,
+   * })
+   */
   executor: Executor
-  withNoDelete: <DB, W extends WhereInterface<DB, keyof DB>>(qb: W) => WhereInterface<DB, keyof DB>
+  /**
+   * filter query builder with `where('isDeleted', '=', 0)`
+   * @example
+   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * db.selectFrom('test').selectAll().$call(withNoDelete)
+   */
+  withNoDelete: <T>(qb: T) => T
 }
 
 /**
@@ -38,6 +57,6 @@ export function createSoftDeleteExecutor(
       updateTable: (db: Kysely<any>, table: any) => db.updateTable(table).where(deleteColumnName, '=', 0 as any),
       deleteFrom: (db: Kysely<any>, table: any) => db.updateTable(table).set(deleteColumnName, 1 as any) as any,
     },
-    withNoDelete: <DB, W extends WhereInterface<DB, keyof DB>>(qb: W) => qb.where(deleteColumnName as any, '=', 0 as any),
+    withNoDelete: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName as any, '=', 0 as any) as T,
   }
 }

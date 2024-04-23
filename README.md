@@ -204,6 +204,8 @@ const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
 
 await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
+
+await db.kysely.selectFrom('testSoftDelete').selectAll().$call(withNoDelete).execute()
 ```
 
 ### Page query

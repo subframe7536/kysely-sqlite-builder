@@ -214,7 +214,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * @param checkIntegrity whether to check integrity
    * @example
    * import { useSchema } from 'kysely-sqlite-builder/schema'
-   * import { useMigrator } from 'kysely-sqlite-builder'
+   * import { useMigrator } from 'kysely-sqlite-builder/migrator'
    * import { FileMigrationProvider } from 'kysely'
    *
    * // update tables using schema
