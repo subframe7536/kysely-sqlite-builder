@@ -5,7 +5,10 @@ import type { TransformOptions } from './types'
 export type { TransformOptions } from './types'
 
 /**
- * kysely plugin, trim kysely method or class names and remove unsupported methods
+ * kysely plugin, convert `#props` to `_props`,
+ * trim kysely method or class names and remove unsupported methods
+ *
+ * method name:
  * - `append -> _a`
  * - `create -> _c`
  * - `visit -> _v`
@@ -13,6 +16,13 @@ export type { TransformOptions } from './types'
  * - `createWith -> _crw`
  * - `Wrapper -> _W`
  * - `BuilderImpl -> _BI`
+ *
+ * removed methods:
+ * - `mergeInto`
+ * - `replaceInto`
+ * - `top`
+ * - `fetch`
+ * - `ignore`
  * @example
  * import { defineConfig } from 'vite'
  * import { plugin } from 'kysely-sqlite-builder/plugin'

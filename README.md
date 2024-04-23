@@ -321,6 +321,24 @@ function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResul
 
 v0.7.1 introduced a experimental plugin (using `unplugin`) to reduce the bundle size.
 
+convert `#props` to `_props`, trim kysely method or class names and remove unsupported methods
+
+transformed method name:
+- `append -> _a`
+- `create -> _c`
+- `visit -> _v`
+- `cloneWith -> _clw`
+- `createWith -> _crw`
+- `Wrapper -> _W`
+- `BuilderImpl -> _BI`
+
+removed methods:
+- `mergeInto`
+- `replaceInto`
+- `top`
+- `fetch`
+- `ignore`
+
 About 35% of the minified bundle size is reduced when turn on all options.
 
 **use at your own risk!**
