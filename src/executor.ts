@@ -47,16 +47,14 @@ type CreateSoftDeleteExecutorReturn = {
  * create soft delete executor function
  * @param deleteColumnName delete column name, default is 'isDeleted'
  */
-export function createSoftDeleteExecutor(
-  deleteColumnName = 'isDeleted',
-): CreateSoftDeleteExecutorReturn {
+export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): CreateSoftDeleteExecutorReturn {
   return {
     executor: {
-      selectFrom: (db: Kysely<any>, table: any) => db.selectFrom(table).where(deleteColumnName, '=', 0 as any),
+      selectFrom: (db: Kysely<any>, table: any) => db.selectFrom(table).where(deleteColumnName, '=', 0),
       insertInto: (db: Kysely<any>, table: any) => db.insertInto(table),
-      updateTable: (db: Kysely<any>, table: any) => db.updateTable(table).where(deleteColumnName, '=', 0 as any),
-      deleteFrom: (db: Kysely<any>, table: any) => db.updateTable(table).set(deleteColumnName, 1 as any) as any,
+      updateTable: (db: Kysely<any>, table: any) => db.updateTable(table).where(deleteColumnName, '=', 0),
+      deleteFrom: (db: Kysely<any>, table: any) => db.updateTable(table).set(deleteColumnName, 1) as any,
     },
-    withNoDelete: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName as any, '=', 0 as any) as T,
+    withNoDelete: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName, '=', 0) as T,
   }
 }
