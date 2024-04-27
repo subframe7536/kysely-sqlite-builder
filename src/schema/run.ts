@@ -1,6 +1,6 @@
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
-import type { AnyFunction, Arrayable } from '@subframe7536/type-utils'
+import type { Arrayable } from '@subframe7536/type-utils'
 import { defaultSerializer } from '../plugin'
 import {
   type ColumnProperty,

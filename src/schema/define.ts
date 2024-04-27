@@ -100,6 +100,9 @@ type ColumnBuilder<
   NotNull extends true | null,
   HasDefaultTo = IsNotNull<Type>,
 > = ColumnProperty<T, HasDefaultTo extends true ? Type : Type | null, NotNull> & {
+  /**
+   * define column type manually
+   */
   $cast: <
     NarrowedType extends InferColumnTypeByNumber<T>,
   >() => ColumnProperty<T, HasDefaultTo extends true ? NarrowedType : NarrowedType | null, NotNull>

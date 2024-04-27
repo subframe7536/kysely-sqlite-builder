@@ -131,8 +131,6 @@ export type Schema = Record<string, Table<any, any, any, any>>
 //     : InferGenereated<Table[K]>
 // }
 
-type ERROR_INFO = 'HAVE_TYPE_ERROR_IN_DEFINITION'
-
 type TriggerKey<A, B> =
   | (A extends true ? 'createAt' : A extends string ? A : never)
   | (B extends true ? 'updateAt' : B extends string ? B : never)
@@ -188,7 +186,7 @@ export type InferTable<
           // return optional
           : P[K]['defaultTo'] | null
     // return error info
-    : ERROR_INFO
+    : `TypeError: [defaultTo] is not satisfied [type] in column '${K & string}'`
 }>
 
 /**
@@ -204,5 +202,7 @@ export type InferDatabase<T extends Schema> = Prettify<{
     columns: Columns
     timeTrigger?: TimeTriggerOptions<any, any>
     softDelete?: any
-  } ? InferTable<T[K]> : ERROR_INFO
+  }
+    ? InferTable<T[K]>
+    : `TypeError: some column's [defaultTo] and [type] are mismatched in table '${K & string}'`
 }>
