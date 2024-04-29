@@ -146,6 +146,7 @@ describe('test builder', async () => {
     expect(result2!.createAt).toBeInstanceOf(Date)
     expect(result2!.updateAt).toBeInstanceOf(Date)
   })
+
   it('should precompile', async () => {
     const select = precompile<{ person: { name: string }, test?: 'asd' }>()
       .build(param =>

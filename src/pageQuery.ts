@@ -93,6 +93,19 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
   const _size = ~~size
   const records = await qb
     .$call((qb1) => {
+      qb1 = qb1
+        .clearWhere()
+        .clearLimit()
+        .clearOffset()
+        .where(
+          'rowid',
+          'in',
+          qb1
+            .clearSelect()
+            .select('rowid')
+            .$if(_size > 0 && _num > 0, qb2 => qb2.offset((_num - 1) * _size).limit(_size)),
+        )
+
       for (const _a of asc) {
         qb1 = qb1.orderBy(_a, 'asc')
       }
@@ -101,7 +114,6 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
       }
       return qb1
     })
-    .$if(_size > 0 && _num > 0, qb1 => qb1.offset((_num - 1) * _size).limit(_size))
     .execute() as O[]
 
   const total = queryTotal
