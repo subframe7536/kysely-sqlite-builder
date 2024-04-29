@@ -114,7 +114,7 @@ export async function pageQuery<O, DB extends Record<string, any>, TB extends ke
       }
       return qb1
     })
-    .execute() as O[]
+    .execute()
 
   const total = queryTotal
     ? (await qb

@@ -33,12 +33,11 @@ export async function createSqliteBuilder<T extends Schema>(
   return builder
 }
 
-// todo)) add type check
 export async function createSoftDeleteSqliteBuilder<T extends Schema>(
   options: Omit<CreateSqliteBuilderOptions<T>, 'executor'>,
 ): Promise<[
   db: Omit<SqliteBuilder<InferDatabase<T>>, 'syncDB'>,
-  withNoDelete: <DB, W extends WhereInterface<DB, keyof DB>>(qb: W) => WhereInterface<DB, keyof DB>,
+  withNoDelete: <DB, W extends WhereInterface<DB, keyof DB>>(qb: W) => W,
 ]> {
   const { executor, withNoDelete } = createSoftDeleteExecutor()
   // @ts-expect-error assign executor

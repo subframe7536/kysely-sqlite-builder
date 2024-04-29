@@ -63,15 +63,15 @@
     "unplugin": "^1.10.1"
   },
   "devDependencies": {
-    "@subframe7536/eslint-config": "^0.5.13",
+    "@subframe7536/eslint-config": "^0.6.2",
     "@subframe7536/type-utils": "^0.1.6",
     "@types/bun": "^1.1.0",
     "bumpp": "^9.4.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.1.1",
     "kysely": "^0.27.3",
     "kysely-wasm": "^0.6.0",
     "magic-string-stack": "^0.1.1",
-    "node-sqlite3-wasm": "^0.8.13",
+    "node-sqlite3-wasm": "^0.8.14",
     "tsup": "^8.0.2",
     "typescript": "^5.4.5",
     "unplugin": "^1.10.1"
