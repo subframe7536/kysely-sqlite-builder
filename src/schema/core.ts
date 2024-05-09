@@ -13,7 +13,7 @@ import {
   runDropTable,
   runRenameTable,
 } from './run'
-import { type ParsedCreateTableSQL, parseExistDB } from './parseExist'
+import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parseExist'
 
 export type SyncOptions<T extends Schema> = {
   /**
@@ -47,7 +47,7 @@ export type SyncOptions<T extends Schema> = {
    * trigger on sync success
    * @param db kysely instance
    */
-  onSyncSuccess?: (db: Kysely<InferDatabase<T>>) => Promisable<void>
+  onSyncSuccess?: (db: Kysely<InferDatabase<T>>, oldSchema: ParsedSchema) => Promisable<void>
   /**
    * trigger on sync fail
    */
@@ -78,29 +78,29 @@ export async function syncTables<T extends Schema>(
 
   const debug = (e: string) => log && logger?.debug('[ schema sync ] ' + e)
   debug('======== update tables start ========')
-  const { existTables, indexList, triggerList } = await parseExistDB(db, excludeTablePrefix)
+  const existDB = await parseExistDB(db, excludeTablePrefix)
 
   const truncateTableSet = new Set(
     Array.isArray(truncateIfExists)
       ? truncateIfExists
       : truncateIfExists
-        ? Object.keys(existTables)
+        ? Object.keys(existDB.existTables)
         : [],
   )
 
   return await db.transaction()
     .execute(async (trx) => {
-      for (const idx of indexList) {
+      for (const idx of existDB.indexList) {
         await trx.schema.dropIndex(idx).ifExists().execute()
         debug('drop index: ' + idx)
       }
 
-      for (const tgr of triggerList) {
+      for (const tgr of existDB.triggerList) {
         await sql`drop trigger if exists ${sql.ref(tgr)}`.execute(trx)
         debug('drop trigger: ' + tgr)
       }
 
-      for (const [existTableName, existColumns] of Object.entries(existTables)) {
+      for (const [existTableName, existColumns] of Object.entries(existDB.existTables)) {
         if (existTableName in targetTables) {
           debug('diff table: ' + existTableName)
           try {
@@ -116,14 +116,14 @@ export async function syncTables<T extends Schema>(
       }
 
       for (const [targetTableName, targetTable] of Object.entries(targetTables)) {
-        if (!(targetTableName in existTables)) {
+        if (!(targetTableName in existDB.existTables)) {
           debug('create table with index and trigger: ' + targetTableName)
           await runCreateTableWithIndexAndTrigger(trx, targetTableName, targetTable)
         }
       }
     })
     .then(() => {
-      onSyncSuccess?.(db)
+      onSyncSuccess?.(db, existDB)
       debug('======= update tables success =======')
       return { ready: true as const }
     })
