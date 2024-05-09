@@ -1,7 +1,7 @@
 {
   "name": "kysely-sqlite-builder",
   "type": "module",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Utility layer for Kysely on SQLite",
   "author": "subframe7536",
   "license": "MIT",
