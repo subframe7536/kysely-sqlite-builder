@@ -166,10 +166,8 @@ export async function syncTables<T extends Schema>(
 
     // 2. diff and restore data from source table to target table
     if (restoreColumnList.length) {
-      await trx.insertInto(tempTableName)
-        .columns(restoreColumnList)
-        .expression(eb => eb.selectFrom(tableName).select(restoreColumnList))
-        .execute()
+      const cols = restoreColumnList.map(c => '"' + c + '"').join(', ')
+      sql`insert into ${sql.table(tempTableName)} (${sql.raw(cols)}) select ${sql.raw(cols)} from ${sql.table(tableName)}`.execute(trx)
     }
     // 3. remove old table
     await runDropTable(trx, tableName)
