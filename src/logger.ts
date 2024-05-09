@@ -15,8 +15,9 @@ export type LoggerOptions = {
   /**
    * log functions
    * @param data logger params, see {@link LoggerParams}
+   * @default console.log
    */
-  logger: (data: LoggerParams) => void
+  logger?: (data: LoggerParams) => void
   /**
    * whether to merge parameters into sql, use `JSON.stringify` to serialize params
    *
@@ -45,7 +46,7 @@ export type LoggerOptions = {
 export function createKyselyLogger(
   options: LoggerOptions,
 ): (event: LogEvent) => void {
-  const { logger, merge, logQueryNode } = options
+  const { logger = console.log, merge, logQueryNode } = options
 
   return (event: LogEvent) => {
     const { level, queryDurationMillis, query: { parameters, sql, query } } = event
