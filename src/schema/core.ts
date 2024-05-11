@@ -46,8 +46,14 @@ export type SyncOptions<T extends Schema> = {
   /**
    * trigger on sync success
    * @param db kysely instance
+   * @param oldSchema old database schema
+   * @param oldVersion old database version
    */
-  onSyncSuccess?: (db: Kysely<InferDatabase<T>>, oldSchema: ParsedSchema) => Promisable<void>
+  onSyncSuccess?: (
+    db: Kysely<InferDatabase<T>>,
+    oldSchema: ParsedSchema,
+    oldVersion: number | undefined
+  ) => Promisable<void>
   /**
    * trigger on sync fail
    */
@@ -69,8 +75,11 @@ export async function syncTables<T extends Schema>(
     onSyncFail,
   } = options
 
+  let oldVersion: number
+
   if (current) {
-    if (skipSyncWhenSame && current === await getOrSetDBVersion(db)) {
+    oldVersion = await getOrSetDBVersion(db)
+    if (skipSyncWhenSame && current === oldVersion) {
       return { ready: true }
     }
     await getOrSetDBVersion(db, current)
@@ -123,7 +132,7 @@ export async function syncTables<T extends Schema>(
       }
     })
     .then(() => {
-      onSyncSuccess?.(db, existDB)
+      onSyncSuccess?.(db, existDB, oldVersion)
       debug('======= update tables success =======')
       return { ready: true as const }
     })
@@ -166,8 +175,8 @@ export async function syncTables<T extends Schema>(
 
     // 2. diff and restore data from source table to target table
     if (restoreColumnList.length) {
-      const cols = restoreColumnList.map(c => '"' + c + '"').join(', ')
-      sql`insert into ${sql.table(tempTableName)} (${sql.raw(cols)}) select ${sql.raw(cols)} from ${sql.table(tableName)}`.execute(trx)
+      const cols = sql.raw(restoreColumnList.map(c => '"' + c + '"').join(', '))
+      sql`insert into ${sql.table(tempTableName)} (${cols}) select ${cols} from ${sql.table(tableName)}`.execute(trx)
     }
     // 3. remove old table
     await runDropTable(trx, tableName)

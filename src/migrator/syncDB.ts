@@ -29,4 +29,3 @@ export function useMigrator(
     return { ready: false as const, error }
   }
 }
-export type { DBLogger } from '../types'
