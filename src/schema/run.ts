@@ -20,11 +20,6 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
   let dataType: ParsedColumnType
   let isIncrements = false
   switch (type) {
-    case DataType.date:
-    case DataType.object:
-    case DataType.string:
-      dataType = 'text'
-      break
     case DataType.float:
       dataType = 'real'
       break
@@ -35,8 +30,12 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
     case DataType.int:
       dataType = 'integer'
       break
-    default:
+    case DataType.blob:
       dataType = 'blob'
+      break
+    // date, object, string or othera
+    default:
+      dataType = 'text'
   }
   return [dataType, isIncrements]
 }
