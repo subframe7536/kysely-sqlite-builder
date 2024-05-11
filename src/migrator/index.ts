@@ -1,1 +1,1 @@
-export * from './syncDB'
+export * from './sync-db'

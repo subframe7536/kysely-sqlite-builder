@@ -13,7 +13,7 @@ import {
   runDropTable,
   runRenameTable,
 } from './run'
-import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parseExist'
+import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parse-exist'
 
 export type SyncOptions<T extends Schema> = {
   /**
