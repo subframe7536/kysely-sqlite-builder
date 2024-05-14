@@ -143,7 +143,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * // create soft delete executor
    * const { executor, withNoDelete } = createSoftDeleteExecutor()
    *
-   * const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
+   * const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
    *   dialect: new SqliteDialect({
    *     database: new Database(':memory:'),
    *   }),

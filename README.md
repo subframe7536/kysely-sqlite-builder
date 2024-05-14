@@ -59,7 +59,7 @@ const DBSchema = {
   test: testTable,
 }
 
-const builder = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
+const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
   dialect: new SqliteDialect({
     database: new Database(':memory:'),
   }),
@@ -317,6 +317,45 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
  * @see https://www.sqlite.org/lang_vacuum.html
  */
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
+```
+
+### Migrate by code
+
+```ts
+import { createCodeProvider, useMigrator } from 'kysely-sqlite-builder/migrator'
+
+const provider = createCodeProvider({
+  '2024-01-01': {
+    up: async (db) => {
+      await db.schema.createTable('test').ifNotExists().column('name', 'text').execute()
+    }
+  },
+  '2024-01-02': {
+    up: async (db) => {
+      await db.schema.alterTable('test').addColumn('age', 'integer').execute()
+    },
+    down: async (db) => {
+      await db.schema.alterTable('test').dropColumn('age').execute()
+    }
+  }
+})
+
+const providerArray = createCodeProvider([
+  {
+    up: async (db) => {
+      await db.schema.createTable('test').ifNotExists().column('name', 'text').execute()
+    }
+  },
+  {
+    up: async (db) => {
+      await db.schema.alterTable('test').addColumn('age', 'integer').execute()
+    },
+    down: async (db) => {
+      await db.schema.alterTable('test').dropColumn('age').execute()
+    }
+  }
+])
+await db.syncDB(useMigrator(providerArray, {/* options */}))
 ```
 
 ## Unplugin
