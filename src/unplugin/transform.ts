@@ -6,6 +6,11 @@ const methodRegexWithSemicolon = (methodName: string, tail = '') => new RegExp(`
 
 export function transformKyselyCode(code: string, id: string, options: TransformOptions): TransformResult {
   const _code = new MagicStringStack(code)
+  if (options.dropDelete) {
+    if (id.includes('delete-query-builder')) {
+      return ';'
+    }
+  }
   if (options.dropMigrator) {
     if (id.includes('migration')) {
       return ';'
