@@ -1,4 +1,4 @@
-import type { JoinType, Kysely, WhereInterface } from 'kysely'
+import { DeleteResult, type JoinType, type Kysely, type UpdateResult, type WhereInterface } from 'kysely'
 
 type CamelCase<S extends string> = S extends `${infer First}${infer Rest}`
   ? First extends Uppercase<First>
@@ -44,7 +44,10 @@ type CreateSoftDeleteExecutorReturn = {
 }
 
 /**
- * create soft delete executor function
+ * create soft delete executor function,
+ *
+ * return type of `deleteFrom` is `UpdateResult` insteadof `DeleteResult`,
+ * to fix it, wrap the result with {@link toDeleteResult}
  * @param deleteColumnName delete column name, default is 'isDeleted'
  */
 export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): CreateSoftDeleteExecutorReturn {
@@ -57,4 +60,12 @@ export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): Create
     },
     withNoDelete: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName, '=', 0) as T,
   }
+}
+
+/**
+ * fix the type of `DeleteResult` when using soft delete
+ * @param result the result of `deleteFrom` in `createSoftDeleteExecutor`
+ */
+export function toDeleteResult(result: DeleteResult): DeleteResult {
+  return new DeleteResult((result as unknown as UpdateResult).numUpdatedRows)
 }
