@@ -179,6 +179,9 @@ export function transformKyselyCode(code: string, id: string, options: Transform
     .replace(/Wrapper/g, '_W')
   _code.commit()
 
+  options.transform?.(_code, id)
+  _code.commit()
+
   return {
     code: _code.toString(),
     map: _code.generateMap(),
