@@ -10,8 +10,8 @@ export type { TransformOptions } from './types'
  *
  * method name:
  * - `append -> _a`
- * - `create -> _c`
  * - `cloneWith -> _clw`
+ * - `create -> _c`
  * - `createWith -> _crw`
  * - `#props -> _p`
  * - `Wrapper -> _W`
@@ -32,13 +32,16 @@ export type { TransformOptions } from './types'
  * })
  */
 export const plugin = createUnplugin<TransformOptions | undefined>(
-  (options = { useDynamicTransformer: true }) => ({
-    name: 'unplugin-kysely',
-    transformInclude(id) {
-      return id.includes('kysely') && id.includes('esm')
-    },
-    transform(code, id) {
-      return transformKyselyCode(code, id, options)
-    },
-  }),
+  (options = {}) => {
+    const { filter = () => false, useDynamicTransformer = true, ...rest } = options
+    return {
+      name: 'unplugin-kysely',
+      transformInclude(id) {
+        return (id.includes('kysely') && id.includes('esm')) || filter(id)
+      },
+      transform(code, id) {
+        return transformKyselyCode(code, id, { useDynamicTransformer, ...rest })
+      },
+    }
+  },
 )

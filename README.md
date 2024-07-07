@@ -366,12 +366,12 @@ convert `#props` to `_props`, trim kysely method or class names and remove unsup
 
 transformed method name:
 - `append -> _a`
-- `create -> _c`
-- `visit -> _v`
 - `cloneWith -> _clw`
+- `create -> _c`
 - `createWith -> _crw`
+- `#props -> _p`
+- `visit -> _v`
 - `Wrapper -> _W`
-- `BuilderImpl -> _BI`
 
 removed methods:
 - `mergeInto`
@@ -400,6 +400,11 @@ export default defineConfig({
 types:
 ```ts
 export type TransformOptions = {
+  /**
+   * filter files to be transformed
+   * @param filePath file path
+   */
+  filter?: (filePath: string) => boolean
   /**
    * use dynamic node transformer, maybe impact performance
    * @default true
