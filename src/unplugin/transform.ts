@@ -16,43 +16,37 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       return ';'
     }
     if (id.includes('sqlite-introspector')) {
+      const s = new MagicStringStack('export class SqliteIntrospector {}')
       return {
-        code: 'export class SqliteIntrospector {}',
-        map: 'export class SqliteIntrospector {}',
+        code: s.toString(),
+        map: s.generateMap(),
       }
     }
     if (id.includes('sqlite-adapter')) {
+      const s = new MagicStringStack(`export class SqliteAdapter { get supportsReturning() { return true; } }`)
       return {
-        code: `export class SqliteAdapter {
-    get supportsReturning() {
-        return true;
-    }
-}`,
-        map: `export class SqliteAdapter {
-    get supportsReturning() {
-        return true;
-    }
-}`,
+        code: s.toString(),
+        map: s.generateMap(),
       }
     }
     if (id.includes('kysely.js')) {
-      _code.replace(/get introspection\(\) \{[\s\S]*?\}/m, '')
+      _code.replace(/get introspection\(\) \{[\s\S]*?\}/, '')
     } else if (id.includes('expression-builder')) {
-      _code.replace(/withSchema\(.*?\) \{[\s\S]*?\},/m, '')
+      _code.replace(/withSchema\(.*?\) \{[\s\S]*?\},/, '')
     } else if (id.includes('kysely.js') || id.includes('query-creator')) {
       _code
         .replace(methodRegexWithSemicolon('withSchema'), '')
-        .replace(/get schema\(\) \{[\s\S]*?\}/gm, '')
+        .replace(/get schema\(\) \{[\s\S]*?\}/g, '')
     } else if (id.includes('create-view-node') || id.includes('create-table-node')) {
       return ';'
     } else if (id.includes('default-query-compiler')) {
       _code
         .replace('!CreateTableNode.is(this.parentNode) &&', '')
         .replace('!CreateViewNode.is(this.parentNode) &&', '')
-        .replace(/visitCreateTable[\s\S]*(?=visitList)/m, '')
-        .replace(/visitAlterTable[\s\S]*(?=visitSetOperation)/m, '')
-        .replace(/visitCreateView[\s\S]*(?=visitGenerated)/m, '')
-        .replace(/visitCreateType[\s\S]*(?=visitExplain)/m, '')
+        .replace(/visitCreateTable[\s\S]*(?=visitList)/, '')
+        .replace(/visitAlterTable[\s\S]*(?=visitSetOperation)/, '')
+        .replace(/visitCreateView[\s\S]*(?=visitGenerated)/, '')
+        .replace(/visitCreateType[\s\S]*(?=visitExplain)/, '')
     }
     _code.commit()
   }
@@ -68,7 +62,7 @@ export function transformKyselyCode(code: string, id: string, options: Transform
   }
 
   if (id.includes('object-utils')) {
-    _code.replace(/export function freeze\(obj\) {[\s\S]*?}/gm, '')
+    _code.replace(/export function freeze\(obj\) \{[\s\S]*?\}/g, '')
     _code.commit()
   }
 
@@ -79,7 +73,7 @@ export function transformKyselyCode(code: string, id: string, options: Transform
 
   if (id.includes('query-node')) {
     _code
-      .replace(/ \|\|\s.*MergeQueryNode\.is\(node\)/m, '')
+      .replace(/ \|\|\s.*MergeQueryNode\.is\(node\)/, '')
       .replace(methodRegexWithSemicolon('cloneWithTop', ','), '')
       .replace(methodRegexWithSemicolon('cloneWithFetch', ','), '')
     _code.commit()
@@ -127,7 +121,7 @@ export function transformKyselyCode(code: string, id: string, options: Transform
     _code.commit()
 
     options?.useDynamicTransformer
-      ? _code.replace(/#transformers = freeze\([\s\S]*?}\);/m, '')
+      ? _code.replace(/#transformers = freeze\([\s\S]*?\}\);/, '')
         .replace('this.#transformers[node.kind]', 'this["transform" + node.kind.substring(0, node.kind.length - 4)]')
       : _code
         .replace(/TopNode: this.transformTop.bind\(this\),/g, '')
@@ -139,15 +133,15 @@ export function transformKyselyCode(code: string, id: string, options: Transform
   if (id.includes('default-query-compiler')) {
     // writeFileSync('test.js', _code.toString(), 'utf-8')
     _code
-      .replace(/visitMergeQuery[\s\S]*(?=visitMatched)/gm, '')
-      .replace(/visitFetch[\s\S]*(?=append\(str\))/gm, '')
-      .replace(/if \(node.fetch\) \{[\s\S]*?\}/gm, '')
-      .replace(/if \(node.top\) \{[\s\S]*?\}/gm, '')
+      .replace(/visitMergeQuery[\s\S]*(?=visitMatched)/g, '')
+      .replace(/visitFetch[\s\S]*(?=append\(str\))/g, '')
+      .replace(/if \(node.fetch\) \{[\s\S]*?\}/g, '')
+      .replace(/if \(node.top\) \{[\s\S]*?\}/g, '')
       .replace('this.append(node.replace ? \'replace\' : \'insert\');', 'this.append(\'insert\');')
       .replace(' extends OperationNodeVisitor', '')
     _code.commit()
 
-    _code.replace(/visit(.*)\(.*\) {/g, (_, str) => `${str}Node(node) {`)
+    _code.replace(/visit(\w+)\(.*\) \{/g, (_, str) => `${str}Node(node) {`)
       .replace('#parameters = [];', `#parameters = [];
     nodeStack = [];
     get parentNode() {
@@ -176,13 +170,13 @@ export function transformKyselyCode(code: string, id: string, options: Transform
     .replace(/preventAwait\(.*?\)/g, '')
     .replace(/(?:freeze|requireAllProps),?/g, '')
     .replace(/#/g, '_')
+    .replace(/#props/g, '_p')
     .replace(/append/g, '_a')
     .replace(/create(?=\(|\))/g, '_c')
-    .replace(/visit(?=[A-Z]|\()/g, '_v')
+    .replace(/visit(?=[A-Z(])/g, '_v')
     .replace(/cloneWith/g, '_clw')
     .replace(/createWith/g, '_crw')
     .replace(/Wrapper/g, '_W')
-    .replace(/BuilderImpl/g, '_BI')
   _code.commit()
 
   return {

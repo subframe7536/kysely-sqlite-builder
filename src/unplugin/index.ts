@@ -11,11 +11,11 @@ export type { TransformOptions } from './types'
  * method name:
  * - `append -> _a`
  * - `create -> _c`
- * - `visit -> _v`
  * - `cloneWith -> _clw`
  * - `createWith -> _crw`
+ * - `#props -> _p`
  * - `Wrapper -> _W`
- * - `BuilderImpl -> _BI`
+ * - `visit -> _v`
  *
  * removed methods:
  * - `mergeInto`
