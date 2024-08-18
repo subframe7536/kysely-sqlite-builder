@@ -1,5 +1,4 @@
-export type Serializer = (parameter: unknown) => unknown
-export type Deserializer = (parameter: unknown) => unknown
+import { type Deserializer, type Serializer, dateRegex } from 'kysely-plugin-serialize'
 
 export const defaultSerializer: Serializer = (parameter) => {
   if (skipTransform(parameter) || typeof parameter === 'string') {
@@ -7,13 +6,11 @@ export const defaultSerializer: Serializer = (parameter) => {
   } else {
     try {
       return JSON.stringify(parameter)
-    } catch (ignore) {
+    } catch {
       return parameter
     }
   }
 }
-
-export const dateRegex = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?$/
 
 export const defaultDeserializer: Deserializer = (parameter) => {
   if (skipTransform(parameter)) {
@@ -23,29 +20,30 @@ export const defaultDeserializer: Deserializer = (parameter) => {
     if (dateRegex.test(parameter)) {
       return new Date(parameter)
     } else if (
-      (parameter[0] === '{' && parameter[parameter.length - 1] === '}')
-      || (parameter[0] === '[' && parameter[parameter.length - 1] === ']')
+      (parameter.startsWith('{') && parameter.endsWith('}'))
+      || (parameter.startsWith('[') && parameter.endsWith(']'))
     ) {
       try {
         return JSON.parse(parameter)
-      } catch (ignore) { }
+      } catch { }
     }
-    return parameter
   }
+  return parameter
 }
 
+const skipType = new Set([
+  'bigint',
+  'number',
+  'boolean',
+])
 /**
  * check if the parameter is no need to transform
  *
  * skip type: `undefined`/`null`, `boolean`/`bigint`/`number`, `ArrayBuffer`/`Buffer`
  */
-export function skipTransform(parameter: unknown) {
+export function skipTransform(parameter: unknown): boolean {
   if (parameter === null || parameter === undefined || parameter instanceof ArrayBuffer) {
     return true
   }
-  const type = typeof parameter
-  return type === 'bigint'
-    || type === 'number'
-    || type === 'boolean'
-    || (type === 'object' && 'buffer' in (parameter as any))
+  return skipType.has(typeof parameter)
 }

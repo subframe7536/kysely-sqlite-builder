@@ -10,7 +10,7 @@ import type {
 import { CompiledQuery, Kysely } from 'kysely'
 import type { Promisable } from '@subframe7536/type-utils'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
-import { SerializePlugin } from './plugin'
+import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 import { checkIntegrity as runCheckIntegrity } from './pragma'
 import type {
   DBLogger,
@@ -20,6 +20,7 @@ import type {
 import { type LoggerOptions, createKyselyLogger } from './logger'
 import { type Executor, type JoinFnName, baseExecutor } from './executor'
 import { savePoint } from './savepoint'
+import { defaultDeserializer, defaultSerializer } from './serializer'
 
 export class IntegrityError extends Error {
   constructor() {
@@ -192,7 +193,11 @@ export class SqliteBuilder<DB extends Record<string, any>> {
       executor = baseExecutor,
     } = options
     this.logger = logger
-    plugins.push(new SerializePlugin())
+    plugins.push(new BaseSerializePlugin({
+      deserializer: defaultDeserializer,
+      serializer: defaultSerializer,
+      skipNodeKind: [],
+    }))
 
     let log
     if (onQuery === true) {
