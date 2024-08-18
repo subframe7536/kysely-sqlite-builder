@@ -1,4 +1,6 @@
-import { type Deserializer, type Serializer, dateRegex } from 'kysely-plugin-serialize'
+import { type Deserializer, type Serializer, dateRegex, skipTransform as skip } from 'kysely-plugin-serialize'
+
+const skipTransform = (parameter: unknown): boolean => skip(parameter) || typeof parameter === 'boolean'
 
 export const defaultSerializer: Serializer = (parameter) => {
   if (skipTransform(parameter) || typeof parameter === 'string') {
@@ -29,21 +31,4 @@ export const defaultDeserializer: Deserializer = (parameter) => {
     }
   }
   return parameter
-}
-
-const skipType = new Set([
-  'bigint',
-  'number',
-  'boolean',
-])
-/**
- * check if the parameter is no need to transform
- *
- * skip type: `undefined`/`null`, `boolean`/`bigint`/`number`, `ArrayBuffer`/`Buffer`
- */
-export function skipTransform(parameter: unknown): boolean {
-  if (parameter === null || parameter === undefined || parameter instanceof ArrayBuffer) {
-    return true
-  }
-  return skipType.has(typeof parameter)
 }

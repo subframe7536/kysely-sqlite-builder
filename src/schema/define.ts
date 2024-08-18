@@ -137,7 +137,7 @@ export const column = {
   /**
    * column type: BLOB
    */
-  blob: <T extends Buffer | Uint8Array | null, NotNull extends true | null>(
+  blob: <T extends Uint8Array | null, NotNull extends true | null>(
     options?: { notNull?: NotNull },
   ) => parse(DataType.blob, options as any) as ColumnBuilder<_DataType['blob'], T, NotNull>,
   /**

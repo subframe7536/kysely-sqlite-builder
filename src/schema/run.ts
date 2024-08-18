@@ -1,7 +1,7 @@
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
-import { defaultSerializer } from '../serializer'
+import { defaultSerializer } from '../serialize'
 import {
   type ColumnProperty,
   DataType,

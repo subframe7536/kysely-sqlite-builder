@@ -20,7 +20,7 @@ import type {
 import { type LoggerOptions, createKyselyLogger } from './logger'
 import { type Executor, type JoinFnName, baseExecutor } from './executor'
 import { savePoint } from './savepoint'
-import { defaultDeserializer, defaultSerializer } from './serializer'
+import { defaultDeserializer, defaultSerializer } from './serialize'
 
 export class IntegrityError extends Error {
   constructor() {
