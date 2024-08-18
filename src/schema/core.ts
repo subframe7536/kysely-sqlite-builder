@@ -85,7 +85,7 @@ export async function syncTables<T extends Schema>(
     await getOrSetDBVersion(db, current)
   }
 
-  const debug = (e: string) => log && logger?.debug('[ schema sync ] ' + e)
+  const debug = (e: string): any => log && logger?.debug(e)
   debug('======== update tables start ========')
   const existDB = await parseExistDB(db, excludeTablePrefix)
 

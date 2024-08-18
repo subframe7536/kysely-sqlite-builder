@@ -1,5 +1,5 @@
 import { CompiledQuery } from 'kysely'
-import type { DatabaseConnection, Kysely, Transaction } from 'kysely'
+import type { DatabaseConnection, Kysely, QueryResult, Transaction } from 'kysely'
 
 type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
 
@@ -85,7 +85,7 @@ export type OptimizePragmaOptions = {
 export async function optimizePragma(
   db: KyselyInstance,
   options: OptimizePragmaOptions = {},
-) {
+): Promise<void> {
   const entries = Object.entries({
     mmap_size: -1,
     cache_size: 4096,
@@ -107,6 +107,6 @@ export async function optimizePragma(
  * @see https://www.sqlite.org/lang_vacuum.html
  */
 
-export async function optimizeSize(db: KyselyInstance, rebuild = false) {
+export async function optimizeSize(db: KyselyInstance, rebuild = false): Promise<QueryResult<unknown>> {
   return await db.executeQuery(CompiledQuery.raw(rebuild ? 'vacuum' : 'pragma optimize'))
 }

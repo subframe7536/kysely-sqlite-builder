@@ -21,7 +21,7 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
 
 ## Usage
 
-### Dialect choice
+### Dialect Choice
 
 For normal usage, you can just use official `SqliteDialect` with `better-sqlite3`
 
@@ -117,7 +117,7 @@ export type SyncOptions<T extends Schema> = {
 }
 ```
 
-### Execute queries
+### Execute Queries
 
 ```ts
 // usage: insertInto / selectFrom / updateTable / deleteFrom
@@ -172,7 +172,7 @@ using selectWithUsing = precompile<{ name: string }>()
   )
 ```
 
-### Soft delete
+### Soft Delete
 
 ```ts
 import { SqliteDialect } from 'kysely'
@@ -208,7 +208,7 @@ await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 await db.kysely.selectFrom('testSoftDelete').selectAll().$call(withNoDelete).execute()
 ```
 
-### Page query
+### Page Query
 
 page query, using offset
 
@@ -319,7 +319,7 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
 ```
 
-### Migrate by code
+### Migrate By Code
 
 ```ts
 import { createCodeProvider, useMigrator } from 'kysely-sqlite-builder/migrator'
@@ -339,7 +339,9 @@ const provider = createCodeProvider({
     }
   }
 })
+await db.syncDB(useMigrator(provider, {/* options */}))
 
+// or use array
 const providerArray = createCodeProvider([
   {
     up: async (db) => {

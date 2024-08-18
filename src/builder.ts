@@ -89,7 +89,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   /**
    * current kysely / transaction instance
    */
-  public get kysely() {
+  public get kysely(): Kysely<DB> {
     return this.trx || this._kysely
   }
 
@@ -246,8 +246,10 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
   }
 
-  private logError(e: unknown, errorMsg?: string) {
-    errorMsg && this.logger?.error(errorMsg, e instanceof Error ? e : undefined)
+  private logError(e: unknown, errorMsg?: string): void {
+    if (errorMsg) {
+      this.logger?.error(errorMsg, e instanceof Error ? e : undefined)
+    }
   }
 
   /**
@@ -334,7 +336,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   /**
    * destroy db connection
    */
-  public async destroy() {
+  public async destroy(): Promise<void> {
     this.logger?.info('destroyed')
     await this._kysely.destroy()
     this.trx = undefined

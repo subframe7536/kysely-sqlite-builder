@@ -89,7 +89,7 @@ type Options<T = any, NotNull extends true | null = true | null> = {
   notNull?: NotNull
 }
 
-function parse(type: DataTypeValue, options?: Options) {
+function parse(type: DataTypeValue, options?: Options): any {
   const data = { type, ...options }
   return { ...data, $cast: () => data }
 }

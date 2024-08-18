@@ -18,7 +18,7 @@ export type ParsedColumnProperty = {
   defaultTo?: any
 }
 
-const baseRegex = /create table (?:if not exist)?\s*"([^"]+)".*?\((.*)\)/i
+const baseRegex = /create table (?:if not exist)?\s*"([^"]+)"\s*\((.*)\)/i
 const columnRegex = /"([^"]+)"\s+(\w+)\s?(not null)?/gi
 
 /**

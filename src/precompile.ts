@@ -1,6 +1,6 @@
 import type { Compilable, CompiledQuery, RootOperationNode } from 'kysely'
 import type { QueryBuilderOutput } from './types'
-import { defaultSerializer } from './plugin'
+import { defaultSerializer } from './serializer'
 
 export type PrecompileBuilder<T extends Record<string, any>> = {
   build: <O>(
@@ -49,7 +49,7 @@ export function precompile<T extends Record<string, any>>(
       queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
     ) => {
       let compiled: CompiledQuery<Compilable<O>> | null
-      const dispose = () => compiled = null
+      const dispose = (): null => compiled = null
       return {
         [Symbol.dispose]: dispose,
         dispose,

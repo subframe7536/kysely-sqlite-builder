@@ -1,7 +1,7 @@
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
-import { defaultSerializer } from '../plugin'
+import { defaultSerializer } from '../serializer'
 import {
   type ColumnProperty,
   DataType,
@@ -45,7 +45,7 @@ export function parseArray<T>(arr: Arrayable<T>): [key: string, value: T[]] {
   return [value.reduce((a, b) => a + '_' + b, ''), value]
 }
 
-export async function runDropTable(db: Kysely<any>, tableName: string) {
+export async function runDropTable(db: Kysely<any>, tableName: string): Promise<void> {
   await sql`drop table if exists ${sql.table(tableName)}`.execute(db)
 }
 
@@ -53,7 +53,7 @@ export async function runCreateTableWithIndexAndTrigger(
   trx: Transaction<any>,
   tableName: string,
   table: Table<any>,
-) {
+): Promise<void> {
   const { index, ...props } = table
   const triggerOptions = await runCreateTable(trx, tableName, props)
   await runCreateTimeTrigger(trx, tableName, triggerOptions)
@@ -64,7 +64,7 @@ export async function runCreateTableIndex(
   trx: Transaction<any>,
   tableName: string,
   index: Arrayable<string>[] | undefined,
-) {
+): Promise<void> {
   for (const i of index || []) {
     const [key, value] = parseArray(i)
 
@@ -76,7 +76,7 @@ export async function runCreateTable(
   trx: Transaction<any>,
   tableName: string,
   { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-) {
+): Promise<RunTriggerOptions | undefined> {
   const _triggerOptions: RunTriggerOptions | undefined = timeTrigger
     ? {
         triggerKey: 'rowid',
@@ -151,7 +151,7 @@ export async function runCreateTimeTrigger(
   trx: Transaction<any>,
   tableName: string,
   options?: RunTriggerOptions,
-) {
+): Promise<void> {
   if (!options?.update) {
     return
   }
@@ -163,6 +163,6 @@ export async function runRenameTable(
   trx: Transaction<any>,
   tableName: string,
   newTableName: string,
-) {
+): Promise<void> {
   await sql`alter table ${sql.table(tableName)} rename to ${sql.table(newTableName)}`.execute(trx)
 }
