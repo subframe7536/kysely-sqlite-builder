@@ -7,7 +7,7 @@ export type SavePoint = {
 }
 
 /**
- * create savepoint, release or rollback it later,
+ * Create savepoint, release or rollback it later,
  * included in `SqliteBuilder`
  * @example
  * const sp = await savePoint(db, 'savepoint_1')
@@ -22,7 +22,7 @@ export async function savePoint(
   db: Kysely<any> | Transaction<any>,
   name?: string,
 ): Promise<SavePoint> {
-  const _name = name || 'sp_' + Date.now() % 100000000
+  const _name = name || 'sp_' + Date.now() % 1e12 + '_' + Math.floor(Math.random() * 1e4)
   await sql`savepoint ${sql.raw(_name)}`.execute(db)
   return {
     release: async () => {

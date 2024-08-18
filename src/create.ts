@@ -17,7 +17,7 @@ export type CreateSqliteBuilderOptions<
    */
   sync?: SyncOptions<T>
   /**
-   * whether to check integrity
+   * Whether to check integrity
    */
   checkIntegrity?: boolean
 }

@@ -1,7 +1,7 @@
 import type { Migration, MigrationProvider } from 'kysely'
 
 /**
- * create provider inside code
+ * Create provider inside code
  * @param migrations kysely migration, support Record or Array
  * @param idLength index id length, default is 8
  * @example

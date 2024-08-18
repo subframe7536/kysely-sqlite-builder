@@ -4,7 +4,7 @@ import type { DatabaseConnection, Kysely, QueryResult, Transaction } from 'kysel
 type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
 
 /**
- * check integrity_check pragma
+ * Check integrity_check pragma
  */
 export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
   const { rows } = await db.executeQuery(CompiledQuery.raw('PRAGMA integrity_check'))
@@ -16,14 +16,14 @@ export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
 }
 
 /**
- * control whether to enable foreign keys, **no param check**
+ * Control whether to enable foreign keys, **no param check**
  */
 export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void> {
   await db.executeQuery(CompiledQuery.raw('PRAGMA foreign_keys = ' + enable))
 }
 
 /**
- * get or set user_version pragma, **no param check**
+ * Get or set user_version pragma, **no param check**
  */
 export async function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number> {
   if (version) {
@@ -78,7 +78,7 @@ export type OptimizePragmaOptions = {
 }
 
 /**
- * call optimize pragma, **no param check**
+ * Call optimize pragma, **no param check**
  * @param db database connection
  * @param options pragma options, {@link OptimizePragmaOptions details}
  */
@@ -100,7 +100,7 @@ export async function optimizePragma(
   }
 }
 /**
- * optimize db file
+ * Optimize db file
  * @param db database connection
  * @param rebuild if is true, run `vacuum` instead of `pragma optimize`
  * @see https://sqlite.org/pragma.html#pragma_optimize

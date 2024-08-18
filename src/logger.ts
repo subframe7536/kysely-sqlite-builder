@@ -13,25 +13,25 @@ export type LoggerParams = {
 
 export type LoggerOptions = {
   /**
-   * log functions
+   * Log functions
    * @param data logger params, see {@link LoggerParams}
    * @default console.log
    */
   logger?: (data: LoggerParams) => void
   /**
-   * whether to merge parameters into sql, use `JSON.stringify` to serialize params
+   * Whether to merge parameters into sql, use `JSON.stringify` to serialize params
    *
    * e.g. from `select ? from ?` to `select "name" from "user"`
    */
   merge?: boolean
   /**
-   * whether to log queryNode
+   * Whether to log queryNode
    */
   logQueryNode?: boolean
 }
 
 /**
- * util for `KyselyConfig.log`, log on every execution
+ * Util for `KyselyConfig.log`, log on every execution
  * @example
  * import { Kysely } from 'kysely'
  *

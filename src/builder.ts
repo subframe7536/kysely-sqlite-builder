@@ -87,7 +87,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   private executor: Executor
 
   /**
-   * current kysely / transaction instance
+   * Current kysely / transaction instance
    */
   public get kysely(): Kysely<DB> {
     return this.trx || this._kysely
@@ -108,7 +108,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   } = (tb: any) => this.executor.deleteFrom(this.kysely, tb) as any
 
   /**
-   * sqlite builder. All methods will run in current transaction
+   * SQLite builder. All methods will run in current transaction
    * @param options options
    * @example
    * ### Definition
@@ -253,7 +253,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   /**
-   * run in transaction, support nest call (using `savepoint`)
+   * Run in transaction, support nest call (using `savepoint`)
    * @example
    * db.transaction(async (trx) => {
    *   // auto load transaction
@@ -309,15 +309,15 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   /**
-   * execute raw sql
+   * Execute raw sql
    */
   public async execute<O>(rawSql: RawBuilder<O>): Promise<QueryResult<O>>
   /**
-   * execute sql string
+   * Execute sql string
    */
   public async execute<O>(rawSql: string, parameters?: unknown[]): Promise<QueryResult<O>>
   /**
-   * execute compiled query and return result list
+   * Execute compiled query and return result list
    */
   public async execute<O>(query: CompiledQuery<O>): Promise<QueryResult<O>>
   public async execute<O>(
@@ -334,7 +334,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   /**
-   * destroy db connection
+   * Destroy db connection
    */
   public async destroy(): Promise<void> {
     this.logger?.info('destroyed')

@@ -61,7 +61,7 @@ export type PaginationResult<Total extends boolean, O> = {
 } : {})
 
 /**
- * page query, using offset
+ * Page query, using offset
  *
  * if `num <= 0` or `size <= 0`, return all records
  * @param qb select query builder

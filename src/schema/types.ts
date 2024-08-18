@@ -2,7 +2,7 @@ import type { ColumnType, Generated, RawBuilder } from 'kysely'
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 
 /**
- * column data typ
+ * Column data typ
  */
 export const DataType = {
   increments: 0,
@@ -67,23 +67,23 @@ export type TableProperty<
   Delete extends string | true | null = null,
 > = {
   /**
-   * primary key constraint, only if have no `column.increments()` key
+   * Primary key constraint, only if have no `column.increments()` key
    */
   primary?: Arrayable<keyof Cols & string>
   /**
-   * unique constraint
+   * Unique constraint
    */
   unique?: Arrayable<keyof Cols & string>[]
   /**
-   * column indexes, allow multiple, no unique index support
+   * Column indexes, allow multiple, no unique index support
    */
   index?: Arrayable<keyof Cols & string>[]
   /**
-   * time trigger for `createAt` and `updateAt`
+   * Time trigger for `createAt` and `updateAt`
    */
   timeTrigger?: TimeTriggerOptions<Create, Update>
   /**
-   * whether to use soft delete
+   * Whether to use soft delete
    */
   softDelete?: Delete
 }
@@ -160,7 +160,7 @@ export type ParseTableWithExtraColumns<
   : never
 
 /**
- * util type for infering type of table
+ * Util type for infering type of table
  */
 export type InferTable<
   T extends {
@@ -190,7 +190,7 @@ export type InferTable<
 }>
 
 /**
- * util type for infering type of database
+ * Util type for infering type of database
  *
  * if the infered type contains `"HAVE_TYPE_ERROR_IN_DEFINITION"`,
  * there is some error in target table's default value type

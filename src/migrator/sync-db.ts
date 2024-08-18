@@ -2,7 +2,7 @@ import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } fro
 import type { DBLogger, SchemaUpdater } from '../types'
 
 /**
- * use migrator to migrate to latest
+ * Use migrator to migrate to latest
  * @param provider migration provider
  * @param options migrator options
  */

@@ -18,7 +18,7 @@ export const defaultRootOperatorNodeProcessFn: ProcessRootOperatorNodeFn = (
 ): RootOperationNode => ({ kind: node.kind }) as any
 
 /**
- * precompile query, call it with different params later, design for better performance
+ * Precompile query, call it with different params later, design for better performance
  * @example
  * import { precompile } from 'kysely-sqlite-builder'
  *

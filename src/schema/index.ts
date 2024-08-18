@@ -9,7 +9,7 @@ export * from './types'
 export { defineTable, column } from './define'
 
 /**
- * auto sync table using schema, only sync table/index/trigger
+ * Auto sync table using schema, only sync table/index/trigger
  * @param schema table schema, see {@link defineTable}
  * @param options sync options
  */

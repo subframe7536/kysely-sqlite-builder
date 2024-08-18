@@ -16,7 +16,7 @@ import {
 export const TGR = '_T_'
 
 /**
- * define table
+ * Define table
  *
  * you can use it with {@link $col}
  *
@@ -101,7 +101,7 @@ type ColumnBuilder<
   HasDefaultTo = IsNotNull<Type>,
 > = ColumnProperty<T, HasDefaultTo extends true ? Type : Type | null, NotNull> & {
   /**
-   * define column type manually
+   * Define column type manually
    */
   $cast: <
     NarrowedType extends InferColumnTypeByNumber<T>,
@@ -113,47 +113,47 @@ type ColumnBuilder<
  */
 export const column = {
   /**
-   * column type: INTEGER AUTO INCREMENT
+   * Column type: INTEGER AUTO INCREMENT
    */
   increments: () => ({ type: DataType.increments } as const),
   /**
-   * column type: INTEGER
+   * Column type: INTEGER
    */
   int: <T extends number | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.int, options as any) as ColumnBuilder<_DataType['int'], T, NotNull>,
   /**
-   * column type: REAL
+   * Column type: REAL
    */
   float: <T extends number | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.float, options as any) as ColumnBuilder<_DataType['float'], T, NotNull>,
   /**
-   * column type: text
+   * Column type: text
    */
   string: <T extends string | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.string, options as any) as ColumnBuilder<_DataType['string'], T, NotNull>,
   /**
-   * column type: BLOB
+   * Column type: BLOB
    */
   blob: <T extends Uint8Array | null, NotNull extends true | null>(
     options?: { notNull?: NotNull },
   ) => parse(DataType.blob, options as any) as ColumnBuilder<_DataType['blob'], T, NotNull>,
   /**
-   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
   boolean: <T extends BooleanColumnType | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.boolean, options as any) as ColumnBuilder<_DataType['boolean'], T, NotNull>,
   /**
-   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
   date: <T extends Date | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,
   ) => parse(DataType.date, options as any) as ColumnBuilder<_DataType['date'], T, NotNull>,
   /**
-   * column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
   object: <T extends object | null, NotNull extends true | null>(
     options?: Options<T, NotNull>,

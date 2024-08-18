@@ -21,7 +21,7 @@ export type Executor = typeof baseExecutor
 
 type CreateSoftDeleteExecutorReturn = {
   /**
-   * sqlite builder executor
+   * SQLite  builder executor
    * @example
    * const { executor, withNoDelete } = createSoftDeleteExecutor()
    *
@@ -35,7 +35,7 @@ type CreateSoftDeleteExecutorReturn = {
    */
   executor: Executor
   /**
-   * filter query builder with `where('isDeleted', '=', 0)`
+   * Filter query builder with `where('isDeleted', '=', 0)`
    * @example
    * const { executor, withNoDelete } = createSoftDeleteExecutor()
    * db.selectFrom('test').selectAll().$call(withNoDelete)
@@ -44,7 +44,7 @@ type CreateSoftDeleteExecutorReturn = {
 }
 
 /**
- * create soft delete executor function,
+ * Create soft delete executor function,
  *
  * return type of `deleteFrom` is `UpdateResult` insteadof `DeleteResult`,
  * to fix it, wrap the result with {@link toDeleteResult}
@@ -63,7 +63,7 @@ export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): Create
 }
 
 /**
- * fix the type of `DeleteResult` when using soft delete
+ * Fix the type of `DeleteResult` when using soft delete
  * @param result the result of `deleteFrom` in `createSoftDeleteExecutor`
  */
 export function toDeleteResult(result: DeleteResult): DeleteResult {

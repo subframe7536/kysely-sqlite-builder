@@ -17,34 +17,34 @@ import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './pa
 
 export type SyncOptions<T extends Schema> = {
   /**
-   * whether to enable debug logger
+   * Whether to enable debug logger
    */
   log?: boolean
   /**
-   * version control
+   * Version control
    */
   version?: {
     /**
-     * current version
+     * Current version
      */
     current: number
     /**
-     * whether to skip sync when the db's `user_version` is same with `version.current`
+     * Whether to skip sync when the db's `user_version` is same with `version.current`
      */
     skipSyncWhenSame: boolean
   }
   /**
-   * exclude table prefix list, append with `%`
+   * Exclude table prefix list, append with `%`
    *
    * `sqlite_%` by default
    */
   excludeTablePrefix?: string[]
   /**
-   * do not restore data from old table to new table
+   * Do not restore data from old table to new table
    */
   truncateIfExists?: boolean | Array<StringKeys<T> | string & {}>
   /**
-   * trigger on sync success
+   * Trigger on sync success
    * @param db kysely instance
    * @param oldSchema old database schema
    * @param oldVersion old database version
@@ -55,7 +55,7 @@ export type SyncOptions<T extends Schema> = {
     oldVersion: number | undefined
   ) => Promisable<void>
   /**
-   * trigger on sync fail
+   * Trigger on sync fail
    */
   onSyncFail?: (err: unknown) => Promisable<void>
 }
