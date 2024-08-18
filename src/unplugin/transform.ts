@@ -1,11 +1,13 @@
-import MagicStringStack from 'magic-string-stack'
+import MagicString from 'magic-string'
 import type { TransformResult } from 'unplugin'
 import type { TransformOptions } from './types'
 
-const methodRegexWithSemicolon = (methodName: string, tail = '') => new RegExp(`${methodName}\\(([^)]*)\\) \\{[\\s\\S]*?;[\\s\\S]*?}${tail}`, 'gm')
+function methodRegexWithSemicolon(methodName: string, tail = ''): RegExp {
+  return new RegExp(`${methodName}\\(([^)]*)\\) \\{[\\s\\S]*?;[\\s\\S]*?}${tail}`, 'gm')
+}
 
 export function transformKyselyCode(code: string, id: string, options: TransformOptions): TransformResult {
-  const _code = new MagicStringStack(code)
+  let _code = new MagicString(code)
   if (options.dropDelete) {
     if (id.includes('delete-query-builder')) {
       return ';'
@@ -16,14 +18,14 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       return ';'
     }
     if (id.includes('sqlite-introspector')) {
-      const s = new MagicStringStack('export class SqliteIntrospector {}')
+      const s = new MagicString('export class SqliteIntrospector {}')
       return {
         code: s.toString(),
         map: s.generateMap(),
       }
     }
     if (id.includes('sqlite-adapter')) {
-      const s = new MagicStringStack(`export class SqliteAdapter { get supportsReturning() { return true; } }`)
+      const s = new MagicString(`export class SqliteAdapter { get supportsReturning() { return true; } }`)
       return {
         code: s.toString(),
         map: s.generateMap(),
@@ -48,7 +50,6 @@ export function transformKyselyCode(code: string, id: string, options: Transform
         .replace(/visitCreateView[\s\S]*(?=visitGenerated)/, '')
         .replace(/visitCreateType[\s\S]*(?=visitExplain)/, '')
     }
-    _code.commit()
   }
 
   if (
@@ -63,12 +64,10 @@ export function transformKyselyCode(code: string, id: string, options: Transform
 
   if (id.includes('object-utils')) {
     _code.replace(/export function freeze\(obj\) \{[\s\S]*?\}/g, '')
-    _code.commit()
   }
 
   if (id.includes('data-type-parser')) {
     _code.replace('isColumnDataType(dataType)', '["text", "integer", "real", "blob"].includes(dataType)')
-    _code.commit()
   }
 
   if (id.includes('query-node')) {
@@ -76,7 +75,6 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       .replace(/ \|\|\s.*MergeQueryNode\.is\(node\)/, '')
       .replace(methodRegexWithSemicolon('cloneWithTop', ','), '')
       .replace(methodRegexWithSemicolon('cloneWithFetch', ','), '')
-    _code.commit()
   }
 
   if (
@@ -86,27 +84,22 @@ export function transformKyselyCode(code: string, id: string, options: Transform
     || id.includes('select-query-builder')
   ) {
     _code.replace(methodRegexWithSemicolon('top'), '')
-    _code.commit()
   }
 
   if (id.includes('insert-query-builder')) {
     _code.replace(methodRegexWithSemicolon('ignore'), '')
-    _code.commit()
   }
 
   if (id.includes('select-query-builder')) {
     _code.replace(methodRegexWithSemicolon('fetch'), '')
-    _code.commit()
   }
 
   if (id.includes('select-query-node')) {
     _code.replace(methodRegexWithSemicolon('cloneWithFetch', ','), '')
-    _code.commit()
   }
 
   if (id.includes('with-schema-transformer')) {
     _code.replace('MergeQueryNode: true,', '')
-    _code.commit()
   }
 
   if (id.includes('operation-node-transformer')) {
@@ -118,16 +111,16 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       .replace(/ignore: node.ignore,/g, '')
       .replace('fetch: this.transformNode(node.fetch),', '')
       .replace(/replace: node.replace,/g, '')
-    _code.commit()
 
-    options?.useDynamicTransformer
-      ? _code.replace(/#transformers = freeze\([\s\S]*?\}\);/, '')
+    if (options?.useDynamicTransformer) {
+      _code.replace(/#transformers = freeze\([\s\S]*?\}\);/, '')
         .replace('this.#transformers[node.kind]', 'this["transform" + node.kind.substring(0, node.kind.length - 4)]')
-      : _code
+    } else {
+      _code
         .replace(/TopNode: this.transformTop.bind\(this\),/g, '')
         .replace(/MergeQueryNode: this.transformMergeQuery.bind\(this\),/g, '')
         .replace(/FetchNode: this.transformFetch.bind\(this\),/g, '')
-    _code.commit()
+    }
   }
 
   if (id.includes('default-query-compiler')) {
@@ -139,7 +132,6 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       .replace(/if \(node.top\) \{[\s\S]*?\}/g, '')
       .replace('this.append(node.replace ? \'replace\' : \'insert\');', 'this.append(\'insert\');')
       .replace(' extends OperationNodeVisitor', '')
-    _code.commit()
 
     _code.replace(/visit(\w+)\(.*\) \{/g, (_, str) => `${str}Node(node) {`)
       .replace('#parameters = [];', `#parameters = [];
@@ -152,18 +144,15 @@ export function transformKyselyCode(code: string, id: string, options: Transform
       this[node.kind](node);
       this.nodeStack.pop();
     };`)
-    _code.commit()
   }
 
   if (id.includes('query-creator')) {
     _code
       .replace(methodRegexWithSemicolon('replaceInto'), '')
       .replace(methodRegexWithSemicolon('mergeInto'), '')
-    _code.commit()
   }
   if (id.includes('query-executor-base')) {
     _code.replace('warnOfOutdatedDriverOrPlugins(result, transformedResult);', '')
-    _code.commit()
   }
 
   _code
@@ -177,10 +166,8 @@ export function transformKyselyCode(code: string, id: string, options: Transform
     .replace(/cloneWith/g, '_clw')
     .replace(/createWith/g, '_crw')
     .replace(/Wrapper/g, '_W')
-  _code.commit()
 
-  options.transform?.(_code, id)
-  _code.commit()
+  _code = options.transform?.(_code, id) ?? _code
 
   return {
     code: _code.toString(),

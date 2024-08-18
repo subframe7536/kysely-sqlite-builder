@@ -1,4 +1,4 @@
-import type MagicStringStack from 'magic-string-stack/index'
+import type MagicString from 'magic-string'
 
 export type TransformOptions = {
   /**
@@ -11,7 +11,7 @@ export type TransformOptions = {
    * @param code source code
    * @param filePath file path
    */
-  transform?: (code: MagicStringStack, filePath: string) => MagicStringStack
+  transform?: (code: MagicString, filePath: string) => MagicString
   /**
    * use dynamic node transformer, maybe impact performance
    * @default true
