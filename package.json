@@ -1,7 +1,7 @@
 {
   "name": "kysely-sqlite-builder",
   "type": "module",
-  "version": "0.8.8",
+  "version": "0.8.9-beta.1",
   "description": "Utility layer for Kysely on SQLite",
   "author": "subframe7536",
   "license": "MIT",
@@ -59,24 +59,24 @@
     "release": "bun test && bun run build && bumpp --all && npm publish"
   },
   "peerDependencies": {
-    "kysely": "^0.27.3",
-    "magic-string": "^0.30.10",
-    "unplugin": "^1.10.1"
+    "kysely": "^0.27.4",
+    "magic-string": "^0.30.11",
+    "unplugin": "^1.12.2"
   },
   "dependencies": {
     "kysely-plugin-serialize": "^0.6.3"
   },
   "devDependencies": {
-    "@subframe7536/eslint-config": "^0.7.3",
+    "@subframe7536/eslint-config": "^0.7.5",
     "@subframe7536/type-utils": "^0.1.6",
     "@types/bun": "^1.1.6",
-    "bumpp": "^9.4.1",
-    "eslint": "^9.8.0",
+    "bumpp": "^9.5.2",
+    "eslint": "^9.9.0",
     "kysely": "^0.27.4",
-    "kysely-wasm": "^0.6.2",
+    "kysely-wasm": "^0.6.3",
     "magic-string": "^0.30.11",
     "node-sqlite3-wasm": "^0.8.19",
-    "tsup": "^8.2.3",
+    "tsup": "^8.2.4",
     "typescript": "^5.5.4"
   }
 }
