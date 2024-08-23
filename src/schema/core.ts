@@ -112,12 +112,7 @@ export async function syncTables<T extends Schema>(
       for (const [existTableName, existColumns] of Object.entries(existDB.existTables)) {
         if (existTableName in targetTables) {
           debug('diff table: ' + existTableName)
-          try {
-            await diffTable(trx, existTableName, existColumns, targetTables[existTableName])
-          } catch (e) {
-            logger?.error('fail to sync ' + existTableName, e as any)
-            throw e
-          }
+          await diffTable(trx, existTableName, existColumns)
         } else {
           debug('drop table: ' + existTableName)
           await runDropTable(trx, existTableName)
@@ -146,51 +141,62 @@ export async function syncTables<T extends Schema>(
     trx: Transaction<any>,
     tableName: string,
     existColumns: ParsedCreateTableSQL,
-    targetColumns: Table,
   ): Promise<void> {
-    if (truncateTableSet.has(tableName)) {
-      await runDropTable(trx, tableName)
-      await runCreateTableWithIndexAndTrigger(trx, tableName, targetColumns)
-      debug('clear and sync structure for table "' + tableName + '"')
-      return
+    const targetColumns = targetTables[tableName]
+    try {
+      if (truncateTableSet.has(tableName)) {
+        await runDropTable(trx, tableName)
+        await runCreateTableWithIndexAndTrigger(trx, tableName, targetColumns)
+        debug('clear and sync structure for table "' + tableName + '"')
+      } else {
+        const restoreColumnList = extractRestoreColumnList(existColumns.columns, targetColumns.columns)
+
+        // if all columns are in same table structure, skip
+        if (restoreColumnList.length === Object.keys(existColumns.columns).length) {
+          debug('same table structure, skip table "' + tableName + '"')
+          return
+        }
+        debug('different table structure, update table "' + tableName + '" with index and trigger, restore columns: ' + restoreColumnList)
+        await updateTableSchema(trx, tableName, restoreColumnList, targetColumns)
+      }
+    } catch (e) {
+      logger?.error('fail to sync ' + tableName, e as any)
+      throw e
     }
-    const { index, ...props } = targetColumns
-
-    const restoreColumnList = getRestoreColumnList(existColumns.columns, targetColumns.columns)
-
-    // if all columns are in same table structure, skip
-    if (restoreColumnList.length === Object.keys(existColumns.columns).length) {
-      debug('same table structure, skip table "' + tableName + '"')
-      return
-    }
-    //
-    // migrate table data
-    // see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
-    //
-    debug('different table structure, update table "' + tableName + '" with index and trigger, restore columns: ' + restoreColumnList)
-    const tempTableName = '_temp_' + tableName
-
-    // 1. create target table with temp name
-    const triggerOptions = await runCreateTable(trx, tempTableName, props)
-
-    // 2. diff and restore data from source table to target table
-    if (restoreColumnList.length) {
-      const cols = sql.raw(restoreColumnList.map(c => '"' + c + '"').join(', '))
-      sql`insert into ${sql.table(tempTableName)} (${cols}) select ${cols} from ${sql.table(tableName)}`.execute(trx)
-    }
-    // 3. remove old table
-    await runDropTable(trx, tableName)
-
-    // 4. rename temp table to target table name
-    await runRenameTable(trx, tempTableName, tableName)
-
-    // 5. add indexes and triggers
-    await runCreateTableIndex(trx, tableName, index)
-    await runCreateTimeTrigger(trx, tableName, triggerOptions)
   }
 }
 
-function getRestoreColumnList(
+/**
+ * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
+ */
+export async function updateTableSchema(
+  trx: Transaction<any>,
+  tableName: string,
+  restoreColumnList: string[],
+  targetTable: Table,
+): Promise<void> {
+  const tempTableName = '_temp_' + tableName
+
+  // 1. create target table with temp name
+  const triggerOptions = await runCreateTable(trx, tempTableName, targetTable)
+
+  // 2. diff and restore data from source table to target table
+  if (restoreColumnList.length) {
+    const cols = sql.raw(restoreColumnList.map(c => '"' + c + '"').join(', '))
+    sql`insert into ${sql.table(tempTableName)} (${cols}) select ${cols} from ${sql.table(tableName)}`.execute(trx)
+  }
+  // 3. remove old table
+  await runDropTable(trx, tableName)
+
+  // 4. rename temp table to target table name
+  await runRenameTable(trx, tempTableName, tableName)
+
+  // 5. add indexes and triggers
+  await runCreateTableIndex(trx, tableName, targetTable.index)
+  await runCreateTimeTrigger(trx, tableName, triggerOptions)
+}
+
+function extractRestoreColumnList(
   existColumns: ParsedCreateTableSQL['columns'],
   targetColumns: Table['columns'],
 ): string[] {

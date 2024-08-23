@@ -25,7 +25,7 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
       break
     case DataType.increments:
       isIncrements = true
-      // eslint-disable-next-line no-fallthrough
+    // eslint-disable-next-line no-fallthrough
     case DataType.boolean:
     case DataType.int:
       dataType = 'integer'
@@ -33,13 +33,18 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
     case DataType.blob:
       dataType = 'blob'
       break
-    // date, object, string or othera
+    // date, object, string or other
     default:
       dataType = 'text'
   }
   return [dataType, isIncrements]
 }
 
+/**
+ * Merge array with `_` and prepend `_`
+ *
+ * Return merged string and parsed array
+ */
 export function parseArray<T>(arr: Arrayable<T>): [key: string, value: T[]] {
   const value = Array.isArray(arr) ? arr : [arr]
   return [value.reduce((a, b) => a + '_' + b, ''), value]
@@ -63,9 +68,9 @@ export async function runCreateTableWithIndexAndTrigger(
 export async function runCreateTableIndex(
   trx: Transaction<any>,
   tableName: string,
-  index: Arrayable<string>[] | undefined,
+  index: Arrayable<string>[] = [],
 ): Promise<void> {
-  for (const i of index || []) {
+  for (const i of index) {
     const [key, value] = parseArray(i)
 
     await sql`create index if not exists ${sql.ref('idx_' + tableName + key)} on ${sql.table(tableName)} (${sql.join(value.map(sql.ref))})`.execute(trx)
@@ -156,7 +161,7 @@ export async function runCreateTimeTrigger(
     return
   }
   const triggerName = 'tgr_' + tableName + '_' + options.update
-  await sql`create trigger if not exists ${sql.ref(triggerName)} after update on ${sql.table(tableName)} begin   update ${sql.table(tableName)} set ${sql.ref(options.update)} = CURRENT_TIMESTAMP where ${sql.ref(options.triggerKey)} = NEW.${sql.ref(options.triggerKey)}; end`.execute(trx)
+  await sql`create trigger if not exists ${sql.ref(triggerName)} after update on ${sql.table(tableName)} begin update ${sql.table(tableName)} set ${sql.ref(options.update)} = CURRENT_TIMESTAMP where ${sql.ref(options.triggerKey)} = NEW.${sql.ref(options.triggerKey)}; end`.execute(trx)
 }
 
 export async function runRenameTable(
