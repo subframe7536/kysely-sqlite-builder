@@ -13,16 +13,40 @@ export type TransformOptions = {
    */
   transform?: (code: MagicString, filePath: string) => MagicString
   /**
-   * Use dynamic node transformer, maybe impact performance
+   * Use dynamic node transformer in `DefaultQueryCompiler`
    * @default true
    */
   useDynamicTransformer?: boolean
   /**
-   * Drop support of `migrator`, `instropection`, `schema` and remove all props in `adapter` except `supportsReturning: true`
+   * Drop support of `migrator`, `instropection`, and remove all props in `adapter` except `supportsReturning: true`
+   *
+   * If you are using `defineTable`, recommend to set `true`
    */
   dropMigrator?: boolean
   /**
+   * Drop support of `schema` and table management
+   *
+   * If you are using `defineTable`, recommend to set `true`
+   */
+  dropSchema?: boolean
+  /**
    * Drop support of `delete`
+   *
+   * If you are using `createSoftDeleteExecutor`, recommend to set `true`
    */
   dropDelete?: boolean
+  /**
+   * Minify method name, maybe you should also setup `filter`
+   *
+   * method names:
+   * - `append -> _a`
+   * - `cloneWith -> _clw`
+   * - `create -> _c`
+   * - `createWith -> _crw`
+   * - `Wrapper -> _W`
+   * - `visit -> _v`
+   * - `toOperationNode` -> `_ton`
+   * - `executor` -> `_ec`
+   */
+  minifyMethodName?: boolean
 }

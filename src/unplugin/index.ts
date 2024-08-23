@@ -5,17 +5,9 @@ import type { TransformOptions } from './types'
 export type { TransformOptions } from './types'
 
 /**
- * kysely plugin, convert `#props` to `_props`,
- * trim kysely method or class names and remove unsupported methods
+ * Unplugin for Kysely, trim kysely private properties and remove unsupported or unused methods
  *
- * method name:
- * - `append -> _a`
- * - `cloneWith -> _clw`
- * - `create -> _c`
- * - `createWith -> _crw`
- * - `#props -> _p`
- * - `Wrapper -> _W`
- * - `visit -> _v`
+ * Transform kysely esm code by default
  *
  * removed methods:
  * - `mergeInto`
