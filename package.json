@@ -1,7 +1,7 @@
 {
   "name": "kysely-sqlite-builder",
   "type": "module",
-  "version": "0.8.9-beta.1",
+  "version": "0.9.0",
   "description": "Utility layer for Kysely on SQLite",
   "author": "subframe7536",
   "license": "MIT",
@@ -24,10 +24,6 @@
     "./migrator": {
       "import": "./dist/migrator.js",
       "require": "./dist/migrator.cjs"
-    },
-    "./plugin": {
-      "import": "./dist/plugin.js",
-      "require": "./dist/plugin.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -39,9 +35,6 @@
       ],
       "migrator": [
         "./dist/migrator.d.ts"
-      ],
-      "plugin": [
-        "./dist/plugin.d.ts"
       ]
     }
   },

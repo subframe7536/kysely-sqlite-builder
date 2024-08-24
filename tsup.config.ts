@@ -4,7 +4,6 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     schema: 'src/schema/index.ts',
-    plugin: 'src/unplugin/index.ts',
     migrator: 'src/migrator/index.ts',
   },
   clean: true,
