@@ -364,113 +364,24 @@ await db.syncDB(useMigrator(providerArray, {/* options */}))
 
 v0.7.1 introduced a experimental plugin (using `unplugin`) to reduce the bundle size.
 
-Trim kysely private properties and remove unsupported or unused methods
+From v0.9.0, the plugin is externalized, please install [`kysely-unplugin-sqlite`](https://github.com/subframe7536/kysely-unplugin-sqlite)
 
-Transform kysely esm code by default
-
-removed methods:
-- `mergeInto`
-- `replaceInto`
-- `top`
-- `fetch`
-- `ignore`
-
-About 20% of the minified bundle size is reduced by default, up to **60%** when turn on all options.
-
-**use at your own risk!**
-
-you need to install `unplugin` first (auto installed by peerDependencies)
-
-### Usage
+### Recommend Config
 
 ```ts
+import { plugin } from 'kysely-unplugin-sqlite'
 import { defineConfig } from 'vite'
-import { plugin } from 'kysely-sqlite-builder/plugin'
 
 export default defineConfig({
-  plugins: [plugin.vite({ dropMigrator: true })],
+  plugins: [plugin.vite({
+    // If you are using `useSchema()`
+    dropMigrator: true,
+    dropSchema: true,
+    minifyMethodName: true,
+    // If you are using `createSoftDeleteExecutor()`
+    dropDelete: true,
+  })]
 })
-```
-
-types:
-```ts
-export type TransformOptions = {
-  /**
-   * Filter files to be transformed
-   * @param filePath file path
-   */
-  filter?: (filePath: string) => boolean
-  /**
-   * Custom extra transformer
-   * @param code source code
-   * @param filePath file path
-   */
-  transform?: (code: MagicString, filePath: string) => MagicString
-  /**
-   * Use dynamic node transformer in `DefaultQueryCompiler`
-   * @default true
-   */
-  useDynamicTransformer?: boolean
-  /**
-   * Drop support of `migrator`, `instropection`, and remove all props in `adapter` except `supportsReturning: true`
-   *
-   * If you are using `defineTable`, recommend to set `true`
-   */
-  dropMigrator?: boolean
-  /**
-   * Drop support of `schema` and table management
-   *
-   * If you are using `defineTable`, recommend to set `true`
-   */
-  dropSchema?: boolean
-  /**
-   * Drop support of `delete`
-   *
-   * If you are using `createSoftDeleteExecutor`, recommend to set `true`
-   */
-  dropDelete?: boolean
-  /**
-   * Minify method name
-   *
-   * method names:
-   * - `append -> _a`
-   * - `cloneWith -> _clw`
-   * - `create -> _c`
-   * - `createWith -> _crw`
-   * - `Wrapper -> _W`
-   * - `visit -> _v`
-   * - `toOperationNode` -> `_ton`
-   * - `executor` -> `_ec`
-   */
-  minifyMethodName?: boolean
-}
-```
-
-### Metric
-
-Build with `tsup` and setup `plugin.esbuild()`
-
-| option                     | size      | minified size |
-| -------------------------- | --------- | ------------- |
-| no plugin                  | 344.13 KB | 130.92 KB     |
-| with plugin                | 296.38 KB | 110.57 KB     |
-| with plugin of all options | 171.18 KB | 56.44 KB      |
-
-#### Entry file
-
-```ts
-import { Kysely, sql } from 'kysely'
-import { EmptyDialect } from 'kysely-wasm'
-
-const db = new Kysely({
-  dialect: new EmptyDialect(),
-})
-
-export function test(): Promise<void> {
-  return sql`select 1`.execute(db)
-}
-
-console.log(db.insertInto('test').values({ test: 1 }).compile().sql)
 ```
 
 ## License
