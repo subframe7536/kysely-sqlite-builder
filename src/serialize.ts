@@ -1,4 +1,4 @@
-import { type Deserializer, type Serializer, dateRegex, skipTransform as skip } from 'kysely-plugin-serialize'
+import { dateRegex, type Deserializer, type Serializer, skipTransform as skip } from 'kysely-plugin-serialize'
 
 const skipTransform = (parameter: unknown): boolean => skip(parameter) || typeof parameter === 'boolean'
 

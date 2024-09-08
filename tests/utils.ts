@@ -1,6 +1,6 @@
 import { NodeWasmDialect } from 'kysely-wasm'
 import { Database } from 'node-sqlite3-wasm'
-import { SqliteBuilder, optimizePragma } from '../src'
+import { optimizePragma, SqliteBuilder } from '../src'
 import { column, defineTable } from '../src/schema'
 import type { InferDatabase } from '../src/schema'
 

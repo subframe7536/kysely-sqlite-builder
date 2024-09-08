@@ -1,3 +1,6 @@
+import { CompiledQuery, Kysely } from 'kysely'
+import { BaseSerializePlugin } from 'kysely-plugin-serialize'
+import type { Promisable } from '@subframe7536/type-utils'
 import type {
   DeleteQueryBuilder,
   DeleteResult,
@@ -7,26 +10,18 @@ import type {
   RawBuilder,
   Transaction,
 } from 'kysely'
-import { CompiledQuery, Kysely } from 'kysely'
-import type { Promisable } from '@subframe7536/type-utils'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
-import { BaseSerializePlugin } from 'kysely-plugin-serialize'
+import { baseExecutor, type Executor, type JoinFnName } from './executor'
+import { createKyselyLogger, type LoggerOptions } from './logger'
 import { checkIntegrity as runCheckIntegrity } from './pragma'
-import type {
-  DBLogger,
-  SchemaUpdater,
-  StatusResult,
-} from './types'
-import { type LoggerOptions, createKyselyLogger } from './logger'
-import { type Executor, type JoinFnName, baseExecutor } from './executor'
 import { savePoint } from './savepoint'
 import { defaultDeserializer, defaultSerializer } from './serialize'
-
-export class IntegrityError extends Error {
-  constructor() {
-    super('db file maybe corrupted')
-  }
-}
+import {
+  type DBLogger,
+  IntegrityError,
+  type SchemaUpdater,
+  type StatusResult,
+} from './types'
 
 export type SqliteBuilderOptions = {
   /**
@@ -271,22 +266,18 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     options: TransactionOptions<O> = {},
   ): Promise<O | undefined> {
     if (!this.trx) {
-      return await this._kysely.transaction()
-        .execute(async (trx) => {
-          this.trx = trx
-          this.logger?.debug('run in transaction')
-          return await fn(trx)
-        })
-        .then(async (result) => {
-          await options.onCommit?.(result)
-          return result
-        })
-        .catch(async (e) => {
-          await options.onRollback?.(e)
-          this.logError(e, options.errorMsg)
-          return undefined
-        })
-        .finally(() => this.trx = undefined)
+      return await this._kysely.transaction().execute(async (trx) => {
+        this.trx = trx
+        this.logger?.debug('run in transaction')
+        return await fn(trx)
+      }).then(async (result) => {
+        await options.onCommit?.(result)
+        return result
+      }).catch(async (e) => {
+        await options.onRollback?.(e)
+        this.logError(e, options.errorMsg)
+        return undefined
+      }).finally(() => this.trx = undefined)
     }
 
     this.trxCount++

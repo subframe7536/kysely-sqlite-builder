@@ -1,6 +1,7 @@
-import type { RawBuilder } from 'kysely'
 import type { IsNotNull } from '@subframe7536/type-utils'
+import type { RawBuilder } from 'kysely'
 import {
+  type _DataType,
   type BooleanColumnType,
   type ColumnProperty,
   type Columns,
@@ -10,7 +11,6 @@ import {
   type InferColumnTypeByNumber,
   type Table,
   type TableProperty,
-  type _DataType,
 } from './types'
 
 export const TGR = '_T_'

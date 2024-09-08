@@ -1,9 +1,8 @@
 import { sql } from 'kysely'
-import type { Kysely, Transaction } from 'kysely'
 import type { Promisable, StringKeys } from '@subframe7536/type-utils'
+import type { Kysely, Transaction } from 'kysely'
 import { getOrSetDBVersion } from '../pragma'
-import type { DBLogger, StatusResult } from '../types'
-import type { Columns, InferDatabase, Schema, Table } from './types'
+import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parse-exist'
 import {
   parseColumnType,
   runCreateTable,
@@ -13,7 +12,8 @@ import {
   runDropTable,
   runRenameTable,
 } from './run'
-import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parse-exist'
+import type { DBLogger, StatusResult } from '../types'
+import type { Columns, InferDatabase, Schema, Table } from './types'
 
 export type SyncOptions<T extends Schema> = {
   /**

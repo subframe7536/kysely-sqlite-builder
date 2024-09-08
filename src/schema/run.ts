@@ -1,14 +1,14 @@
-import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { sql } from 'kysely'
 import type { Arrayable } from '@subframe7536/type-utils'
+import type { Kysely, RawBuilder, Transaction } from 'kysely'
 import { defaultSerializer } from '../serialize'
+import { TGR } from './define'
 import {
   type ColumnProperty,
   DataType,
   type DataTypeValue,
   type Table,
 } from './types'
-import { TGR } from './define'
 
 type ParsedColumnType =
   | 'text'

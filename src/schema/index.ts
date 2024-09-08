@@ -1,12 +1,12 @@
 import type { Kysely } from 'kysely'
-import type { DBLogger, SchemaUpdater } from '../types'
-import type { Schema } from './types'
-import type { SyncOptions } from './core'
 import { syncTables } from './core'
+import type { DBLogger, SchemaUpdater } from '../types'
+import type { SyncOptions } from './core'
+import type { Schema } from './types'
+
+export { column, defineTable } from './define'
 
 export * from './types'
-
-export { defineTable, column } from './define'
 
 /**
  * Auto sync table using schema, only sync table/index/trigger

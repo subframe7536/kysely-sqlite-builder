@@ -1,11 +1,11 @@
-import { Database } from 'node-sqlite3-wasm'
-import { NodeWasmDialect } from 'kysely-wasm'
 import { describe, expect, it } from 'bun:test'
-import { SqliteBuilder, createSoftDeleteExecutor, pageQuery, precompile } from '../src'
-import type { InferDatabase } from '../src/schema'
-import { column, defineTable, useSchema } from '../src/schema'
+import { NodeWasmDialect } from 'kysely-wasm'
+import { Database } from 'node-sqlite3-wasm'
+import { createSoftDeleteExecutor, pageQuery, precompile, SqliteBuilder } from '../src'
 import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
+import { column, defineTable, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
+import type { InferDatabase } from '../src/schema'
 
 describe('test builder', async () => {
   const db = getDatabaseBuilder()

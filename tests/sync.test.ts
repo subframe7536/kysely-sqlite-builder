@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import type { SqliteBuilder } from '../src'
-import { DataType, column, defineTable, useSchema } from '../src/schema'
+import { column, DataType, defineTable, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
+import type { SqliteBuilder } from '../src'
 
 describe('test sync table', async () => {
   let db: SqliteBuilder<any>

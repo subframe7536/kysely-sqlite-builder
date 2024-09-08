@@ -21,7 +21,7 @@ export type Executor = typeof baseExecutor
 
 type CreateSoftDeleteExecutorReturn = {
   /**
-   * SQLite  builder executor
+   * SQLite builder executor
    * @example
    * const { executor, withNoDelete } = createSoftDeleteExecutor()
    *

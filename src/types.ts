@@ -6,7 +6,6 @@ import type {
   SelectQueryBuilder,
   UpdateQueryBuilder,
 } from 'kysely'
-import type { IntegrityError } from './builder'
 
 export type DBLogger = {
   debug: (args: any) => void
@@ -28,3 +27,8 @@ export type StatusResult =
 export type SchemaUpdater = (db: Kysely<any>, logger?: DBLogger) => Promise<StatusResult>
 
 export type QueryBuilderOutput<QB> = QB extends Compilable<infer O> ? O : never
+export class IntegrityError extends Error {
+  constructor() {
+    super('db file maybe corrupted')
+  }
+}
