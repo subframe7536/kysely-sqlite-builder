@@ -55,7 +55,7 @@ export function precompile<T extends Record<string, any>>(
         dispose,
         compile: (param: T) => {
           if (!compiled) {
-            const { query: node, ...data } = queryBuilder(name => ('_P_' + name) as any).compile()
+            const { query: node, ...data } = queryBuilder(name => (`_P_${name}`) as any).compile()
             compiled = { ...data, query: processRootOperatorNode(node) as any }
           }
           return {

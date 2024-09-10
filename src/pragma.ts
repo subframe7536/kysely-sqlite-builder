@@ -19,7 +19,7 @@ export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
  * Control whether to enable foreign keys, **no param check**
  */
 export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void> {
-  await db.executeQuery(CompiledQuery.raw('PRAGMA foreign_keys = ' + enable))
+  await db.executeQuery(CompiledQuery.raw(`PRAGMA foreign_keys = ${enable}`))
 }
 
 /**
@@ -27,7 +27,7 @@ export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<
  */
 export async function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number> {
   if (version) {
-    await db.executeQuery(CompiledQuery.raw('PRAGMA user_version = ' + version))
+    await db.executeQuery(CompiledQuery.raw(`PRAGMA user_version = ${version}`))
     return version
   }
   const { rows } = await db.executeQuery(CompiledQuery.raw('PRAGMA user_version'))
@@ -96,7 +96,7 @@ export async function optimizePragma(
     ...options,
   })
   for (const [pragma, value] of entries) {
-    await db.executeQuery(CompiledQuery.raw('PRAGMA ' + pragma + ' = ' + value))
+    await db.executeQuery(CompiledQuery.raw(`PRAGMA ${pragma} = ${value}`))
   }
 }
 /**

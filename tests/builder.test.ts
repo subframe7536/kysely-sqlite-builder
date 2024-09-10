@@ -110,7 +110,7 @@ describe('test builder', async () => {
     const db = getDatabaseBuilder()
     await db.syncDB(useSchema(baseTables))
     for (let i = 0; i < 10; i++) {
-      await db.insertInto('test').values({ gender: true, literal: 'l' + i }).execute()
+      await db.insertInto('test').values({ gender: true, literal: `l${i}` }).execute()
     }
     const qb = db.selectFrom('test').selectAll()
     const page1 = await pageQuery(qb, { num: 1, size: 4, queryTotal: true })

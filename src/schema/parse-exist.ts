@@ -72,9 +72,9 @@ export async function parseExistDB(
     .selectFrom('sqlite_master')
     .where('type', 'in', ['table', 'trigger', 'index'])
     .where('name', 'not like', 'sqlite_%')
-    .$if(!!prefix.length, qb => qb.where(
+    .$if(prefix.length > 0, qb => qb.where(
       eb => eb.and(
-        prefix.map(t => eb('name', 'not like', t + '%')),
+        prefix.map(t => eb('name', 'not like', `${t}%`)),
       ),
     ))
     .select(['name', 'sql', 'type'])

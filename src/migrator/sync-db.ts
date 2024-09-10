@@ -16,9 +16,9 @@ export function useMigrator(
 
     results?.forEach((it) => {
       if (it.status === 'Success') {
-        logger?.debug('migration "' + it.migrationName + '" was executed successfully')
+        logger?.debug(`migration "${it.migrationName}" was executed successfully`)
       } else if (it.status === 'Error') {
-        logger?.error('failed to execute migration "' + it.migrationName + '"')
+        logger?.error(`failed to execute migration "${it.migrationName}"`)
       }
     })
 
