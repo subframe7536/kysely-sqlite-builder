@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Promisable, StringKeys } from '@subframe7536/type-utils'
 import type { Kysely, Transaction } from 'kysely'
 import { getOrSetDBVersion } from '../pragma'
+import { executeSQL } from '../utils'
 import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parse-exist'
 import {
   parseColumnType,
@@ -9,8 +10,11 @@ import {
   runCreateTableIndex,
   runCreateTableWithIndexAndTrigger,
   runCreateTimeTrigger,
+  runDropIndex,
   runDropTable,
+  runDropTrigger,
   runRenameTable,
+  runRestoreColumns,
 } from './run'
 import type { DBLogger, StatusResult } from '../types'
 import type { Columns, InferDatabase, Schema, Table } from './types'
@@ -100,12 +104,12 @@ export async function syncTables<T extends Schema>(
   return await db.transaction()
     .execute(async (trx) => {
       for (const idx of existDB.indexList) {
-        await trx.schema.dropIndex(idx).ifExists().execute()
+        await runDropIndex(trx, idx)
         debug(`drop index: ${idx}`)
       }
 
       for (const tgr of existDB.triggerList) {
-        await sql`drop trigger if exists ${sql.ref(tgr)}`.execute(trx)
+        await runDropTrigger(trx, tgr)
         debug(`drop trigger: ${tgr}`)
       }
 
@@ -182,8 +186,7 @@ export async function updateTableSchema(
 
   // 2. diff and restore data from source table to target table
   if (restoreColumnList.length) {
-    const cols = sql.raw(restoreColumnList.map(c => `"${c}"`).join(', '))
-    sql`insert into ${sql.table(tempTableName)} (${cols}) select ${cols} from ${sql.table(tableName)}`.execute(trx)
+    await runRestoreColumns(trx, tempTableName, tableName, restoreColumnList)
   }
   // 3. remove old table
   await runDropTable(trx, tableName)
@@ -191,7 +194,7 @@ export async function updateTableSchema(
   // 4. rename temp table to target table name
   await runRenameTable(trx, tempTableName, tableName)
 
-  // 5. add indexes and triggers
+  // 5. restore indexes and triggers
   await runCreateTableIndex(trx, tableName, targetTable.index)
   await runCreateTimeTrigger(trx, tableName, triggerOptions)
 }
