@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsup'
+import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: {
@@ -7,7 +7,6 @@ export default defineConfig({
     migrator: 'src/migrator/index.ts',
   },
   clean: true,
-  external: ['unplugin'],
   format: ['cjs', 'esm'],
   dts: true,
   treeshake: true,
