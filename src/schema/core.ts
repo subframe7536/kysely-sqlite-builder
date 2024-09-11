@@ -1,8 +1,6 @@
-import { sql } from 'kysely'
 import type { Promisable, StringKeys } from '@subframe7536/type-utils'
 import type { Kysely, Transaction } from 'kysely'
 import { getOrSetDBVersion } from '../pragma'
-import { executeSQL } from '../utils'
 import { type ParsedCreateTableSQL, type ParsedSchema, parseExistDB } from './parse-exist'
 import {
   parseColumnType,
@@ -130,13 +128,13 @@ export async function syncTables<T extends Schema>(
         }
       }
     })
-    .then(() => {
-      onSyncSuccess?.(db, existDB, oldVersion)
+    .then(async () => {
+      await onSyncSuccess?.(db, existDB, oldVersion)
       debug('======= update tables success =======')
       return { ready: true as const }
     })
-    .catch((e) => {
-      onSyncFail?.(e)
+    .catch(async (e) => {
+      await onSyncFail?.(e)
       debug('======== update tables fail =========')
       return { ready: false, error: e }
     })

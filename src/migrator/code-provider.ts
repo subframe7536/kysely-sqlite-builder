@@ -50,7 +50,7 @@ export function createCodeProvider(migrations: Record<string, Migration> | Migra
       ? async () => {
         const _: Record<string, Migration> = {}
         for (const [i, m] of Object.entries(migrations)) {
-          _[i.padStart(idLength, '0') as keyof typeof _] = m
+          _[i.padStart(idLength, '0')] = m
         }
         return _
       }

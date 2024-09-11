@@ -18,5 +18,10 @@ export function useSchema<T extends Schema>(
   options: SyncOptions<T> = {},
 ): SchemaUpdater {
   const { log } = options
-  return (db: Kysely<any>, logger?: DBLogger) => syncTables(db, schema, options, log ? logger : undefined)
+  return async (db: Kysely<any>, logger?: DBLogger) => await syncTables(
+    db,
+    schema,
+    options,
+    log ? logger : undefined,
+  )
 }

@@ -55,14 +55,14 @@ export function createKyselyLogger(
     let _sql = sql.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ')
     if (merge) {
       parameters.forEach((param) => {
-        let data: any = param
+        let data = param
         if (param instanceof Date) {
           data = param.toLocaleString()
         }
         if (typeof data === 'string') {
           data = (`'${data}'`).replace(/\?/g, questionMarker)
         }
-        _sql = _sql.replace(/\?/, data)
+        _sql = _sql.replace(/\?/, data as any)
       })
     }
     const param: LoggerParams = {
