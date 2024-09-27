@@ -32,12 +32,12 @@ For normal usage, you can just use official `SqliteDialect` with `better-sqlite3
 ### Definition
 
 ```ts
+import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import Database from 'better-sqlite3'
 import { FileMigrationProvider, SqliteDialect } from 'kysely'
 import { SqliteBuilder } from 'kysely-sqlite-builder'
 import { useMigrator } from 'kysely-sqlite-builder/migrator'
 import { column, DataType, defineTable } from 'kysely-sqlite-builder/schema'
-import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 
 const testTable = defineTable({
   columns: {
@@ -175,11 +175,11 @@ using selectWithUsing = precompile<{ name: string }>()
 ### Soft Delete
 
 ```ts
+import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import Database from 'better-sqlite3'
 import { SqliteDialect } from 'kysely'
 import { createSoftDeleteExecutor, SqliteBuilder } from 'kysely-sqlite-builder'
 import { column, defineTable } from 'kysely-sqlite-builder/schema'
-import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 
 const softDeleteTable = defineTable({
   columns: {

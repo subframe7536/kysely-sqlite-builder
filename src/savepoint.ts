@@ -1,5 +1,5 @@
-import { sql } from 'kysely'
 import type { Kysely, Transaction } from 'kysely'
+import { sql } from 'kysely'
 
 export type SavePoint = {
   release: () => Promise<void>

@@ -1,5 +1,3 @@
-import { Kysely } from 'kysely'
-import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 import type { Promisable } from '@subframe7536/type-utils'
 import type {
   CompiledQuery,
@@ -12,6 +10,8 @@ import type {
   Transaction,
 } from 'kysely'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
+import { Kysely } from 'kysely'
+import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 import { baseExecutor, type Executor, type JoinFnName } from './executor'
 import { createKyselyLogger, type LoggerOptions } from './logger'
 import { checkIntegrity as runCheckIntegrity } from './pragma'

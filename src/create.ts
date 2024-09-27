@@ -1,9 +1,9 @@
 import type { WhereInterface } from 'kysely'
+import type { SqliteBuilderOptions } from './builder'
+import type { SyncOptions } from './schema/core'
 import { SqliteBuilder } from './builder'
 import { createSoftDeleteExecutor } from './executor'
 import { type InferDatabase, type Schema, useSchema } from './schema'
-import type { SqliteBuilderOptions } from './builder'
-import type { SyncOptions } from './schema/core'
 
 export type CreateSqliteBuilderOptions<
   T extends Schema,
@@ -42,7 +42,6 @@ export async function createSoftDeleteSqliteBuilder<T extends Schema>(
   options: Omit<CreateSqliteBuilderOptions<T>, 'executor'>,
 ): Promise<SoftDeleteSqliteBuilderReturn<T>> {
   const { executor, withNoDelete } = createSoftDeleteExecutor()
-  // @ts-expect-error assign executor
-  options.executor = executor
+  ; (options as CreateSqliteBuilderOptions<T>).executor = executor
   return [await createSqliteBuilder(options), withNoDelete]
 }

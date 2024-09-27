@@ -1,5 +1,5 @@
-import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } from 'kysely'
 import type { DBLogger, SchemaUpdater } from '../types'
+import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } from 'kysely'
 
 /**
  * Use migrator to migrate to latest
