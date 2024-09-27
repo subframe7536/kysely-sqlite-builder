@@ -1,14 +1,16 @@
+import type { SqliteBuilder } from '../src'
+import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { column, DataType, defineTable, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
-import type { SqliteBuilder } from '../src'
 
 describe('test sync table', async () => {
-  let db: SqliteBuilder<any>
+  let db: SqliteBuilder<DB>
   beforeEach(async () => {
     db = getDatabaseBuilder()
     await db.syncDB(useSchema(baseTables, { log: false }))
   })
+
   it('should create new table', async () => {
     const foo = defineTable({
       columns: {
@@ -37,11 +39,13 @@ describe('test sync table', async () => {
     const _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(0)
   })
-  it('should update and diff same table with columns', async () => {
-    const foo = defineTable({
+  it.only('should update and diff same table with columns', async () => {
+    await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()
+    const test = defineTable({
       columns: {
         id: column.increments(),
-        person: column.int(),
+        name: column.string(),
+        person: column.int({ notNull: true }),
         bool: column.boolean({ notNull: true }),
         array: column.object().$cast<string[]>(),
         buffer: column.blob(),
@@ -50,13 +54,20 @@ describe('test sync table', async () => {
       primary: 'id',
       timeTrigger: { create: true, update: true },
     })
-    await db.syncDB(useSchema({ test: foo }, { log: true }))
-    const [_tables] = await db.kysely.introspection.getTables()
-    expect(_tables
-      .columns
-      .filter(({ name }) => name === 'person')[0]
-      .dataType,
+    await db.syncDB(useSchema({ test }, { log: true }))
+    const tables = await db.kysely.introspection.getTables()
+    expect(tables.length).toBe(1)
+    const _tables = tables[0]
+    expect(
+      _tables.columns
+        .filter(({ name }) => name === 'person')[0]
+        .dataType,
     ).toBe('INTEGER')
+    expect(
+      _tables.columns
+        .filter(({ name }) => name === 'name')[0]
+        .hasDefaultValue,
+    ).toBe(false)
     expect(_tables
       .columns
       .filter(({ name }) => name === 'gender')
@@ -72,5 +83,8 @@ describe('test sync table', async () => {
       .filter(({ name }) => name === 'newColumn')[0]
       .dataType,
     ).toBe('INTEGER')
+
+    const data = await db.selectFrom('test').selectAll().executeTakeFirstOrThrow()
+    expect(data.person).toBe(0 as any)
   })
 })

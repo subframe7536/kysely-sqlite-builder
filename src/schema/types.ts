@@ -42,6 +42,12 @@ export type InferStringByColumnType<T> =
                 T extends object ? _DataType['object'] :
                   never
 
+export type ParsedColumnType =
+  | 'TEXT'
+  | 'INTEGER'
+  | 'BLOB'
+  | 'REAL'
+
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
   DefaultTo extends InferColumnTypeByNumber<ColType> | null = InferColumnTypeByNumber<ColType> | null,
@@ -186,7 +192,7 @@ export type InferTable<
           // return optional
           : P[K]['defaultTo'] | null
     // return error info
-    : `TypeError: [defaultTo] is not satisfied [type] in column '${K & string}'`
+    : `TypeError: [defaultTo] is not satisfied [type] in column "${K & string}"`
 }>
 
 /**

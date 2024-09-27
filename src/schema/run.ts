@@ -1,41 +1,36 @@
 import type { Arrayable } from '@subframe7536/type-utils'
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
+import type { RestoreColumnList } from './core'
 import { defaultSerializer } from '../serialize'
-import { executeSQL } from '../utils'
-import { TGR } from './define'
+import { TGRC, TGRU } from './define'
 import {
   type ColumnProperty,
   DataType,
   type DataTypeValue,
+  type ParsedColumnType,
   type Table,
 } from './types'
 
-type ParsedColumnType =
-  | 'text'
-  | 'integer'
-  | 'blob'
-  | 'real'
-
-export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isIncrements: boolean] {
+export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isAutoIncrement: boolean] {
   let dataType: ParsedColumnType
   let isIncrements = false
   switch (type) {
     case DataType.float:
-      dataType = 'real'
+      dataType = 'REAL'
       break
     case DataType.increments:
       isIncrements = true
     // eslint-disable-next-line no-fallthrough
     case DataType.boolean:
     case DataType.int:
-      dataType = 'integer'
+      dataType = 'INTEGER'
       break
     case DataType.blob:
-      dataType = 'blob'
+      dataType = 'BLOB'
       break
     // date, object, string or other
     default:
-      dataType = 'text'
+      dataType = 'TEXT'
   }
   return [dataType, isIncrements]
 }
@@ -50,34 +45,24 @@ export function parseArray<T>(arr: Arrayable<T>): [key: string, columns: T[]] {
   return [columns.reduce((a, b) => `${a}_${b}`, ''), columns]
 }
 
-export async function runDropTable(trx: Kysely<any>, tableName: string): Promise<void> {
-  await executeSQL(trx, dropTable(tableName))
-}
-
 export function dropTable(tableName: string): string {
-  return `drop table if exists "${tableName}";`
+  return `DROP TABLE IF EXISTS "${tableName}";`
 }
 
-export async function runCreateTableWithIndexAndTrigger(
-  trx: Transaction<any>,
+export function createTableWithIndexAndTrigger(
+  trx: Kysely<any> | Transaction<any>,
   tableName: string,
   table: Table<any>,
-): Promise<void> {
+): string[] {
   const { index, ...props } = table
-  const triggerOptions = await runCreateTable(trx, tableName, props)
-  await runCreateTimeTrigger(trx, tableName, triggerOptions)
-  await runCreateTableIndex(trx, tableName, index)
-}
-
-export async function runCreateTableIndex(
-  trx: Transaction<any>,
-  tableName: string,
-  index: Arrayable<string>[] = [],
-): Promise<void> {
-  const sqls = createTableIndex(tableName, index)
-  for (const sql of sqls) {
-    await executeSQL(trx, sql)
+  const result: string[] = []
+  const { triggerOptions, sql } = createTable(trx, tableName, props)
+  result.push(sql, ...createTableIndex(tableName, index))
+  const triggerSql = createTimeTrigger(tableName, triggerOptions)
+  if (triggerSql) {
+    result.push(triggerSql)
   }
+  return result
 }
 
 export function createTableIndex(
@@ -86,18 +71,8 @@ export function createTableIndex(
 ): string[] {
   return index.map((i) => {
     const [key, columns] = parseArray(i)
-    return `create index if not exists idx_${tableName + key} on "${tableName}" (${columns.map(c => `"${c}"`)});`
+    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${columns.map(c => `"${c}"`)});`
   })
-}
-
-export async function runCreateTable(
-  trx: Transaction<any>,
-  tableName: string,
-  { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-): Promise<RunTriggerOptions | undefined> {
-  const { triggerOptions, sql } = createTable(trx, tableName, { columns, primary, timeTrigger, unique })
-  await executeSQL(trx, sql)
-  return triggerOptions
 }
 
 export function createTable(
@@ -115,7 +90,7 @@ export function createTable(
       }
     : undefined
 
-  let _haveAutoKey = false
+  let autoIncrementColumn
 
   const columnList: string[] = []
 
@@ -125,23 +100,26 @@ export function createTable(
     const [dataType, isIncrements] = parseColumnType(type)
 
     if (isIncrements) {
-      _haveAutoKey = true
+      if (autoIncrementColumn) {
+        throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${columnName}) in table ${tableName}`)
+      }
+      autoIncrementColumn = columnName
       if (_triggerOptions) {
         _triggerOptions.triggerKey = columnName
       }
-      columnList.push(`"${columnName}" ${dataType} primary key autoincrement`)
+      columnList.push(`"${columnName}" ${dataType} PRIMARY KEY AUTOINCREMENT`)
     } else if (
       // see hacks in `./define.ts`
       // time trigger column is default with TGR
-      defaultTo === TGR
+      defaultTo === TGRC || defaultTo === TGRU
     ) {
       // update trigger column is not null
       // #hack to detect update column
-      if (_triggerOptions && notNull) {
+      if (_triggerOptions && defaultTo === TGRU) {
         _triggerOptions.update = columnName
       }
       // default with current_timestamp
-      columnList.push(`"${columnName}" ${dataType} default CURRENT_TIMESTAMP`)
+      columnList.push(`"${columnName}" ${dataType} DEFAULT CURRENT_TIMESTAMP`)
     } else {
       let _defaultTo
       if (defaultTo !== undefined) {
@@ -150,24 +128,26 @@ export function createTable(
           : defaultSerializer(defaultTo)
         _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
       }
-      columnList.push(`"${columnName}" ${dataType}${notNull ? ' not null' : ''}${defaultTo !== undefined ? ` default ${_defaultTo}` : ''}`)
+      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''}`)
     }
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
 
-  if (!_haveAutoKey && primary) {
+  if (!autoIncrementColumn && primary) {
     const [key, columns] = parseArray(primary)
-    columnList.push(`constraint pk${key} primary key (${columns.map(v => `"${v}"`)})`)
+    columnList.push(`CONSTRAINT pk${key} PRIMARY KEY (${columns.map(v => `"${v}"`)})`)
   }
 
-  for (const uk of unique || []) {
-    const [key, columns] = parseArray(uk)
-    columnList.push(`constraint uk${key} unique (${columns.map(v => `"${v}"`)})`)
+  if (unique) {
+    for (const uk of unique) {
+      const [key, columns] = parseArray(uk)
+      columnList.push(`CONSTRAINT uk${key} UNIQUE (${columns.map(v => `"${v}"`)})`)
+    }
   }
 
   return {
-    sql: `create table if not exists "${tableName}" (${columnList});`,
+    sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList});`,
     triggerOptions: _triggerOptions,
   }
 }
@@ -180,75 +160,47 @@ type RunTriggerOptions = {
   update?: string
 }
 
-export async function runCreateTimeTrigger(
-  trx: Transaction<any>,
-  tableName: string,
-  options?: RunTriggerOptions,
-): Promise<void> {
-  const sql = createTimeTrigger(tableName, options)
-  if (sql) {
-    await executeSQL(trx, sql)
-  }
-}
-
-export function createTimeTrigger(
-  tableName: string,
-  options?: RunTriggerOptions,
-): string | undefined {
+export function createTimeTrigger(tableName: string, options?: RunTriggerOptions): string | undefined {
   if (!options?.update) {
     return
   }
   const triggerName = `tgr_${tableName}_${options.update}`
-  return `create trigger if not exists "${triggerName}" after update on "${tableName}" begin update "${tableName}" set "${options.update}" = CURRENT_TIMESTAMP where "${options.triggerKey}" = NEW."${options.triggerKey}"; end;`
+  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${options.update}" = CURRENT_TIMESTAMP WHERE "${options.triggerKey}" = NEW."${options.triggerKey}"; END;`
 }
 
-export async function runRenameTable(
-  trx: Transaction<any>,
-  tableName: string,
-  newTableName: string,
-): Promise<void> {
-  await executeSQL(trx, renameTable(tableName, newTableName))
-}
-
-export function renameTable(
-  tableName: string,
-  newTableName: string,
-): string {
-  return `alter table "${tableName}" rename to "${newTableName}";`
-}
-
-export async function runDropIndex(
-  trx: Transaction<any>,
-  indexName: string,
-): Promise<void> {
-  await executeSQL(trx, dropIndex(indexName))
+export function renameTable(tableName: string, newTableName: string): string {
+  return `ALTER TABLE "${tableName}" RENAME TO "${newTableName}";`
 }
 
 export function dropIndex(indexName: string): string {
-  return `drop index if exists "${indexName}";`
-}
-
-export async function runDropTrigger(
-  trx: Transaction<any>,
-  triggerName: string,
-): Promise<void> {
-  await executeSQL(trx, dropTrigger(triggerName))
+  return `DROP INDEX IF EXISTS "${indexName}";`
 }
 
 export function dropTrigger(triggerName: string): string {
-  return `drop trigger if exists "${triggerName}";`
+  return `DROP TRIGGER IF EXISTS "${triggerName}";`
 }
 
-export async function runRestoreColumns(
-  trx: Transaction<any>,
-  fromTableName: string,
-  toTableName: string,
-  columns: string[],
-): Promise<void> {
-  await executeSQL(trx, restoreColumns(fromTableName, toTableName, columns))
-}
-
-export function restoreColumns(fromTableName: string, toTableName: string, columns: string[]): string {
-  const cols = columns.map(v => `"${v}"`)
-  return `insert into "${toTableName}" (${cols}) select ${cols} from "${fromTableName}";`
+export function restoreColumns(fromTableName: string, toTableName: string, columns: RestoreColumnList): string {
+  let cols = ''
+  let values = ''
+  for (const [name, notNullFallbackValue] of columns) {
+    cols += `,"${name}"`
+    switch (notNullFallbackValue) {
+      case 0: // have nullable column in old table
+        values += `,IFNULL(CAST("${name}" AS INTEGER),0)`
+        break
+      case '0': // have nullable column in old table
+        values += `,IFNULL(CAST("${name}" AS TEXT),'0')`
+        break
+      case 1: // no such column in old table
+        values += `,0`
+        break
+      case '1': // no such column in old table
+        values += `,'0'`
+        break
+      default: // same as old table
+        values += `,"${name}"`
+    }
+  }
+  return `INSERT INTO "${toTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${fromTableName}";`
 }

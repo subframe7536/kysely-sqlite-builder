@@ -1,103 +1,89 @@
-import type { Kysely } from 'kysely'
+import type { ParsedColumnType } from './types'
+import { type QueryCreator, sql } from 'kysely'
+
+export type ParseExistSchemaExecutor = Pick<QueryCreator<any>, 'selectFrom'>
 
 export type ParsedSchema = {
-  existTables: ParsedTables
-  indexList: string[]
-  triggerList: string[]
+  table: ParsedTables
+  index: string[]
+  trigger: string[]
 }
-type ParsedTables = Record<string, ParsedCreateTableSQL>
-export type ParsedCreateTableSQL = {
-  name: string
+type ParsedTables = Record<string, ParsedTableInfo>
+export type ParsedTableInfo = {
   columns: Record<string, ParsedColumnProperty>
-  primary: string[] | undefined
-  unique: string[][]
+  primary: string[]
 }
 export type ParsedColumnProperty = {
-  type: string
+  type: ParsedColumnType
   notNull: boolean
   defaultTo?: any
 }
 
-const baseRegex = /create table (?:if not exist)?\s*"([^"]+)"\s*\((.*)\)/i
-const columnRegex = /"([^"]+)"\s+(\w+)\s?(not null)?/gi
-
 /**
  * parse table object
- * @param definition create table sql
+ * @param db kysely instance
+ * @param tableName table name
  * @todo support extra constraints
  */
-export function parseCreateTableSQL(definition: string): ParsedCreateTableSQL {
-  const [, tableName, cols] = definition.replace(/\r?\n/g, '').match(baseRegex)!
-
-  const ret: ParsedCreateTableSQL = {
+export async function parseTable(db: ParseExistSchemaExecutor, tableName: string): Promise<ParsedTableInfo> {
+  const result: ParsedTableInfo = {
     columns: {},
-    name: tableName,
-    primary: undefined,
-    unique: [],
+    primary: [],
   }
-  const columnMatches = cols.matchAll(columnRegex)
-  for (const match of columnMatches) {
-    const [, columnName, type, notNull] = match
-    if (columnName.startsWith('pk_')) {
-      const [, ...keys] = columnName.split('_')
-      ret.primary = keys
-    } else if (columnName.startsWith('un_')) {
-      const [, ...keys] = columnName.split('_')
-      ret.unique.push(keys)
-    } else {
-      ret.columns[columnName] = {
-        type,
-        notNull: !!notNull,
-      }
+
+  const cols = await db
+    .selectFrom(sql`pragma_table_info(${tableName})`.as('c'))
+    .select(['name', 'type', 'notnull', 'dflt_value', 'pk'])
+    .execute()
+  for (const { dflt_value, name, notnull, pk, type } of cols) {
+    result.columns[name] = {
+      type,
+      notNull: !!notnull,
+      defaultTo: dflt_value,
+    }
+    if (pk) {
+      result.primary.push(name)
     }
   }
 
-  return ret
-}
-
-type ExistTable = {
-  name: string
-  sql: string
-  type: string
+  return result
 }
 
 /**
  * parse exist db structures
  */
-export async function parseExistDB(
-  db: Kysely<any>,
+export async function parseExistSchema(
+  db: ParseExistSchemaExecutor,
   prefix: string[] = [],
 ): Promise<ParsedSchema> {
   const tables = await db
     .selectFrom('sqlite_master')
     .where('type', 'in', ['table', 'trigger', 'index'])
     .where('name', 'not like', 'sqlite_%')
+    .orderBy('type', 'desc')
     .$if(prefix.length > 0, qb => qb.where(
       eb => eb.and(
         prefix.map(t => eb('name', 'not like', `${t}%`)),
       ),
     ))
-    .select(['name', 'sql', 'type'])
+    .select(['name', 'type'])
     .execute()
 
   const tableMap: ParsedSchema = {
-    existTables: {},
-    indexList: [],
-    triggerList: [],
+    table: {},
+    index: [],
+    trigger: [],
   }
-  for (const { name, sql, type } of tables as ExistTable[]) {
-    if (!sql) {
-      continue
-    }
+  for (const { name, type } of tables) {
     switch (type) {
       case 'table':
-        tableMap.existTables[name] = parseCreateTableSQL(sql)
+        tableMap.table[name] = await parseTable(db, name)
         break
       case 'index':
-        tableMap.indexList.push(name)
+        tableMap.index.push(name)
         break
       case 'trigger':
-        tableMap.triggerList.push(name)
+        tableMap.trigger.push(name)
         break
     }
   }

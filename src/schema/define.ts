@@ -13,7 +13,8 @@ import {
   type TableProperty,
 } from './types'
 
-export const TGR = '_T_'
+export const TGRC = '_TC_'
+export const TGRU = '_TU_'
 
 /**
  * Define table
@@ -52,22 +53,25 @@ export function defineTable<
   const { columns, ...rest } = options
   const { timeTrigger: { create, update } = {}, softDelete } = rest
 
-  const triggerOptions = { type: DataType.date, defaultTo: TGR }
+  const createOptions = { type: DataType.date, defaultTo: TGRC }
   if (create === true) {
+    // #hack if `defaultTo === TGRC`, the column is updateAt
     // @ts-expect-error assign
-    columns.createAt = triggerOptions
+    columns.createAt = createOptions
   } else if (create) {
+    // #hack if `defaultTo === TGRC`, the column is updateAt
     // @ts-expect-error assign
-    columns[create] = triggerOptions
+    columns[create] = createOptions
   }
+  const updateOptions = { type: DataType.date, defaultTo: TGRU }
   if (update === true) {
-    // #hack if `notNull === true` and `defaultTo === TGR`, the column is updateAt
+    // #hack if `defaultTo === TGRU`, the column is updateAt
     // @ts-expect-error assign
-    columns.updateAt = { ...triggerOptions, notNull: true }
+    columns.updateAt = updateOptions
   } else if (update) {
-    // #hack if `notNull === true` and `defaultTo === TGR`, the column is updateAt
+    // #hack if `defaultTo === TGRU`, the column is updateAt
     // @ts-expect-error assign
-    columns[update] = { ...triggerOptions, notNull: true }
+    columns[update] = updateOptions
   }
   const softDeleteOptions = { type: DataType.int, defaultTo: 0 }
   if (softDelete === true) {

@@ -1,12 +1,13 @@
+import type { InferDatabase } from '../src/schema'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { Database } from 'node-sqlite3-wasm'
 import { optimizePragma, SqliteBuilder } from '../src'
 import { column, defineTable } from '../src/schema'
-import type { InferDatabase } from '../src/schema'
 
 const testTable = defineTable({
   columns: {
     id: column.increments(),
+    name: column.string({ defaultTo: 'test' }),
     person: column.object({ defaultTo: { name: 'test' } }),
     gender: column.boolean({ notNull: true }),
     array: column.object().$cast<string[]>(),
@@ -32,7 +33,7 @@ export const baseTables = {
   test: testTable,
   blob: blobTable,
 }
-type DB = InferDatabase<typeof baseTables>
+export type DB = InferDatabase<typeof baseTables>
 
 export function getDatabaseBuilder(debug = false): SqliteBuilder<DB> {
   return new SqliteBuilder<DB>({

@@ -1,11 +1,12 @@
 import type { Kysely } from 'kysely'
-import { syncTables } from './core'
 import type { DBLogger, SchemaUpdater } from '../types'
 import type { SyncOptions } from './core'
 import type { Schema } from './types'
+import { syncTables } from './core'
 
+export { generateSyncTableSQL } from './core'
 export { column, defineTable } from './define'
-
+export { parseExistSchema } from './parse-exist'
 export * from './types'
 
 /**
@@ -17,11 +18,10 @@ export function useSchema<T extends Schema>(
   schema: T,
   options: SyncOptions<T> = {},
 ): SchemaUpdater {
-  const { log } = options
   return async (db: Kysely<any>, logger?: DBLogger) => await syncTables(
     db,
     schema,
     options,
-    log ? logger : undefined,
+    options.log ? logger : undefined,
   )
 }
