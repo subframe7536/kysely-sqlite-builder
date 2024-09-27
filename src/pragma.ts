@@ -1,13 +1,11 @@
-import { CompiledQuery } from 'kysely'
-import type { DatabaseConnection, Kysely, QueryResult, Transaction } from 'kysely'
-
-type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
+import type { QueryResult } from 'kysely'
+import { executeSQL, type KyselyInstance } from './utils'
 
 /**
  * Check integrity_check pragma
  */
 export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
-  const { rows } = await db.executeQuery(CompiledQuery.raw('PRAGMA integrity_check'))
+  const { rows } = await executeSQL(db, 'PRAGMA integrity_check')
   if (!rows.length) {
     throw new Error('fail to check integrity')
   }
@@ -19,7 +17,7 @@ export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
  * Control whether to enable foreign keys, **no param check**
  */
 export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void> {
-  await db.executeQuery(CompiledQuery.raw(`PRAGMA foreign_keys = ${enable}`))
+  await executeSQL(db, `PRAGMA foreign_keys = ${enable}`)
 }
 
 /**
@@ -27,10 +25,10 @@ export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<
  */
 export async function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number> {
   if (version) {
-    await db.executeQuery(CompiledQuery.raw(`PRAGMA user_version = ${version}`))
+    await executeSQL(db, `PRAGMA user_version = ${version}`)
     return version
   }
-  const { rows } = await db.executeQuery(CompiledQuery.raw('PRAGMA user_version'))
+  const { rows } = await executeSQL(db, 'PRAGMA user_version')
   if (!rows.length) {
     throw new Error('fail to get DBVersion')
   }
@@ -96,7 +94,7 @@ export async function optimizePragma(
     ...options,
   })
   for (const [pragma, value] of entries) {
-    await db.executeQuery(CompiledQuery.raw(`PRAGMA ${pragma} = ${value}`))
+    await executeSQL(db, `PRAGMA ${pragma} = ${value}`)
   }
 }
 /**
@@ -106,7 +104,6 @@ export async function optimizePragma(
  * @see https://sqlite.org/pragma.html#pragma_optimize
  * @see https://www.sqlite.org/lang_vacuum.html
  */
-
 export async function optimizeSize(db: KyselyInstance, rebuild = false): Promise<QueryResult<unknown>> {
-  return await db.executeQuery(CompiledQuery.raw(rebuild ? 'vacuum' : 'pragma optimize'))
+  return await executeSQL(db, rebuild ? 'vacuum' : 'pragma optimize')
 }

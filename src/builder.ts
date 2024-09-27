@@ -77,22 +77,22 @@ interface TransactionOptions<T> {
 }
 
 export class SqliteBuilder<DB extends Record<string, any>> {
-  private _kysely: Kysely<DB>
   public trxCount = 0
+  private ky: Kysely<DB>
   private trx?: Transaction<DB>
-  private logger?: DBLogger
-  private executor: Executor
+  private log?: DBLogger
+  private e: Executor
 
   /**
    * Current kysely / transaction instance
    */
   public get kysely(): Kysely<DB> {
-    return this.trx || this._kysely
+    return this.trx || this.ky
   }
 
-  public insertInto: Kysely<DB>['insertInto'] = tb => this.executor.insertInto(this.kysely, tb)
-  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.executor.selectFrom(this.kysely, tb)
-  public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.executor.updateTable(this.kysely, tb)
+  public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
+  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
+  public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
   public deleteFrom: {
     <TR extends keyof DB & string>(from: TR): Omit<
       DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
@@ -102,7 +102,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
       DeleteQueryBuilder<From<DB, TR>, FromTables<DB, never, TR>, DeleteResult>,
       JoinFnName
     >
-  } = (tb: any) => this.executor.deleteFrom(this.kysely, tb) as any
+  } = (tb: any) => this.e.deleteFrom(this.kysely, tb) as any
 
   /**
    * SQLite builder. All methods will run in current transaction
@@ -189,7 +189,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
       plugins = [],
       executor = baseExecutor,
     } = options
-    this.logger = logger
+    this.log = logger
     plugins.push(new BaseSerializePlugin({
       deserializer: defaultDeserializer,
       serializer: defaultSerializer,
@@ -199,15 +199,15 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     let log
     if (onQuery === true) {
       log = createKyselyLogger({
-        logger: this.logger?.debug || console.log,
+        logger: this.log?.debug || console.log,
         merge: true,
       })
     } else if (onQuery) {
       log = createKyselyLogger(onQuery)
     }
 
-    this._kysely = new Kysely<DB>({ dialect, log, plugins })
-    this.executor = executor
+    this.ky = new Kysely<DB>({ dialect, log, plugins })
+    this.e = executor
   }
 
   /**
@@ -227,12 +227,12 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    */
   public async syncDB(updater: SchemaUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
-      if (checkIntegrity && !(await runCheckIntegrity(this._kysely))) {
-        this.logger?.error('integrity check fail')
+      if (checkIntegrity && !(await runCheckIntegrity(this.ky))) {
+        this.log?.error('integrity check fail')
         return { ready: false, error: new IntegrityError() }
       }
-      const result = await updater(this._kysely, this.logger)
-      this.logger?.info('table updated')
+      const result = await updater(this.ky, this.log)
+      this.log?.info('table updated')
       return result
     } catch (error) {
       this.logError(error, 'sync table fail')
@@ -245,7 +245,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
 
   private logError(e: unknown, errorMsg?: string): void {
     if (errorMsg) {
-      this.logger?.error(errorMsg, e instanceof Error ? e : undefined)
+      this.log?.error(errorMsg, e instanceof Error ? e : undefined)
     }
   }
 
@@ -268,11 +268,11 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     options: TransactionOptions<O> = {},
   ): Promise<O | undefined> {
     if (!this.trx) {
-      return await this._kysely
+      return await this.ky
         .transaction()
         .execute(async (trx) => {
           this.trx = trx
-          this.logger?.debug('run in transaction')
+          this.log?.debug('run in transaction')
           return await fn(trx)
         })
         .then(async (result) => {
@@ -288,7 +288,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
 
     this.trxCount++
-    this.logger?.debug(`run in savepoint: sp_${this.trxCount}`)
+    this.log?.debug(`run in savepoint: sp_${this.trxCount}`)
     const { release, rollback } = await savePoint(this.kysely, `sp_${this.trxCount}`)
 
     return await fn(this.kysely as Transaction<DB>)
@@ -322,6 +322,9 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     data: CompiledQuery<O> | RawBuilder<O> | string,
     parameters?: unknown[],
   ): Promise<QueryResult<O>> {
+    if ((data as RawBuilder<O>).as) {
+      return await (data as RawBuilder<O>).execute(this.kysely)
+    }
     return await executeSQL(this.kysely, data as any, parameters)
   }
 
@@ -329,8 +332,8 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * Destroy db connection
    */
   public async destroy(): Promise<void> {
-    this.logger?.info('destroyed')
-    await this._kysely.destroy()
+    this.log?.info('destroyed')
+    await this.ky.destroy()
     this.trx = undefined
   }
 }
