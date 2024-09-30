@@ -39,7 +39,7 @@ describe('test sync table', async () => {
     const _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(0)
   })
-  it.only('should update and diff same table with columns', async () => {
+  it('should update and diff same table with columns', async () => {
     await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()
     const test = defineTable({
       columns: {

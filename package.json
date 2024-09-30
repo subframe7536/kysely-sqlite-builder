@@ -5,7 +5,10 @@
   "description": "Utility layer for Kysely on SQLite",
   "author": "subframe7536",
   "license": "MIT",
-  "repository": "https://github.com/subframe7536/kysely-sqlite-builder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subframe7536/kysely-sqlite-builder.git"
+  },
   "keywords": [
     "kysely",
     "sqlite",

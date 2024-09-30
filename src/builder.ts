@@ -228,14 +228,14 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   public async syncDB(updater: SchemaUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
       if (checkIntegrity && !(await runCheckIntegrity(this.ky))) {
-        this.log?.error('integrity check fail')
+        this.log?.error('Integrity check fail')
         return { ready: false, error: new IntegrityError() }
       }
       const result = await updater(this.ky, this.log)
-      this.log?.info('table updated')
+      this.log?.info('Table sync success')
       return result
     } catch (error) {
-      this.logError(error, 'sync table fail')
+      this.logError(error, 'Unknown error when syncing tables')
       return {
         ready: false,
         error,
@@ -245,7 +245,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
 
   private logError(e: unknown, errorMsg?: string): void {
     if (errorMsg) {
-      this.log?.error(errorMsg, e instanceof Error ? e : undefined)
+      this.log?.error(errorMsg, e instanceof Error ? e : new Error(String(e)))
     }
   }
 
@@ -272,7 +272,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
         .transaction()
         .execute(async (trx) => {
           this.trx = trx
-          this.log?.debug('run in transaction')
+          this.log?.debug('Run in transaction')
           return await fn(trx)
         })
         .then(async (result) => {
@@ -288,8 +288,8 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
 
     this.trxCount++
-    this.log?.debug(`run in savepoint: sp_${this.trxCount}`)
-    const { release, rollback } = await savePoint(this.kysely, `sp_${this.trxCount}`)
+    this.log?.debug(`Run in savepoint: SP_${this.trxCount}`)
+    const { release, rollback } = await savePoint(this.kysely, `SP_${this.trxCount}`)
 
     return await fn(this.kysely as Transaction<DB>)
       .then(async (result) => {
@@ -332,7 +332,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * Destroy db connection
    */
   public async destroy(): Promise<void> {
-    this.log?.info('destroyed')
+    this.log?.info('Destroyed')
     await this.ky.destroy()
     this.trx = undefined
   }
