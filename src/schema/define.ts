@@ -53,33 +53,21 @@ export function defineTable<
   const { columns, ...rest } = options
   const { timeTrigger: { create, update } = {}, softDelete } = rest
 
-  const createOptions = { type: DataType.date, defaultTo: TGRC }
-  if (create === true) {
+  if (create) {
     // #hack if `defaultTo === TGRC`, the column is updateAt
     // @ts-expect-error assign
-    columns.createAt = createOptions
-  } else if (create) {
-    // #hack if `defaultTo === TGRC`, the column is updateAt
-    // @ts-expect-error assign
-    columns[create] = createOptions
+    columns[create === true ? 'createAt' : create] = { type: DataType.date, defaultTo: TGRC }
   }
-  const updateOptions = { type: DataType.date, defaultTo: TGRU }
-  if (update === true) {
+
+  if (update) {
     // #hack if `defaultTo === TGRU`, the column is updateAt
     // @ts-expect-error assign
-    columns.updateAt = updateOptions
-  } else if (update) {
-    // #hack if `defaultTo === TGRU`, the column is updateAt
-    // @ts-expect-error assign
-    columns[update] = updateOptions
+    columns[update === true ? 'updateAt' : update] = { type: DataType.date, defaultTo: TGRU }
   }
-  const softDeleteOptions = { type: DataType.int, defaultTo: 0 }
-  if (softDelete === true) {
+
+  if (softDelete) {
     // @ts-expect-error assign
-    columns.isDeleted = softDeleteOptions
-  } else if (softDelete) {
-    // @ts-expect-error assign
-    columns[softDelete] = softDeleteOptions
+    columns[softDelete === true ? 'isDeleted' : softDelete] = { type: DataType.int, defaultTo: 0 }
   }
 
   return {
