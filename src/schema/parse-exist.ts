@@ -16,7 +16,7 @@ export type ParsedTableInfo = {
 export type ParsedColumnProperty = {
   type: ParsedColumnType
   notNull: boolean
-  defaultTo?: any
+  defaultTo: any
 }
 
 /**

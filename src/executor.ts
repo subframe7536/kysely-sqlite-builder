@@ -1,4 +1,4 @@
-import { DeleteResult, type JoinType, type Kysely, type UpdateResult, type WhereInterface } from 'kysely'
+import { type DeleteQueryBuilder, DeleteResult, type InsertQueryBuilder, type InsertResult, type JoinType, type Kysely, type OperandExpression, type SelectQueryBuilder, type UpdateQueryBuilder, type UpdateResult, type WhereInterface } from 'kysely'
 
 type CamelCase<S extends string> = S extends `${infer First}${infer Rest}`
   ? First extends Uppercase<First>
@@ -8,16 +8,20 @@ type CamelCase<S extends string> = S extends `${infer First}${infer Rest}`
 export type JoinFnName = CamelCase<JoinType>
 
 /**
- * basic executor
+ * Basic executor
  */
-export const baseExecutor = {
-  selectFrom: (db: Kysely<any>, tb: any) => db.selectFrom(tb),
-  insertInto: (db: Kysely<any>, tb: any) => db.insertInto(tb),
-  updateTable: (db: Kysely<any>, tb: any) => db.updateTable(tb),
-  deleteFrom: (db: Kysely<any>, tb: any) => db.deleteFrom(tb),
+export interface Executor {
+  selectFrom: (db: Kysely<any>, tb: any) => SelectQueryBuilder<any, any, {}>
+  insertInto: (db: Kysely<any>, tb: any) => InsertQueryBuilder<any, any, InsertResult>
+  updateTable: (db: Kysely<any>, tb: any) => UpdateQueryBuilder<any, any, any, UpdateResult>
+  deleteFrom: (db: Kysely<any>, tb: any) => DeleteQueryBuilder<any, any, DeleteResult>
 }
-
-export type Executor = typeof baseExecutor
+export const baseExecutor: Executor = {
+  selectFrom: (db, tb) => db.selectFrom(tb),
+  insertInto: (db, tb) => db.insertInto(tb),
+  updateTable: (db, tb) => db.updateTable(tb),
+  deleteFrom: (db, tb) => db.deleteFrom(tb),
+}
 
 type CreateSoftDeleteExecutorReturn = {
   /**
@@ -44,11 +48,11 @@ type CreateSoftDeleteExecutorReturn = {
 }
 
 /**
- * Create soft delete executor function,
+ * Create soft delete executor function, `1` is deleted, `0` is default value
  *
- * return type of `deleteFrom` is `UpdateResult` insteadof `DeleteResult`,
+ * Return type of `deleteFrom` is `UpdateResult` insteadof `DeleteResult`,
  * to fix it, wrap the result with {@link toDeleteResult}
- * @param deleteColumnName delete column name, default is 'isDeleted'
+ * @param deleteColumnName delete column name, default is `'isDeleted'`
  */
 export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): CreateSoftDeleteExecutorReturn {
   return {

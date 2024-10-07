@@ -1,4 +1,4 @@
-import type { Promisable, StringKeys } from '@subframe7536/type-utils'
+import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
 import type { Kysely } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
 import type { ColumnProperty, InferDatabase, Schema, Table } from './types'
@@ -84,10 +84,12 @@ export function generateSyncTableSQL<T extends Schema>(
 
   const result: string[] = []
 
+  // todo)) drop index later
   for (const idx of existSchema.index) {
     result.push(dropIndex(idx))
   }
 
+  // todo)) drop trigger later
   for (const tgr of existSchema.trigger) {
     result.push(dropTrigger(tgr))
   }
@@ -101,10 +103,9 @@ export function generateSyncTableSQL<T extends Schema>(
         result.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
       } else {
         debug(`Update table "${existTableName}"`)
-        const restoreColumnList: RestoreColumnList = parseRestoreColumnList(targetTable, existTable)
+        const [isChanged, restoreColumnList] = parseRestoreColumnList(targetTable, existTable)
 
-        // if all columns are in same table structure, skip
-        if (restoreColumnList.length !== Object.keys(existTable.columns).length) {
+        if (isChanged) {
           result.push(...updateTableSchemaSQL(db, existTableName, restoreColumnList, targetTable))
         }
       }
@@ -132,29 +133,81 @@ export function generateSyncTableSQL<T extends Schema>(
  */
 export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
 
-function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): RestoreColumnList {
+// todo)) parse createList, updateList, deleteList and generate sql
+// cases:
+// - change primary key
+// - add new column: alter table add column type...
+// - remove old column: alter table drop column
+// - no changed column
+// - change column
+//    - type changed / default changed / notnull changed
+//    - nullable -> not null
+//    - not null -> nullable
+function updateColumnTable(targetTable: Table, existTable: ParsedTableInfo) {
+  for (const [name, prop] of Object.entries(targetTable.columns)) {
+    const { type, defaultTo, notNull } = prop as ColumnProperty
+    const existColumnInfo = existTable.columns[name]
+    const parsedTargetColumnType = parseColumnType(type)[0]
+  }
+}
+
+function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): [isChanged: boolean, list: RestoreColumnList] {
   const restoreColumnList: RestoreColumnList = []
+  // if primary key changed, all columns need to rebuild
+  let isChanged = isPKChanged(existTable.primary, targetTable.primary)
 
   for (const [name, prop] of Object.entries(targetTable.columns)) {
     const { type, defaultTo, notNull } = prop as ColumnProperty
     const existColumnInfo = existTable.columns[name]
-    const targetColumnTypeIsText = parseColumnType(type)[0] === 'TEXT'
+    const parsedTargetColumnType = parseColumnType(type)[0]
 
+    let item
     if (existColumnInfo) {
-      // column exists in old table and have same type
-      restoreColumnList.push([
-        name,
-        (existColumnInfo.notNull || !notNull)
-          ? undefined // exist column already not null, or new table column is nullable, so no need to set fallback value
-          : targetColumnTypeIsText ? '0' : 0,
-      ])
+      if (
+        existColumnInfo.type === parsedTargetColumnType
+        && existColumnInfo.notNull === notNull
+        && existColumnInfo.defaultTo === defaultTo
+      ) {
+        item = [name, undefined]
+      } else {
+        // column exists in old table and have same type
+        item = [
+          name,
+          (existColumnInfo.notNull || !notNull)
+            ? undefined // exist column already not null, or new table column is nullable, so no need to set fallback value
+            : parsedTargetColumnType ? '0' : 0,
+        ]
+      }
     } else if (!existColumnInfo && notNull && !defaultTo) {
       // column not exists in old table, and new table column is not null and have no default value
-      restoreColumnList.push([name, targetColumnTypeIsText ? '1' : 1])
+      item = [name, parsedTargetColumnType === 'TEXT' ? '1' : 1]
     }
+
+    // fixme))
+    if (!item?.[1]) {
+      isChanged = true
+    }
+    restoreColumnList.push(item as RestoreColumnList[number])
   }
 
-  return restoreColumnList
+  return [isChanged, restoreColumnList]
+}
+
+function isPKChanged(existPK: string[], targetPK: Arrayable<string> | undefined): boolean {
+  if (!Array.isArray(targetPK)) {
+    targetPK = targetPK ? [] : [targetPK!]
+  }
+  if (existPK.length !== targetPK.length) {
+    return true
+  }
+  existPK = existPK.sort()
+  targetPK = targetPK.sort()
+  for (let i = 0; i < existPK.length; i++) {
+    if (existPK[i] !== targetPK[i]) {
+      return true
+    }
+  }
+  return false
 }
 
 /**
