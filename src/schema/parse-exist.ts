@@ -36,8 +36,12 @@ export async function parseTable(db: ParseExistSchemaExecutor, tableName: string
   }
 
   const cols = await db
-    .selectFrom(sql`pragma_table_info(${tableName})`.as('c'))
+    .selectFrom(sql`pragma_table_info(${tableName})`.as('t'))
     .select(['name', 'type', 'notnull', 'dflt_value', 'pk'])
+    .execute()
+  const indexes = await db
+    .selectFrom(sql`pragma_index_list(${tableName})`.as('i'))
+    .select(['name', 'unique', 'origin'])
     .execute()
   for (const { dflt_value, name, notnull, pk, type } of cols) {
     result.columns[name] = {
@@ -83,7 +87,6 @@ export async function parseExistSchema(
     switch (type) {
       case 'table':
         parsedTableMap.set(name, await parseTable(db, name))
-        tableMap.table[name] = await parseTable(db, name)
         break
       case 'index':
         tableMap.index.push(name)
