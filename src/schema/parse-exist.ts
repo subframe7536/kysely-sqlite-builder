@@ -1,17 +1,17 @@
-import type { ParsedColumnType } from './types'
+import type { ParsedColumnType, Table } from './types'
 import { type QueryCreator, sql } from 'kysely'
 
 export type ParseExistSchemaExecutor = Pick<QueryCreator<any>, 'selectFrom'>
 
 export type ParsedSchema = {
   table: ParsedTables
-  index: string[]
+  index: [name: string, table: string][]
   trigger: string[]
 }
 type ParsedTables = Record<string, ParsedTableInfo>
-export type ParsedTableInfo = {
-  columns: Record<string, ParsedColumnProperty>
+export type ParsedTableInfo = Required<Omit<Table, 'softDelete' | 'timeTrigger'>> & {
   primary: string[]
+  trigger: string[]
 }
 export type ParsedColumnProperty = {
   type: ParsedColumnType
@@ -26,9 +26,13 @@ export type ParsedColumnProperty = {
  * @todo support extra constraints
  */
 export async function parseTable(db: ParseExistSchemaExecutor, tableName: string): Promise<ParsedTableInfo> {
+  /// keep-sorted
   const result: ParsedTableInfo = {
     columns: {},
+    index: [],
     primary: [],
+    trigger: [],
+    unique: [],
   }
 
   const cols = await db
@@ -38,7 +42,7 @@ export async function parseTable(db: ParseExistSchemaExecutor, tableName: string
   for (const { dflt_value, name, notnull, pk, type } of cols) {
     result.columns[name] = {
       type,
-      notNull: !!notnull,
+      notNull: !!notnull as any,
       defaultTo: dflt_value,
     }
     if (pk) {
@@ -66,7 +70,7 @@ export async function parseExistSchema(
         prefix.map(t => eb('name', 'not like', `${t}%`)),
       ),
     ))
-    .select(['name', 'type'])
+    .select(['name', 'type', 'tbl_name', 'sql'])
     .execute()
 
   const tableMap: ParsedSchema = {
@@ -74,9 +78,11 @@ export async function parseExistSchema(
     index: [],
     trigger: [],
   }
+  const parsedTableMap = new Map<string, Omit<Table, 'softDelete'>>()
   for (const { name, type } of tables) {
     switch (type) {
       case 'table':
+        parsedTableMap.set(name, await parseTable(db, name))
         tableMap.table[name] = await parseTable(db, name)
         break
       case 'index':
