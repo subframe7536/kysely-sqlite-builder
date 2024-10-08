@@ -40,9 +40,15 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
  *
  * Return merged string and parsed array
  */
-export function parseArray<T>(arr: Arrayable<T>): [key: string, columns: T[]] {
+export function parseArray(arr: Arrayable<any>): [key: string, columnList: string] {
   const columns = Array.isArray(arr) ? arr : [arr]
-  return [columns.reduce((a, b) => `${a}_${b}`, ''), columns]
+  let key = ''
+  let columnList = ''
+  for (const c of columns) {
+    key += `_${c}`
+    columnList += `"${c}",`
+  }
+  return [key, columnList.slice(0, -1)]
 }
 
 export function dropTable(tableName: string): string {
@@ -70,8 +76,8 @@ export function createTableIndex(
   index: Arrayable<string>[] = [],
 ): string[] {
   return index.map((i) => {
-    const [key, columns] = parseArray(i)
-    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${columns.map(c => `"${c}"`)});`
+    const [key, parsedColumnList] = parseArray(i)
+    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${parsedColumnList});`
   })
 }
 
@@ -123,7 +129,7 @@ export function createTable(
     } else {
       let _defaultTo
       if (defaultTo !== undefined) {
-        _defaultTo = (defaultTo && typeof defaultTo === 'object' && '$cast' in defaultTo)
+        _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
           ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
           : defaultSerializer(defaultTo)
         _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
@@ -135,14 +141,14 @@ export function createTable(
   // primary/unique key is jointable, so can not be set as trigger key
 
   if (!autoIncrementColumn && primary) {
-    const [key, columns] = parseArray(primary)
-    columnList.push(`CONSTRAINT pk${key} PRIMARY KEY (${columns.map(v => `"${v}"`)})`)
+    const [key, parsedColumnList] = parseArray(primary)
+    columnList.push(`CONSTRAINT pk${key} PRIMARY KEY (${parsedColumnList})`)
   }
 
   if (unique) {
     for (const uk of unique) {
-      const [key, columns] = parseArray(uk)
-      columnList.push(`CONSTRAINT uk${key} UNIQUE (${columns.map(v => `"${v}"`)})`)
+      const [key, parsedColumnList] = parseArray(uk)
+      columnList.push(`CONSTRAINT uk${key} UNIQUE (${parsedColumnList})`)
     }
   }
 
@@ -170,6 +176,24 @@ export function createTimeTrigger(tableName: string, options?: RunTriggerOptions
 
 export function renameTable(tableName: string, newTableName: string): string {
   return `ALTER TABLE "${tableName}" RENAME TO "${newTableName}";`
+}
+
+export function addColumn(
+  trx: Kysely<any> | Transaction<any>,
+  tableName: string,
+  columnName: string,
+  columnProperty: ColumnProperty,
+): string {
+  const { type, notNull, defaultTo } = columnProperty
+  const [dataType] = parseColumnType(type)
+  const _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
+    ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
+    : defaultSerializer(defaultTo)
+  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${_defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''};`
+}
+
+export function dropColumn(tableName: string, columnName: string): string {
+  return `ALTER TABLE "${tableName}" DROP COLUMN "${columnName}";`
 }
 
 export function dropIndex(indexName: string): string {

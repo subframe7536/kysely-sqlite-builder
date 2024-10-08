@@ -1,15 +1,17 @@
 import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
-import type { Kysely } from 'kysely'
+import type { Kysely, Transaction } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
-import type { ColumnProperty, InferDatabase, Schema, Table } from './types'
+import type { ColumnProperty, Columns, InferDatabase, Schema, Table } from './types'
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
-import { type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
+import { type ParsedColumnProperty, type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
 import {
+  addColumn,
   createTable,
   createTableIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
+  dropColumn,
   dropIndex,
   dropTable,
   dropTrigger,
@@ -74,11 +76,14 @@ export function generateSyncTableSQL<T extends Schema>(
   truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
   debug: (e: string) => void = () => {},
 ): string[] {
+  const existTableMap = new Map(Object.entries(existSchema.table))
+  const targetSchemaMap = new Map(Object.entries(targetSchema))
+
   const truncateTableSet = new Set(
     Array.isArray(truncateIfExists)
       ? truncateIfExists
       : truncateIfExists
-        ? Object.keys(existSchema.table)
+        ? existTableMap.keys()
         : [],
   )
 
@@ -94,9 +99,9 @@ export function generateSyncTableSQL<T extends Schema>(
     result.push(dropTrigger(tgr))
   }
 
-  for (const [existTableName, existTable] of Object.entries(existSchema.table)) {
-    if (existTableName in targetSchema) {
-      const targetTable = targetSchema[existTableName]
+  for (const [existTableName, existTable] of existTableMap) {
+    if (targetSchemaMap.has(existTableName)) {
+      const targetTable = targetSchemaMap.get(existTableName)!
       if (truncateTableSet.has(existTableName)) {
         debug(`Update table "${existTableName}" and truncate`)
         result.push(dropTable(existTableName))
@@ -115,8 +120,8 @@ export function generateSyncTableSQL<T extends Schema>(
     }
   }
 
-  for (const [targetTableName, targetTable] of Object.entries(targetSchema)) {
-    if (!(targetTableName in existSchema.table)) {
+  for (const [targetTableName, targetTable] of targetSchemaMap) {
+    if (!existTableMap.has(targetTableName)) {
       debug(`Create table "${targetTableName}"`)
       result.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
     }
@@ -143,18 +148,66 @@ export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0'
 //    - type changed / default changed / notnull changed
 //    - nullable -> not null
 //    - not null -> nullable
-function updateColumnTable(targetTable: Table, existTable: ParsedTableInfo) {
-  for (const [name, prop] of Object.entries(targetTable.columns)) {
-    const { type, defaultTo, notNull } = prop as ColumnProperty
-    const existColumnInfo = existTable.columns[name]
+export function updateTableColumns(
+  trx: Kysely<any> | Transaction<any>,
+  tableName: string,
+  targetTable: Table,
+  existTable: ParsedTableInfo,
+): any {
+  const targetColumnMap = new Map(Object.entries(targetTable.columns as Columns))
+  const existColumnMap = new Map(Object.entries(existTable.columns))
+  const insertColumnList: string[] = []
+  const updateColumnList: RestoreColumnList = []
+  const deleteColumnList: string[] = []
+  for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
+    if (!existColumnMap.has(name)) {
+      insertColumnList.push(name)
+      continue
+    }
+    const existColumnInfo = existColumnMap.get(name)!
     const parsedTargetColumnType = parseColumnType(type)[0]
+    if (existColumnInfo) {
+      if (
+        existColumnInfo.type === parsedTargetColumnType
+        && existColumnInfo.notNull === notNull
+        && existColumnInfo.defaultTo === defaultTo
+      ) {
+        updateColumnList.push([name, undefined])
+      } else {
+        updateColumnList.push([
+          name,
+          (existColumnInfo.notNull || !notNull)
+          // exist column already not null,
+          // or new table column is nullable,
+          // so no need to set fallback value
+            ? undefined
+            : parsedTargetColumnType === 'TEXT' ? '0' : 0,
+        ])
+      }
+    } else if (notNull && !defaultTo) {
+      updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
+    }
+  }
+  for (const [name] of existColumnMap) {
+    if (!targetColumnMap.has(name)) {
+      deleteColumnList.push(name)
+    }
+  }
+  if (isPKOrUKChanged(existTable.primary, targetTable.primary) || updateColumnList.length > 0) {
+    return updateTableSchemaSQL(trx, tableName, updateColumnList, targetTable)
+  }
+  if (insertColumnList.length > 0 || deleteColumnList.length > 0) {
+    return [
+      ...insertColumnList.map(name => addColumn(trx, tableName, name, targetColumnMap.get(name)!)),
+      ...deleteColumnList.map(name => dropColumn(tableName, name)),
+    ]
   }
 }
 
 function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): [isChanged: boolean, list: RestoreColumnList] {
   const restoreColumnList: RestoreColumnList = []
   // if primary key changed, all columns need to rebuild
-  let isChanged = isPKChanged(existTable.primary, targetTable.primary)
+  let isChanged = isPKOrUKChanged(existTable.primary, targetTable.primary)
 
   for (const [name, prop] of Object.entries(targetTable.columns)) {
     const { type, defaultTo, notNull } = prop as ColumnProperty
@@ -193,7 +246,7 @@ function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo)
   return [isChanged, restoreColumnList]
 }
 
-function isPKChanged(existPK: string[], targetPK: Arrayable<string> | undefined): boolean {
+function isPKOrUKChanged(existPK: string[], targetPK: Arrayable<string> | undefined): boolean {
   if (!Array.isArray(targetPK)) {
     targetPK = targetPK ? [] : [targetPK!]
   }
