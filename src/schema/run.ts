@@ -145,7 +145,7 @@ export function createTable(
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
-
+  // todo)) constraint is no use
   if (!autoIncrementColumn && primary) {
     const [key, parsedColumnList] = parseArray(primary)
     columnList.push(`CONSTRAINT pk${key} PRIMARY KEY (${parsedColumnList})`)
