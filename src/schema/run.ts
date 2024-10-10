@@ -40,7 +40,7 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
  *
  * Return merged string and parsed array
  */
-function parseArray(arr: Arrayable<any>): [key: string, columnList: string] {
+function parseArray(arr: Arrayable<any>): [columnListStr: string, key: string] {
   const columns = Array.isArray(arr) ? arr : [arr]
   let key = ''
   let columnList = ''
@@ -48,7 +48,7 @@ function parseArray(arr: Arrayable<any>): [key: string, columnList: string] {
     key += `_${c}`
     columnList += `"${c}",`
   }
-  return [key, columnList.slice(0, -1)]
+  return [columnList.slice(0, -1), key]
 }
 
 /**
@@ -89,8 +89,8 @@ export function createTableIndex(
   index: Arrayable<string>[] = [],
 ): string[] {
   return index.map((i) => {
-    const [key, parsedColumnList] = parseArray(i)
-    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${parsedColumnList});`
+    const [columnListStr, key] = parseArray(i)
+    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${columnListStr});`
   })
 }
 
@@ -145,16 +145,15 @@ export function createTable(
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
-  // todo)) constraint is no use
   if (!autoIncrementColumn && primary) {
-    const [key, parsedColumnList] = parseArray(primary)
-    columnList.push(`CONSTRAINT pk${key} PRIMARY KEY (${parsedColumnList})`)
+    const [columnListStr] = parseArray(primary)
+    columnList.push(`PRIMARY KEY (${columnListStr})`)
   }
 
   if (unique) {
     for (const uk of unique) {
-      const [key, parsedColumnList] = parseArray(uk)
-      columnList.push(`CONSTRAINT uk${key} UNIQUE (${parsedColumnList})`)
+      const [columnListStr] = parseArray(uk)
+      columnList.push(`UNIQUE (${columnListStr})`)
     }
   }
 
