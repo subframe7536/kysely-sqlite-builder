@@ -1,52 +1,58 @@
-import type { ParsedColumnType } from './types'
+import type { ColumnProperty, ParsedColumnType, Table } from './types'
 import { type QueryCreator, sql } from 'kysely'
 
 export type ParseExistSchemaExecutor = Pick<QueryCreator<any>, 'selectFrom'>
+export type PragmaIndexList = {
 
+}
 export type ParsedSchema = {
   table: ParsedTables
-  index: string[]
+  index: [name: string, table: string][]
   trigger: string[]
 }
 type ParsedTables = Record<string, ParsedTableInfo>
-export type ParsedTableInfo = {
-  columns: Record<string, ParsedColumnProperty>
+type ParsedColumns = Record<string, ColumnProperty>
+export type ParsedTableInfo = Required<Omit<Table, 'softDelete' | 'timeTrigger'>> & {
   primary: string[]
+  trigger: string[]
 }
 export type ParsedColumnProperty = {
   type: ParsedColumnType
   notNull: boolean
-  defaultTo?: any
+  defaultTo: any
 }
 
 /**
  * parse table object
  * @param db kysely instance
  * @param tableName table name
- * @todo support extra constraints
  */
-export async function parseTable(db: ParseExistSchemaExecutor, tableName: string): Promise<ParsedTableInfo> {
-  const result: ParsedTableInfo = {
-    columns: {},
-    primary: [],
-  }
-
+export async function parseTable(db: ParseExistSchemaExecutor, tableName: string): Promise<[columns: ParsedColumns, primaryKey: string[]]> {
+  const columns: ParsedColumns = {}
+  const pk: string[] = []
   const cols = await db
-    .selectFrom(sql`pragma_table_info(${tableName})`.as('c'))
+    .selectFrom(sql`pragma_table_info(${tableName})`.as('t'))
     .select(['name', 'type', 'notnull', 'dflt_value', 'pk'])
     .execute()
   for (const { dflt_value, name, notnull, pk, type } of cols) {
-    result.columns[name] = {
+    columns[name] = {
       type,
-      notNull: !!notnull,
+      notNull: !!notnull as any,
       defaultTo: dflt_value,
     }
     if (pk) {
-      result.primary.push(name)
+      pk.push(name)
     }
   }
 
-  return result
+  return [columns, pk]
+}
+
+export async function parseIndex(db: ParseExistSchemaExecutor, indexName: string) {
+  const indexes = await db
+    .selectFrom(sql`pragma_index_list(${indexName})`.as('i'))
+    .select(['name', 'unique', 'origin'])
+    .execute()
 }
 
 /**
@@ -59,14 +65,17 @@ export async function parseExistSchema(
   const tables = await db
     .selectFrom('sqlite_master')
     .where('type', 'in', ['table', 'trigger', 'index'])
-    .where('name', 'not like', 'sqlite_%')
-    .orderBy('type', 'desc')
+    .where(qb => qb.or([
+      qb('name', 'not like', 'sqlite_%'),
+      qb('name', 'like', 'sqlite_autoindex%'),
+    ]))
     .$if(prefix.length > 0, qb => qb.where(
       eb => eb.and(
         prefix.map(t => eb('name', 'not like', `${t}%`)),
       ),
     ))
-    .select(['name', 'type'])
+    .orderBy('type', 'desc')
+    .select(['name', 'type', 'tbl_name', 'sql'])
     .execute()
 
   const tableMap: ParsedSchema = {
@@ -74,10 +83,11 @@ export async function parseExistSchema(
     index: [],
     trigger: [],
   }
+  const parsedTableMap = new Map<string, Omit<Table, 'softDelete'>>()
   for (const { name, type } of tables) {
     switch (type) {
       case 'table':
-        tableMap.table[name] = await parseTable(db, name)
+        parsedTableMap.set(name, await parseTable(db, name))
         break
       case 'index':
         tableMap.index.push(name)

@@ -1,15 +1,17 @@
-import type { Promisable, StringKeys } from '@subframe7536/type-utils'
-import type { Kysely } from 'kysely'
+import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
+import type { Kysely, Transaction } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
-import type { ColumnProperty, InferDatabase, Schema, Table } from './types'
+import type { ColumnProperty, Columns, InferDatabase, Schema, Table } from './types'
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
-import { type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
+import { type ParsedColumnProperty, type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
 import {
+  addColumn,
   createTable,
   createTableIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
+  dropColumn,
   dropIndex,
   dropTable,
   dropTrigger,
@@ -74,37 +76,41 @@ export function generateSyncTableSQL<T extends Schema>(
   truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
   debug: (e: string) => void = () => {},
 ): string[] {
+  const existTableMap = new Map(Object.entries(existSchema.table))
+  const targetSchemaMap = new Map(Object.entries(targetSchema))
+
   const truncateTableSet = new Set(
     Array.isArray(truncateIfExists)
       ? truncateIfExists
       : truncateIfExists
-        ? Object.keys(existSchema.table)
+        ? existTableMap.keys()
         : [],
   )
 
   const result: string[] = []
 
+  // todo)) drop index later
   for (const idx of existSchema.index) {
     result.push(dropIndex(idx))
   }
 
+  // todo)) drop trigger later
   for (const tgr of existSchema.trigger) {
     result.push(dropTrigger(tgr))
   }
 
-  for (const [existTableName, existTable] of Object.entries(existSchema.table)) {
-    if (existTableName in targetSchema) {
-      const targetTable = targetSchema[existTableName]
+  for (const [existTableName, existTable] of existTableMap) {
+    if (targetSchemaMap.has(existTableName)) {
+      const targetTable = targetSchemaMap.get(existTableName)!
       if (truncateTableSet.has(existTableName)) {
         debug(`Update table "${existTableName}" and truncate`)
         result.push(dropTable(existTableName))
         result.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
       } else {
         debug(`Update table "${existTableName}"`)
-        const restoreColumnList: RestoreColumnList = parseRestoreColumnList(targetTable, existTable)
+        const [isChanged, restoreColumnList] = parseRestoreColumnList(targetTable, existTable)
 
-        // if all columns are in same table structure, skip
-        if (restoreColumnList.length !== Object.keys(existTable.columns).length) {
+        if (isChanged) {
           result.push(...updateTableSchemaSQL(db, existTableName, restoreColumnList, targetTable))
         }
       }
@@ -114,8 +120,8 @@ export function generateSyncTableSQL<T extends Schema>(
     }
   }
 
-  for (const [targetTableName, targetTable] of Object.entries(targetSchema)) {
-    if (!(targetTableName in existSchema.table)) {
+  for (const [targetTableName, targetTable] of targetSchemaMap) {
+    if (!existTableMap.has(targetTableName)) {
       debug(`Create table "${targetTableName}"`)
       result.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
     }
@@ -132,29 +138,129 @@ export function generateSyncTableSQL<T extends Schema>(
  */
 export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
 
-function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): RestoreColumnList {
+// todo)) parse createList, updateList, deleteList and generate sql
+// cases:
+// - change primary key
+// - add new column: alter table add column type...
+// - remove old column: alter table drop column
+// - no changed column
+// - change column
+//    - type changed / default changed / notnull changed
+//    - nullable -> not null
+//    - not null -> nullable
+export function updateTableColumns(
+  trx: Kysely<any> | Transaction<any>,
+  tableName: string,
+  targetTable: Table,
+  existTable: ParsedTableInfo,
+): any {
+  const targetColumnMap = new Map(Object.entries(targetTable.columns as Columns))
+  const existColumnMap = new Map(Object.entries(existTable.columns))
+  const insertColumnList: string[] = []
+  const updateColumnList: RestoreColumnList = []
+  const deleteColumnList: string[] = []
+  for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
+    if (!existColumnMap.has(name)) {
+      insertColumnList.push(name)
+      continue
+    }
+    const existColumnInfo = existColumnMap.get(name)!
+    const parsedTargetColumnType = parseColumnType(type)[0]
+    if (existColumnInfo) {
+      if (
+        existColumnInfo.type === parsedTargetColumnType
+        && existColumnInfo.notNull === notNull
+        && existColumnInfo.defaultTo === defaultTo
+      ) {
+        updateColumnList.push([name, undefined])
+      } else {
+        updateColumnList.push([
+          name,
+          (existColumnInfo.notNull || !notNull)
+          // exist column already not null,
+          // or new table column is nullable,
+          // so no need to set fallback value
+            ? undefined
+            : parsedTargetColumnType === 'TEXT' ? '0' : 0,
+        ])
+      }
+    } else if (notNull && !defaultTo) {
+      updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
+    }
+  }
+  for (const [name] of existColumnMap) {
+    if (!targetColumnMap.has(name)) {
+      deleteColumnList.push(name)
+    }
+  }
+  if (isPKOrUKChanged(existTable.primary, targetTable.primary) || updateColumnList.length > 0) {
+    return updateTableSchemaSQL(trx, tableName, updateColumnList, targetTable)
+  }
+  if (insertColumnList.length > 0 || deleteColumnList.length > 0) {
+    return [
+      ...insertColumnList.map(name => addColumn(trx, tableName, name, targetColumnMap.get(name)!)),
+      ...deleteColumnList.map(name => dropColumn(tableName, name)),
+    ]
+  }
+}
+
+function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): [isChanged: boolean, list: RestoreColumnList] {
   const restoreColumnList: RestoreColumnList = []
+  // if primary key changed, all columns need to rebuild
+  let isChanged = isPKOrUKChanged(existTable.primary, targetTable.primary)
 
   for (const [name, prop] of Object.entries(targetTable.columns)) {
     const { type, defaultTo, notNull } = prop as ColumnProperty
     const existColumnInfo = existTable.columns[name]
-    const targetColumnTypeIsText = parseColumnType(type)[0] === 'TEXT'
+    const parsedTargetColumnType = parseColumnType(type)[0]
 
+    let item
     if (existColumnInfo) {
-      // column exists in old table and have same type
-      restoreColumnList.push([
-        name,
-        (existColumnInfo.notNull || !notNull)
-          ? undefined // exist column already not null, or new table column is nullable, so no need to set fallback value
-          : targetColumnTypeIsText ? '0' : 0,
-      ])
+      if (
+        existColumnInfo.type === parsedTargetColumnType
+        && existColumnInfo.notNull === notNull
+        && existColumnInfo.defaultTo === defaultTo
+      ) {
+        item = [name, undefined]
+      } else {
+        // column exists in old table and have same type
+        item = [
+          name,
+          (existColumnInfo.notNull || !notNull)
+            ? undefined // exist column already not null, or new table column is nullable, so no need to set fallback value
+            : parsedTargetColumnType ? '0' : 0,
+        ]
+      }
     } else if (!existColumnInfo && notNull && !defaultTo) {
       // column not exists in old table, and new table column is not null and have no default value
-      restoreColumnList.push([name, targetColumnTypeIsText ? '1' : 1])
+      item = [name, parsedTargetColumnType === 'TEXT' ? '1' : 1]
     }
+
+    // fixme))
+    if (!item?.[1]) {
+      isChanged = true
+    }
+    restoreColumnList.push(item as RestoreColumnList[number])
   }
 
-  return restoreColumnList
+  return [isChanged, restoreColumnList]
+}
+
+function isPKOrUKChanged(existPK: string[], targetPK: Arrayable<string> | undefined): boolean {
+  if (!Array.isArray(targetPK)) {
+    targetPK = targetPK ? [] : [targetPK!]
+  }
+  if (existPK.length !== targetPK.length) {
+    return true
+  }
+  existPK = existPK.sort()
+  targetPK = targetPK.sort()
+  for (let i = 0; i < existPK.length; i++) {
+    if (existPK[i] !== targetPK[i]) {
+      return true
+    }
+  }
+  return false
 }
 
 /**
