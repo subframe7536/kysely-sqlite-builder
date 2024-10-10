@@ -40,7 +40,7 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
  *
  * Return merged string and parsed array
  */
-export function parseArray(arr: Arrayable<any>): [key: string, columnList: string] {
+function parseArray(arr: Arrayable<any>): [key: string, columnList: string] {
   const columns = Array.isArray(arr) ? arr : [arr]
   let key = ''
   let columnList = ''
@@ -49,6 +49,19 @@ export function parseArray(arr: Arrayable<any>): [key: string, columnList: strin
     columnList += `"${c}",`
   }
   return [key, columnList.slice(0, -1)]
+}
+
+/**
+ * Parse default value sql with prefix space
+ */
+function parseDefaultValue(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
+  if (defaultTo === undefined || defaultTo === null) {
+    return ''
+  }
+  const _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
+    ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
+    : defaultSerializer(defaultTo)
+  return _defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''
 }
 
 export function dropTable(tableName: string): string {
@@ -127,14 +140,7 @@ export function createTable(
       // default with current_timestamp
       columnList.push(`"${columnName}" ${dataType} DEFAULT CURRENT_TIMESTAMP`)
     } else {
-      let _defaultTo
-      if (defaultTo !== undefined) {
-        _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
-          ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
-          : defaultSerializer(defaultTo)
-        _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
-      }
-      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''}`)
+      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValue(trx, defaultTo)}`)
     }
   }
 
@@ -186,10 +192,7 @@ export function addColumn(
 ): string {
   const { type, notNull, defaultTo } = columnProperty
   const [dataType] = parseColumnType(type)
-  const _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
-    ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
-    : defaultSerializer(defaultTo)
-  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${_defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''};`
+  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValue(trx, defaultTo)};`
 }
 
 export function dropColumn(tableName: string, columnName: string): string {
