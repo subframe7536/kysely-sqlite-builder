@@ -13,6 +13,11 @@ export type LoggerParams = {
 
 export type LoggerOptions = {
   /**
+   * Toggle log or setup log level
+   * @default 'error'
+   */
+  enable?: boolean | LogEvent['level']
+  /**
    * Log functions
    * @param data logger params, see {@link LoggerParams}
    * @default console.log
@@ -44,11 +49,14 @@ export type LoggerOptions = {
  * })
  */
 export function createKyselyLogger(
-  options: LoggerOptions,
+  options: LoggerOptions = {},
 ): (event: LogEvent) => void {
-  const { logger = console.log, merge, logQueryNode } = options
+  const { enable = 'error', logger = console.log, merge, logQueryNode } = options
 
   return (event: LogEvent) => {
+    if (!enable || (typeof enable === 'string' && event.level !== enable)) {
+      return
+    }
     const { level, queryDurationMillis, query: { parameters, sql, query } } = event
     const questionMarker = '_Q_'
     const err = level === 'error' ? event.error : undefined
