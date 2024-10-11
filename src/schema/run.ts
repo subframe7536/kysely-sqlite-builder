@@ -146,14 +146,12 @@ export function createTable(
 
   // primary/unique key is jointable, so can not be set as trigger key
   if (!autoIncrementColumn && primary) {
-    const [columnListStr] = parseArray(primary)
-    columnList.push(`PRIMARY KEY (${columnListStr})`)
+    columnList.push(`PRIMARY KEY (${parseArray(primary)[0]})`)
   }
 
   if (unique) {
     for (const uk of unique) {
-      const [columnListStr] = parseArray(uk)
-      columnList.push(`UNIQUE (${columnListStr})`)
+      columnList.push(`UNIQUE (${parseArray(uk)[0]})`)
     }
   }
 

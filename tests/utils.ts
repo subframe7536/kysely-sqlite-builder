@@ -35,14 +35,16 @@ export const baseTables = {
 }
 export type DB = InferDatabase<typeof baseTables>
 
+export const dialect = new NodeWasmDialect({
+  database: new Database(':memory:'),
+  async onCreateConnection(connection) {
+    await optimizePragma(connection)
+  },
+})
+
 export function getDatabaseBuilder(debug = false): SqliteBuilder<DB> {
   return new SqliteBuilder<DB>({
-    dialect: new NodeWasmDialect({
-      database: new Database(':memory:'),
-      async onCreateConnection(connection) {
-        await optimizePragma(connection)
-      },
-    }),
+    dialect,
     logger: console,
     onQuery: debug,
   })
