@@ -1,18 +1,16 @@
 import type { InferDatabase } from '../src/schema'
 import { describe, expect, it } from 'bun:test'
-import { NodeWasmDialect } from 'kysely-wasm'
-import { Database } from 'node-sqlite3-wasm'
-import { createSoftDeleteExecutor, pageQuery, precompile, SqliteBuilder } from '../src'
-import { getOrSetDBVersion, optimizePragma } from '../src/pragma'
+import { pageQuery, precompile } from '../src'
+import { getOrSetDBVersion } from '../src/pragma'
 import { column, defineTable, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test builder', async () => {
-  const db = getDatabaseBuilder()
-  await getOrSetDBVersion(db.kysely, 2)
-  // generate table
-  await db.syncDB(useSchema(baseTables))
   it('should insert', async () => {
+    const db = getDatabaseBuilder()
+    await getOrSetDBVersion(db.kysely, 2)
+    await db.syncDB(useSchema(baseTables))
+
     console.log(await db.transaction(async () => {
       await db.insertInto('test').values([{ gender: false }, { gender: true }]).execute()
       return await db.updateTable('test').set({ gender: true }).where('id', '=', 2).returningAll().execute()
@@ -36,6 +34,10 @@ describe('test builder', async () => {
   })
 
   it('should precompile', async () => {
+    const db = getDatabaseBuilder()
+    await getOrSetDBVersion(db.kysely, 2)
+    await db.syncDB(useSchema(baseTables))
+
     const select = precompile<{ person: { name: string }, test?: 'asd' }>()
       .build(param =>
         db.selectFrom('test').selectAll().where('person', '=', param('person')),
@@ -83,16 +85,7 @@ describe('test builder', async () => {
       testSoftDelete: softDeleteTable,
     }
 
-    const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
-      dialect: new NodeWasmDialect({
-        database: new Database(':memory:'),
-        async onCreateConnection(connection) {
-          await optimizePragma(connection)
-        },
-      }),
-      executor: createSoftDeleteExecutor().executor,
-      // onQuery: true,
-    })
+    const db = getDatabaseBuilder<InferDatabase<typeof softDeleteSchema>>()
     await db.syncDB(useSchema(softDeleteSchema, { log: false }))
 
     const insertResult = await db.insertInto('testSoftDelete').values({ name: 'test' }).returning('isDeleted').executeTakeFirst()

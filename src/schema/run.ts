@@ -58,9 +58,11 @@ function parseDefaultValue(trx: Kysely<any> | Transaction<any>, defaultTo: any):
   if (defaultTo === undefined || defaultTo === null) {
     return ''
   }
-  const _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
+  let _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
     ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
     : defaultSerializer(defaultTo)
+  _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
+
   return _defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''
 }
 

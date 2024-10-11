@@ -42,8 +42,8 @@ export const dialect = new NodeWasmDialect({
   },
 })
 
-export function getDatabaseBuilder(debug = false): SqliteBuilder<DB> {
-  return new SqliteBuilder<DB>({
+export function getDatabaseBuilder<T extends Record<string, any> = DB>(debug = false): SqliteBuilder<T> {
+  return new SqliteBuilder<T>({
     dialect,
     logger: console,
     onQuery: debug,

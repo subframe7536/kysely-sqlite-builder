@@ -48,11 +48,11 @@ export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncr
   type TableInfoPragma = {
     name: string
     type: ParsedColumnType
-    notnull: number
+    notnull: 0 | 1
     dflt_value: string | null
     pk: number
   }
-  const cols = (await sql<TableInfoPragma>`SELECT name, type, "notnull", dflt_value, pk FROM PRAGMA_TABLE_INFO(${tableName})`.execute(db)).rows
+  const cols = (await sql<TableInfoPragma>`SELECT "name", "type", "notnull", "dflt_value", "pk" FROM PRAGMA_TABLE_INFO(${tableName})`.execute(db)).rows
 
   for (const { dflt_value, name, notnull, pk, type } of cols) {
     result.columns[name] = {
@@ -74,7 +74,7 @@ export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncr
     columns: string
   }
 
-  const indexes = (await sql<IndexInfoPragma>`SELECT origin, (SELECT GROUP_CONCAT(name) FROM PRAGMA_INDEX_INFO(i.name)) as columns FROM PRAGMA_INDEX_LIST(${tableName}) as i WHERE origin != 'pk'`.execute(db)).rows
+  const indexes = (await sql<IndexInfoPragma>`SELECT "origin", (SELECT GROUP_CONCAT(name) FROM PRAGMA_INDEX_INFO(i.name)) as "columns" FROM PRAGMA_INDEX_LIST(${tableName}) as i WHERE "origin" != 'pk'`.execute(db)).rows
 
   for (const { columns, origin } of indexes) {
     result[origin === 'u' ? 'unique' : 'index'].push(
