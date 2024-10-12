@@ -4,14 +4,16 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { column, DataType, defineTable, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
-describe('test sync table', async () => {
-  let db: SqliteBuilder<DB>
-  beforeEach(async () => {
-    db = getDatabaseBuilder()
-    await db.syncDB(useSchema(baseTables, { log: false }))
-  })
-
+describe('test create table', async () => {
   it('should create new table', async () => {
+    const db = getDatabaseBuilder()
+
+    await db.syncDB(useSchema(baseTables, { log: false }))
+    let _tables = await db.kysely.introspection.getTables()
+    expect(_tables.length).toBe(2)
+    expect(_tables[0].name).toBe('blob')
+    expect(_tables[1].name).toBe('test')
+
     const foo = defineTable({
       columns: {
         col1: { type: DataType.increments },
@@ -27,17 +29,31 @@ describe('test sync table', async () => {
       foo,
     }, { log: true }))
 
-    const _tables = await db.kysely.introspection.getTables()
+    _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(3)
     expect(_tables[0].name).toBe('blob')
     expect(_tables[1].name).toBe('foo')
     expect(_tables[2].name).toBe('test')
   })
+})
+describe('test drop table', async () => {
   it('should drop old table', async () => {
-    await db.syncDB(useSchema({}, { log: true }))
+    const db = getDatabaseBuilder()
 
-    const _tables = await db.kysely.introspection.getTables()
+    await db.syncDB(useSchema(baseTables, { log: false }))
+    let _tables = await db.kysely.introspection.getTables()
+    expect(_tables.length).toBe(2)
+
+    await db.syncDB(useSchema({}, { log: true }))
+    _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(0)
+  })
+})
+describe('test update table', async () => {
+  let db: SqliteBuilder<DB>
+  beforeEach(async () => {
+    db = getDatabaseBuilder()
+    await db.syncDB(useSchema(baseTables, { log: false }))
   })
   it('should update and diff same table with columns', async () => {
     await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()

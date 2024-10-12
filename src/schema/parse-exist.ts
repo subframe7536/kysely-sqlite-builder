@@ -86,7 +86,7 @@ export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncr
 }
 
 /**
- * parse exist db structures
+ * Parse exist db structures
  */
 export async function parseExistSchema(
   db: Kysely<any>,
@@ -98,18 +98,18 @@ export async function parseExistSchema(
     table: string
   }
 
+  // when type is table, name === 1 indicates that AUTOINCREMENT column exists
+  // when type is trigger, name is trigger's name
   const extraColumns = prefix.length ? ` AND ${prefix.map(t => `"name" NOT LIKE '${t}%'`).join(' AND ')}` : ''
   const tables = (await sql<MasterData>`SELECT "type", "tbl_name" AS "table", CASE WHEN "sql" LIKE '%PRIMARY KEY AUTOINCREMENT%' THEN 1 ELSE "name" END AS "name" FROM "sqlite_master" WHERE "type" IN ('table', 'trigger') AND "name" NOT LIKE 'SQLITE_%'${sql.raw(extraColumns)} ORDER BY "type"`.execute(db)).rows
 
   const tableMap: ParsedSchema = {}
   for (const { name, table, type } of tables) {
-    switch (type) {
-      case 'table':
-        tableMap[table] = await parseTable(db, table, (name as number | string) === 1)
-        break
-      case 'trigger':
-        tableMap[table].trigger.push(name as string)
-        break
+    // type only can be 'table' or 'trigger'
+    if (type === 'table') {
+      tableMap[table] = await parseTable(db, table, (name as number | string) === 1)
+    } else {
+      tableMap[table].trigger.push(name as string)
     }
   }
   return tableMap

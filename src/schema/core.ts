@@ -15,6 +15,7 @@ import {
   dropColumn,
   dropTable,
   parseColumnType,
+  parseDefaultValue,
   renameTable,
   restoreColumns,
 } from './run'
@@ -151,7 +152,7 @@ export function updateTable(
       if (
         existColumnInfo.type === parsedTargetColumnType
         && existColumnInfo.notNull === !!notNull
-        && existColumnInfo.defaultTo === defaultSerializer(defaultTo)
+        && existColumnInfo.defaultTo === (parseDefaultValue(trx, defaultTo) || null)
       ) {
         updateColumnList.push([name, undefined])
       } else {

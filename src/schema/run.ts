@@ -52,18 +52,26 @@ function parseArray(arr: Arrayable<any>): [columnListStr: string, key: string] {
 }
 
 /**
- * Parse default value sql with prefix space
+ * Parse default value
  */
-function parseDefaultValue(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
+export function parseDefaultValue(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
   if (defaultTo === undefined || defaultTo === null) {
     return ''
+  }
+  if (defaultTo === TGRC || defaultTo === TGRU) {
+    return 'CURRENT_TIMESTAMP'
   }
   let _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
     ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
     : defaultSerializer(defaultTo)
   _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
 
-  return _defaultTo !== undefined ? ` DEFAULT ${_defaultTo}` : ''
+  return _defaultTo !== undefined ? String(_defaultTo) : ''
+}
+
+function parseDefaultValueWithPrefix(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
+  const result = parseDefaultValue(trx, defaultTo)
+  return result ? ` DEFAULT ${result}` : ''
 }
 
 export function dropTable(tableName: string): string {
@@ -129,20 +137,13 @@ export function createTable(
         _triggerOptions.triggerKey = columnName
       }
       columnList.push(`"${columnName}" ${dataType} PRIMARY KEY AUTOINCREMENT`)
-    } else if (
-      // see hacks in `./define.ts`
-      // time trigger column is default with TGR
-      defaultTo === TGRC || defaultTo === TGRU
-    ) {
+    } else {
       // update trigger column is not null
       // #hack to detect update column
       if (_triggerOptions && defaultTo === TGRU) {
         _triggerOptions.update = columnName
       }
-      // default with current_timestamp
-      columnList.push(`"${columnName}" ${dataType} DEFAULT CURRENT_TIMESTAMP`)
-    } else {
-      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValue(trx, defaultTo)}`)
+      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValueWithPrefix(trx, defaultTo)}`)
     }
   }
 
@@ -191,7 +192,7 @@ export function addColumn(
 ): string {
   const { type, notNull, defaultTo } = columnProperty
   const [dataType] = parseColumnType(type)
-  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValue(trx, defaultTo)};`
+  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValueWithPrefix(trx, defaultTo)};`
 }
 
 export function dropColumn(tableName: string, columnName: string): string {
