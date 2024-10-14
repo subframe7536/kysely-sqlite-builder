@@ -1,24 +1,27 @@
 import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
 import type { Kysely, Transaction } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
-import type { ColumnProperty, Columns, InferDatabase, Schema, Table } from './types'
 import { getOrSetDBVersion } from '../pragma'
-import { defaultSerializer } from '../serialize'
 import { executeSQL } from '../utils'
+import { TGRU } from './define'
 import { type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
 import {
   addColumn,
+  createIndex,
   createTable,
   createTableIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
   dropColumn,
+  dropIndex,
   dropTable,
+  dropTrigger,
   parseColumnType,
   parseDefaultValue,
   renameTable,
   restoreColumns,
 } from './run'
+import { type Columns, DataType, type InferDatabase, type Schema, type Table, type TableProperty } from './types'
 
 export type SyncOptions<T extends Schema> = {
   /**
@@ -145,9 +148,17 @@ export function updateTable(
   const insertColumnList: string[] = []
   const updateColumnList: RestoreColumnList = []
   const deleteColumnList: string[] = []
+  let updateTimeColumn
+  let autoIncrementColumn
   for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
-    const existColumnInfo = existColumnMap.get(name)!
+    const existColumnInfo = existColumnMap.get(name)
     const parsedTargetColumnType = parseColumnType(type)[0]
+    if (defaultTo === TGRU) {
+      updateTimeColumn = name
+    }
+    if (type === DataType.increments) {
+      autoIncrementColumn = name
+    }
     if (existColumnInfo) {
       if (
         existColumnInfo.type === parsedTargetColumnType
@@ -178,32 +189,80 @@ export function updateTable(
       deleteColumnList.push(name)
     }
   }
-  if (isPKOrUKChanged(existTable.primary, targetTable.primary) || updateColumnList.length > 0) {
+  if (
+    isPrimaryKeyChanged(existTable.primary, targetTable.primary)
+    || isUniqueChanged(existTable.unique, targetTable.unique)
+    || updateColumnList.length > 0
+  ) {
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
 
-  // todo)) handle indexes and autoincrement column
-  return [
-    ...insertColumnList.map(name => addColumn(trx, tableName, name, targetColumnMap.get(name)!)),
-    ...deleteColumnList.map(name => dropColumn(tableName, name)),
+  let result = [
+    ...insertColumnList.map(col => addColumn(trx, tableName, col, targetColumnMap.get(col)!)),
+    ...deleteColumnList.map(col => dropColumn(tableName, col)),
   ]
+
+  const [insertIndexList, deleteIndexList] = compareLists(existTable.index, targetTable.index || [])
+
+  result.push(
+    ...insertIndexList.map(colList => createIndex(tableName, colList)),
+    ...deleteIndexList.map(colList => dropIndex(tableName, colList)),
+  )
+
+  if (updateTimeColumn) {
+    const _trigger = `tgr_${updateTimeColumn}`
+    if (existTable.trigger[0] !== _trigger) {
+      result = [
+        dropTrigger(existTable.trigger[0]),
+        ...result,
+        createTimeTrigger(tableName, { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn })!,
+      ]
+    }
+  }
+
+  return result
 }
 
-function isPKOrUKChanged(existPK: string[], targetPK: Arrayable<string> | undefined): boolean {
+function isPrimaryKeyChanged(existPK: string[], targetPK: TableProperty<any>['primary']): boolean {
+  if (!targetPK) {
+    return existPK.length > 0
+  }
   if (!Array.isArray(targetPK)) {
-    targetPK = targetPK ? [] : [targetPK!]
+    targetPK = [targetPK]
   }
   if (existPK.length !== targetPK.length) {
     return true
   }
-  existPK = existPK.sort()
-  targetPK = targetPK.sort()
-  for (let i = 0; i < existPK.length; i++) {
-    if (existPK[i] !== targetPK[i]) {
-      return true
+  return existPK.some((v, i) => v !== targetPK[i])
+}
+
+function isUniqueChanged(existUnique: string[][], targetUnique: TableProperty<any>['unique']): boolean {
+  if (!targetUnique) {
+    return existUnique.length > 0
+  }
+  const [insertUniqueList, deleteUniqueList] = compareLists(existUnique, targetUnique)
+  return insertUniqueList.length > 0 || deleteUniqueList.length > 0
+}
+
+function compareLists(
+  existIndexList: string[][],
+  targetIndexList: Arrayable<string>[],
+): [add: string[][], del: string[][]] {
+  const existSet = new Set(existIndexList.map(arr => arr.join('|')))
+  const targetSet = new Set()
+  const addList: string[][] = []
+
+  for (const index of targetIndexList) {
+    const hash = Array.isArray(index) ? index.join('|') : index
+    targetSet.add(hash)
+    if (!existSet.has(hash)) {
+      addList.push(Array.isArray(index) ? index : [index])
     }
   }
-  return false
+
+  const delList = existIndexList.filter(index => !targetSet.has(index.join('|')))
+
+  return [addList, delList]
 }
 
 /**

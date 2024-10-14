@@ -199,8 +199,13 @@ export function dropColumn(tableName: string, columnName: string): string {
   return `ALTER TABLE "${tableName}" DROP COLUMN "${columnName}";`
 }
 
-export function dropIndex(indexName: string): string {
-  return `DROP INDEX IF EXISTS "${indexName}";`
+export function createIndex(tableName: string, columns: string[]): string {
+  const [columnListStr, indexSuffix] = parseArray(columns)
+  return `CREATE INDEX IF NOT EXISTS "${tableName}${indexSuffix} on "${tableName}"(${columnListStr});`
+}
+export function dropIndex(tableName: string, columns: string[]): string {
+  const [,indexSuffix] = parseArray(columns)
+  return `DROP INDEX IF EXISTS "${tableName}${indexSuffix}";`
 }
 
 export function dropTrigger(triggerName: string): string {
