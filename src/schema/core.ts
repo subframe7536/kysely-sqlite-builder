@@ -72,6 +72,61 @@ export type SyncOptions<T extends Schema> = {
   onSyncFail?: (err: unknown, sql: string, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
 }
 
+export async function syncTables<T extends Schema>(
+  db: Kysely<any>,
+  targetSchema: T,
+  options: SyncOptions<T> = {},
+  logger?: DBLogger,
+): Promise<StatusResult> {
+  const {
+    truncateIfExists = [],
+    log,
+    version: { current, skipSyncWhenSame } = {},
+    excludeTablePrefix,
+    onSyncSuccess,
+    onSyncFail,
+  } = options
+
+  let oldVersion: number
+
+  if (current) {
+    oldVersion = await getOrSetDBVersion(db)
+    if (skipSyncWhenSame && current === oldVersion) {
+      return { ready: true }
+    }
+    await getOrSetDBVersion(db, current)
+  }
+
+  const debug = (e: string): any => log && logger?.debug(e)
+  debug('Sync tables start:')
+  const existSchema = await parseExistSchema(db, excludeTablePrefix)
+  let i = 0
+  const sqls = generateSyncTableSQL(
+    db,
+    existSchema,
+    targetSchema,
+    truncateIfExists,
+    (e: string): any => log && logger?.debug(`- ${e}`),
+  )
+
+  return await db.transaction()
+    .execute(async (trx) => {
+      for (; i < sqls.length; i++) {
+        await executeSQL(trx, sqls[i])
+      }
+    })
+    .then(async () => {
+      await onSyncSuccess?.(db, existSchema, oldVersion)
+      debug('Sync tables success')
+      return { ready: true as const }
+    })
+    .catch(async (e) => {
+      await onSyncFail?.(e, sqls[i], existSchema, targetSchema)
+      debug(`Sync tables fail, ${e}`)
+      return { ready: false, error: e }
+    })
+}
+
 export function generateSyncTableSQL<T extends Schema>(
   db: Kysely<any>,
   existSchema: ParsedSchema,
@@ -127,17 +182,7 @@ export function generateSyncTableSQL<T extends Schema>(
  */
 export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
 
-// todo)) parse createList, updateList, deleteList and generate sql
-// cases:
-// - change primary key
-// - add new column: alter table add column type...
-// - remove old column: alter table drop column
-// - no changed column
-// - change column
-//    - type changed / default changed / notnull changed
-//    - nullable -> not null
-//    - not null -> nullable
-export function updateTable(
+function updateTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
   existTable: ParsedTableInfo,
@@ -150,6 +195,9 @@ export function updateTable(
   const deleteColumnList: string[] = []
   let updateTimeColumn
   let autoIncrementColumn
+  let isChanged = isPrimaryKeyChanged(existTable.primary, targetTable.primary)
+    || isUniqueChanged(existTable.unique, targetTable.unique)
+
   for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
     const existColumnInfo = existColumnMap.get(name)
     const parsedTargetColumnType = parseColumnType(type)[0]
@@ -167,12 +215,13 @@ export function updateTable(
       ) {
         updateColumnList.push([name, undefined])
       } else {
+        isChanged = true
         updateColumnList.push([
           name,
+          // exist column already not null,
+          // or new table column is nullable,
+          // so no need to set fallback value
           (existColumnInfo.notNull || !notNull)
-            // exist column already not null,
-            // or new table column is nullable,
-            // so no need to set fallback value
             ? undefined
             : parsedTargetColumnType === 'TEXT' ? '0' : 0,
         ])
@@ -180,6 +229,7 @@ export function updateTable(
     } else {
       insertColumnList.push(name)
       if (notNull && !defaultTo) {
+        isChanged = true
         updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
       }
     }
@@ -189,11 +239,7 @@ export function updateTable(
       deleteColumnList.push(name)
     }
   }
-  if (
-    isPrimaryKeyChanged(existTable.primary, targetTable.primary)
-    || isUniqueChanged(existTable.unique, targetTable.unique)
-    || updateColumnList.length > 0
-  ) {
+  if (isChanged) {
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
 
@@ -210,7 +256,7 @@ export function updateTable(
   )
 
   if (updateTimeColumn) {
-    const _trigger = `tgr_${updateTimeColumn}`
+    const _trigger = `tgr_${tableName}_${updateTimeColumn}`
     if (existTable.trigger[0] !== _trigger) {
       result = [
         dropTrigger(existTable.trigger[0]),
@@ -268,7 +314,7 @@ function compareLists(
 /**
  * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
  */
-export function migrateWholeTable(
+function migrateWholeTable(
   trx: Kysely<any>,
   tableName: string,
   restoreColumnList: RestoreColumnList,
@@ -300,59 +346,4 @@ export function migrateWholeTable(
   }
 
   return result
-}
-
-export async function syncTables<T extends Schema>(
-  db: Kysely<any>,
-  targetSchema: T,
-  options: SyncOptions<T> = {},
-  logger?: DBLogger,
-): Promise<StatusResult> {
-  const {
-    truncateIfExists = [],
-    log,
-    version: { current, skipSyncWhenSame } = {},
-    excludeTablePrefix,
-    onSyncSuccess,
-    onSyncFail,
-  } = options
-
-  let oldVersion: number
-
-  if (current) {
-    oldVersion = await getOrSetDBVersion(db)
-    if (skipSyncWhenSame && current === oldVersion) {
-      return { ready: true }
-    }
-    await getOrSetDBVersion(db, current)
-  }
-
-  const debug = (e: string): any => log && logger?.debug(e)
-  debug('Sync tables start:')
-  const existSchema = await parseExistSchema(db, excludeTablePrefix)
-  let i = 0
-  const sqls = generateSyncTableSQL(
-    db,
-    existSchema,
-    targetSchema,
-    truncateIfExists,
-    (e: string): any => log && logger?.debug(`- ${e}`),
-  )
-
-  return await db.transaction()
-    .execute(async (trx) => {
-      for (; i < sqls.length; i++) {
-        await executeSQL(trx, sqls[i])
-      }
-    })
-    .then(async () => {
-      await onSyncSuccess?.(db, existSchema, oldVersion)
-      debug('Sync tables success')
-      return { ready: true as const }
-    })
-    .catch(async (e) => {
-      await onSyncFail?.(e, sqls[i], existSchema, targetSchema)
-      debug(`Sync tables fail, ${e}`)
-      return { ready: false, error: e }
-    })
 }

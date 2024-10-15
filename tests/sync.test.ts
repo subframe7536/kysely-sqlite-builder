@@ -1,7 +1,7 @@
 import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { column, DataType, defineTable, useSchema } from '../src/schema'
+import { column, DataType, defineTable, generateSyncTableSQL, type InferDatabase, parseExistSchema, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test create table', async () => {
@@ -55,52 +55,66 @@ describe('test update table', async () => {
     db = getDatabaseBuilder()
     await db.syncDB(useSchema(baseTables, { log: false }))
   })
-  it('should update and diff same table with columns', async () => {
-    await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()
+  it('should have no operation', async () => {
+    expect(
+      generateSyncTableSQL(
+        db.kysely,
+        await parseExistSchema(db.kysely),
+        baseTables,
+      ),
+    ).toStrictEqual([])
+  })
+  it('should add column', async () => {
     const test = defineTable({
+      ...baseTables.test,
       columns: {
-        id: column.increments(),
-        name: column.string(),
-        person: column.int({ notNull: true }),
-        bool: column.boolean({ notNull: true }),
-        array: column.object().$cast<string[]>(),
-        buffer: column.blob(),
-        newColumn: column.int(),
+        ...baseTables.test.columns,
+        newColumn: column.int({ defaultTo: 0, notNull: true }),
       },
-      primary: 'id',
-      timeTrigger: { create: true, update: true },
     })
-    await db.syncDB(useSchema({ test }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
     const tables = await db.kysely.introspection.getTables()
-    expect(tables.length).toBe(1)
-    const _tables = tables[0]
-    expect(
-      _tables.columns
-        .filter(({ name }) => name === 'person')[0]
-        .dataType,
-    ).toBe('INTEGER')
-    expect(
-      _tables.columns
-        .filter(({ name }) => name === 'name')[0]
-        .hasDefaultValue,
-    ).toBe(false)
-    expect(_tables
-      .columns
-      .filter(({ name }) => name === 'gender')
-      .length,
-    ).toBe(0)
-    expect(_tables
-      .columns
-      .filter(({ name }) => name === 'bool')[0]
-      .dataType,
-    ).toBe('INTEGER')
-    expect(_tables
-      .columns
-      .filter(({ name }) => name === 'newColumn')[0]
-      .dataType,
-    ).toBe('INTEGER')
-
-    const data = await db.selectFrom('test').selectAll().executeTakeFirstOrThrow()
-    expect(data.person).toBe(0 as any)
+    expect(tables.length).toBe(2)
+    const _tables = tables.find(t => t.name === 'test')!
+    const {
+      dataType,
+      isNullable,
+      hasDefaultValue,
+    } = _tables.columns.find(({ name }) => name === 'newColumn')!
+    expect(dataType).toBe('INTEGER')
+    expect(isNullable).toBe(false)
+    expect(hasDefaultValue).toBe(true)
+  })
+  it('should drop column', async () => {
+    const newColumns = JSON.parse(JSON.stringify(baseTables.test.columns))
+    delete newColumns.array
+    const test = defineTable({
+      ...baseTables.test,
+      columns: newColumns,
+    })
+    await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
+    const tables = await db.kysely.introspection.getTables()
+    expect(tables.length).toBe(2)
+    const _tables = tables.find(t => t.name === 'test')!
+    expect(_tables.columns.find(({ name }) => name === 'array')).toBeUndefined()
+  })
+  it('should update and diff same table with different columns type', async () => {
+    await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()
+    await db.syncDB(useSchema({
+      ...baseTables,
+      test: defineTable({
+        ...baseTables.test,
+        columns: {
+          ...baseTables.test.columns,
+          array: column.int(),
+        },
+      }),
+    }))
+    const tables = await db.kysely.introspection.getTables()
+    expect(tables.length).toBe(2)
+    const col = tables.find(t => t.name === 'test')!.columns.find(t => t.name === 'array')!
+    expect(col.dataType).toBe('INTEGER')
+    expect(col.isNullable).toBe(true)
+    expect(col.hasDefaultValue).toBe(false)
   })
 })

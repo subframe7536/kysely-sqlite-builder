@@ -63,9 +63,8 @@ export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncr
     if (pk !== 0) {
       if (hasAutoIncrement && pk === 1 && type === 'INTEGER') {
         result.increment = name
-      } else {
-        result.primary.push(name)
       }
+      result.primary.push(name)
     }
   }
 
