@@ -1,7 +1,7 @@
 import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { column, DataType, defineTable, generateSyncTableSQL, type InferDatabase, parseExistSchema, useSchema } from '../src/schema'
+import { column, DataType, defineTable, generateSyncTableSQL, parseExistSchema, useSchema } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test create table', async () => {
@@ -98,23 +98,52 @@ describe('test update table', async () => {
     const _tables = tables.find(t => t.name === 'test')!
     expect(_tables.columns.find(({ name }) => name === 'array')).toBeUndefined()
   })
-  it('should update and diff same table with different columns type', async () => {
-    await db.insertInto('test').values({ gender: true, name: 'test', person: { name: 'p' } }).execute()
+  it('should update and diff same table with different columns type, not null and default value', async () => {
+    const prevTables = await db.kysely.introspection.getTables()
+    expect(prevTables.length).toBe(2)
     await db.syncDB(useSchema({
       ...baseTables,
       test: defineTable({
         ...baseTables.test,
         columns: {
           ...baseTables.test.columns,
-          array: column.int(),
+          arrayType: column.int(),
+          genderNotNull: column.boolean({ notNull: false }),
+          literalDefaultTo: column.string({ defaultTo: '123' }),
         },
       }),
     }))
     const tables = await db.kysely.introspection.getTables()
     expect(tables.length).toBe(2)
-    const col = tables.find(t => t.name === 'test')!.columns.find(t => t.name === 'array')!
-    expect(col.dataType).toBe('INTEGER')
-    expect(col.isNullable).toBe(true)
-    expect(col.hasDefaultValue).toBe(false)
+
+    const { columns } = tables.find(t => t.name === 'test')!
+    const { columns: prevColumns } = prevTables.find(t => t.name === 'test')!
+
+    const prevColT = prevColumns.find(t => t.name === 'array')!
+    expect(prevColT.dataType).toBe('TEXT')
+    expect(prevColT.isNullable).toBe(true)
+    expect(prevColT.hasDefaultValue).toBe(false)
+    const colT = columns.find(t => t.name === 'arrayType')!
+    expect(colT.dataType).toBe('INTEGER')
+    expect(colT.isNullable).toBe(true)
+    expect(colT.hasDefaultValue).toBe(false)
+
+    const prevColN = prevColumns.find(t => t.name === 'gender')!
+    expect(prevColN.dataType).toBe('INTEGER')
+    expect(prevColN.isNullable).toBe(false)
+    expect(prevColN.hasDefaultValue).toBe(false)
+    const colN = columns.find(t => t.name === 'genderNotNull')!
+    expect(colN.dataType).toBe('INTEGER')
+    expect(colN.isNullable).toBe(true)
+    expect(colN.hasDefaultValue).toBe(false)
+
+    const prevColD = prevColumns.find(t => t.name === 'literal')!
+    expect(prevColD.dataType).toBe('TEXT')
+    expect(prevColD.isNullable).toBe(true)
+    expect(prevColD.hasDefaultValue).toBe(false)
+    const colD = columns.find(t => t.name === 'literalDefaultTo')!
+    expect(colD.dataType).toBe('TEXT')
+    expect(colD.isNullable).toBe(true)
+    expect(colD.hasDefaultValue).toBe(true)
   })
 })
