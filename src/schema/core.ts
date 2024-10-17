@@ -266,6 +266,8 @@ function updateTable(
         createTimeTrigger(tableName, { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn })!,
       ]
     }
+  } else if (existTable.trigger[0]) {
+    result.push(dropTrigger(existTable.trigger[0]))
   }
 
   return result

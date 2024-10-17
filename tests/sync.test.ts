@@ -52,10 +52,12 @@ describe('test drop table', async () => {
 })
 describe('test update table', async () => {
   let db: SqliteBuilder<DB>
+
   beforeEach(async () => {
     db = getDatabaseBuilder(true)
     await db.syncDB(useSchema(baseTables, { log: false }))
   })
+
   it('should have no operation', async () => {
     expect(
       generateSyncTableSQL(
@@ -65,6 +67,7 @@ describe('test update table', async () => {
       ),
     ).toStrictEqual([])
   })
+
   it('should add column', async () => {
     const test = defineTable({
       ...baseTables.test,
@@ -85,6 +88,8 @@ describe('test update table', async () => {
     expect(notNull).toBe(true)
     expect(defaultTo).toBe('0')
   })
+
+  // todo)) handle drop on unique column
   it('should drop column', async () => {
     const newColumns = JSON.parse(JSON.stringify(baseTables.test.columns))
     delete newColumns.array
@@ -97,6 +102,7 @@ describe('test update table', async () => {
     expect(Object.keys(tables).length).toBe(2)
     expect(tables.test.columns.array).toBeUndefined()
   })
+
   it('should update and diff same table with different columns type, not null and default value', async () => {
     const prevTables = await parseExistSchema(db.kysely)
     expect(Object.keys(prevTables).length).toBe(2)
@@ -145,6 +151,7 @@ describe('test update table', async () => {
     expect(colD.notNull).toBe(false)
     expect(colD.defaultTo).toBe('\'123\'')
   })
+
   it('should update table with new index', async () => {
     const tableName = 'test' as const
     const updatedTable = defineTable({
@@ -155,12 +162,10 @@ describe('test update table', async () => {
     await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
-    expect(
-      parseChangedList(tables[tableName].index, [['literal'], ['id', 'gender'], ['person']]),
-    ).toStrictEqual([[], []])
+    expect(tables[tableName].index).toStrictEqual([['literal']])
   })
 
-  it.only('should update table with dropped index', async () => {
+  it('should update table with dropped index', async () => {
     const tableName = 'test' as const
     const updatedTable = defineTable({
       ...baseTables[tableName],
@@ -171,65 +176,49 @@ describe('test update table', async () => {
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].index).toStrictEqual([])
   })
-  // it('should update table with dropped index', async () => {
-  //   const tableName = 'test' as const
-  //   const updatedTable = defineTable({
-  //     ...baseTables[tableName],
-  //     index: [],
-  //   })
 
-  //   const result = generateSyncTableSQL(
-  //     db.kysely,
-  //     await parseExistSchema(db.kysely),
-  //     { ...baseTables, [tableName]: updatedTable },
-  //   )
-  //   expect(result).toContain(`DROP INDEX "oldIndex"`)
-  // })
+  it('should update table with new trigger', async () => {
+    const tableName = 'blob' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      timeTrigger: { create: true, update: true },
+    })
 
-  // it('should update table with new trigger', async () => {
-  //   const tableName = 'test' as const
-  //   const updatedTable = defineTable({
-  //     ...baseTables[tableName],
-  //     timeTrigger: { create: true, update: true },
-  //   })
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables[tableName].trigger).toStrictEqual(['tgr_blob_updateAt'])
+  })
 
-  //   const result = generateSyncTableSQL(
-  //     db.kysely,
-  //     await parseExistSchema(db.kysely),
-  //     { ...baseTables, [tableName]: updatedTable },
-  //   )
-  //   expect(result).toContain(`CREATE TRIGGER "newTrigger" AFTER INSERT ON "${tableName}"`)
-  // })
+  it('should update table with dropped trigger', async () => {
+    const tableName = 'test' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      timeTrigger: { create: false, update: false },
+    })
+    // @ts-expect-error create at
+    delete updatedTable.columns.createAt
+    // @ts-expect-error create at
+    delete updatedTable.columns.updateAt
 
-  // it('should update table with dropped trigger', async () => {
-  //   const tableName = 'test' as const
-  //   const updatedTable = defineTable({
-  //     ...baseTables[tableName],
-  //     timeTrigger: { create: false, update: false },
-  //   })
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables[tableName].trigger).toStrictEqual([])
+  })
 
-  //   const result = generateSyncTableSQL(
-  //     db.kysely,
-  //     await parseExistSchema(db.kysely),
-  //     { ...baseTables, [tableName]: updatedTable },
-  //   )
-  //   expect(result).toContain(`DROP TRIGGER "oldTrigger"`)
-  // })
+  it('should update table with new unique constraint', async () => {
+    const tableName = 'test' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      unique: ['literal', ['id', 'name']],
+    })
 
-  // it('should update table with new unique constraint', async () => {
-  //   const tableName = 'test'
-  //   const updatedTable = defineTable({
-  //     ...baseTables[tableName],
-  //     unique: ['literal'],
-  //   })
-
-  //   const result = generateSyncTableSQL(
-  //     db.kysely,
-  //     await parseExistSchema(db.kysely),
-  //     { ...baseTables, [tableName]: updatedTable },
-  //   )
-  //   expect(result).toContain(`ALTER TABLE "${tableName}" ADD CONSTRAINT "newUnique" UNIQUE ("newUnique")`)
-  // })
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables[tableName].unique).toStrictEqual([['id', 'name'], ['literal']])
+  })
 
   // it('should update table with dropped unique constraint', async () => {
   //   const tableName = 'test' as const

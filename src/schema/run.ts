@@ -201,11 +201,11 @@ export function dropColumn(tableName: string, columnName: string): string {
 
 export function createIndex(tableName: string, columns: string[]): string {
   const [columnListStr, indexSuffix] = parseArray(columns)
-  return `CREATE INDEX IF NOT EXISTS "${tableName}${indexSuffix}" on "${tableName}"(${columnListStr});`
+  return `CREATE INDEX IF NOT EXISTS "idx_${tableName}${indexSuffix}" on "${tableName}"(${columnListStr});`
 }
 export function dropIndex(tableName: string, columns: string[]): string {
   const [,indexSuffix] = parseArray(columns)
-  return `DROP INDEX IF EXISTS "${tableName}${indexSuffix}";`
+  return `DROP INDEX IF EXISTS "idx_${tableName}${indexSuffix}";`
 }
 
 export function dropTrigger(triggerName: string): string {
