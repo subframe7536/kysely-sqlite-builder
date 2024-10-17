@@ -16,10 +16,10 @@ import {
   dropIndex,
   dropTable,
   dropTrigger,
+  migrateColumnsFromTemp,
   parseColumnType,
   parseDefaultValue,
   renameTable,
-  restoreColumns,
 } from './run'
 import { type Columns, DataType, type InferDatabase, type Schema, type Table, type TableProperty } from './types'
 
@@ -228,6 +228,8 @@ function updateTable(
       }
     } else {
       insertColumnList.push(name)
+
+      // if new column is not null and have no default value, set fallback value
       if (notNull && !defaultTo) {
         isChanged = true
         updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
@@ -248,7 +250,7 @@ function updateTable(
     ...deleteColumnList.map(col => dropColumn(tableName, col)),
   ]
 
-  const [insertIndexList, deleteIndexList] = compareLists(existTable.index, targetTable.index || [])
+  const [insertIndexList, deleteIndexList] = parseChangedList(existTable.index, targetTable.index || [])
 
   result.push(
     ...insertIndexList.map(colList => createIndex(tableName, colList)),
@@ -286,11 +288,11 @@ function isUniqueChanged(existUnique: string[][], targetUnique: TableProperty<an
   if (!targetUnique) {
     return existUnique.length > 0
   }
-  const [insertUniqueList, deleteUniqueList] = compareLists(existUnique, targetUnique)
+  const [insertUniqueList, deleteUniqueList] = parseChangedList(existUnique, targetUnique)
   return insertUniqueList.length > 0 || deleteUniqueList.length > 0
 }
 
-function compareLists(
+export function parseChangedList(
   existIndexList: string[][],
   targetIndexList: Arrayable<string>[],
 ): [add: string[][], del: string[][]] {
@@ -329,7 +331,7 @@ function migrateWholeTable(
 
   // 2. diff and restore data from source table to target table
   if (restoreColumnList.length) {
-    result.push(restoreColumns(tableName, tempTableName, restoreColumnList))
+    result.push(migrateColumnsFromTemp(tableName, tempTableName, restoreColumnList))
   }
 
   // 3. remove old table

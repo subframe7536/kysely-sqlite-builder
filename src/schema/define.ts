@@ -16,6 +16,46 @@ import {
 export const TGRC = '_TC_'
 export const TGRU = '_TU_'
 
+type DefineTableOptions<
+  T extends Columns,
+  C extends string | boolean | null,
+  U extends string | boolean | null,
+  D extends string | boolean | null,
+> = {
+  /**
+   * Table columns
+   */
+  columns: T
+} & Omit<TableProperty<T>, 'timeTrigger' | 'softDelete'> & {
+  /**
+   * Time trigger for `createAt` and `updateAt`
+   *
+   * - If type is nullish, ignore
+   * - If type is `true`, column name is `deletedAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  timeTrigger?: {
+    /**
+     * Create time column
+     */
+    create?: C
+    /**
+     * Update time column
+     */
+    update?: U
+  }
+  /**
+   * Whether to use soft delete
+   *
+   * - If type is nullish, ignore
+   * - If type is `true`, column name is `deletedAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  softDelete?: D
+}
+
+type ParseFalseToNull<T extends boolean | string | null> = T extends false ? null : T
+
 /**
  * Define table
  *
@@ -39,17 +79,12 @@ export const TGRU = '_TU_'
  */
 export function defineTable<
   T extends Columns,
-  C extends string | true | null = null,
-  U extends string | true | null = null,
-  D extends string | true | null = null,
+  C extends string | boolean | null = null,
+  U extends string | boolean | null = null,
+  D extends string | boolean | null = null,
 >(
-  options: {
-    /**
-     * table columns
-     */
-    columns: T
-  } & TableProperty<T, C, U, D>,
-): Table<T, C, U, D> {
+  options: DefineTableOptions<T, C, U, D>,
+): Table<T, ParseFalseToNull<C>, ParseFalseToNull<U>, ParseFalseToNull<D>> {
   const { columns, ...rest } = options
   const { timeTrigger: { create, update } = {}, softDelete } = rest
 
@@ -73,7 +108,7 @@ export function defineTable<
   return {
     ...rest,
     columns: columns as unknown as ColumnsWithErrorInfo<T>,
-  }
+  } as Table<T, ParseFalseToNull<C>, ParseFalseToNull<U>, ParseFalseToNull<D>>
 }
 
 type Options<T = any, NotNull extends boolean | null = null> = {

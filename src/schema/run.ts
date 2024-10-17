@@ -201,7 +201,7 @@ export function dropColumn(tableName: string, columnName: string): string {
 
 export function createIndex(tableName: string, columns: string[]): string {
   const [columnListStr, indexSuffix] = parseArray(columns)
-  return `CREATE INDEX IF NOT EXISTS "${tableName}${indexSuffix} on "${tableName}"(${columnListStr});`
+  return `CREATE INDEX IF NOT EXISTS "${tableName}${indexSuffix}" on "${tableName}"(${columnListStr});`
 }
 export function dropIndex(tableName: string, columns: string[]): string {
   const [,indexSuffix] = parseArray(columns)
@@ -212,10 +212,14 @@ export function dropTrigger(triggerName: string): string {
   return `DROP TRIGGER IF EXISTS "${triggerName}";`
 }
 
-export function restoreColumns(fromTableName: string, toTableName: string, columns: RestoreColumnList): string {
+export function migrateColumnsFromTemp(
+  fromTableName: string,
+  toTableName: string,
+  restoreColumns: RestoreColumnList,
+): string {
   let cols = ''
   let values = ''
-  for (const [name, notNullFallbackValue] of columns) {
+  for (const [name, notNullFallbackValue] of restoreColumns) {
     cols += `,"${name}"`
     switch (notNullFallbackValue) {
       case 0: // have nullable column in old table

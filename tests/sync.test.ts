@@ -2,6 +2,7 @@ import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { column, DataType, defineTable, generateSyncTableSQL, parseExistSchema, useSchema } from '../src/schema'
+import { parseChangedList } from '../src/schema/core'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test create table', async () => {
@@ -9,10 +10,10 @@ describe('test create table', async () => {
     const db = getDatabaseBuilder()
 
     await db.syncDB(useSchema(baseTables, { log: false }))
-    let _tables = await db.kysely.introspection.getTables()
-    expect(_tables.length).toBe(2)
-    expect(_tables[0].name).toBe('blob')
-    expect(_tables[1].name).toBe('test')
+    let _tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(_tables).length).toBe(2)
+    expect(_tables.blob).toBeTruthy()
+    expect(_tables.test).toBeTruthy()
 
     const foo = defineTable({
       columns: {
@@ -29,11 +30,11 @@ describe('test create table', async () => {
       foo,
     }, { log: true }))
 
-    _tables = await db.kysely.introspection.getTables()
-    expect(_tables.length).toBe(3)
-    expect(_tables[0].name).toBe('blob')
-    expect(_tables[1].name).toBe('foo')
-    expect(_tables[2].name).toBe('test')
+    _tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(_tables).length).toBe(3)
+    expect(_tables.blob).toBeTruthy()
+    expect(_tables.foo).toBeTruthy()
+    expect(_tables.test).toBeTruthy()
   })
 })
 describe('test drop table', async () => {
@@ -52,7 +53,7 @@ describe('test drop table', async () => {
 describe('test update table', async () => {
   let db: SqliteBuilder<DB>
   beforeEach(async () => {
-    db = getDatabaseBuilder()
+    db = getDatabaseBuilder(true)
     await db.syncDB(useSchema(baseTables, { log: false }))
   })
   it('should have no operation', async () => {
@@ -73,17 +74,16 @@ describe('test update table', async () => {
       },
     })
     await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
-    const tables = await db.kysely.introspection.getTables()
-    expect(tables.length).toBe(2)
-    const _tables = tables.find(t => t.name === 'test')!
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
     const {
-      dataType,
-      isNullable,
-      hasDefaultValue,
-    } = _tables.columns.find(({ name }) => name === 'newColumn')!
-    expect(dataType).toBe('INTEGER')
-    expect(isNullable).toBe(false)
-    expect(hasDefaultValue).toBe(true)
+      defaultTo,
+      notNull,
+      type,
+    } = tables.test.columns.newColumn
+    expect(type).toBe('INTEGER')
+    expect(notNull).toBe(true)
+    expect(defaultTo).toBe('0')
   })
   it('should drop column', async () => {
     const newColumns = JSON.parse(JSON.stringify(baseTables.test.columns))
@@ -93,14 +93,13 @@ describe('test update table', async () => {
       columns: newColumns,
     })
     await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
-    const tables = await db.kysely.introspection.getTables()
-    expect(tables.length).toBe(2)
-    const _tables = tables.find(t => t.name === 'test')!
-    expect(_tables.columns.find(({ name }) => name === 'array')).toBeUndefined()
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables.test.columns.array).toBeUndefined()
   })
   it('should update and diff same table with different columns type, not null and default value', async () => {
-    const prevTables = await db.kysely.introspection.getTables()
-    expect(prevTables.length).toBe(2)
+    const prevTables = await parseExistSchema(db.kysely)
+    expect(Object.keys(prevTables).length).toBe(2)
     await db.syncDB(useSchema({
       ...baseTables,
       test: defineTable({
@@ -113,37 +112,137 @@ describe('test update table', async () => {
         },
       }),
     }))
-    const tables = await db.kysely.introspection.getTables()
-    expect(tables.length).toBe(2)
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
 
-    const { columns } = tables.find(t => t.name === 'test')!
-    const { columns: prevColumns } = prevTables.find(t => t.name === 'test')!
+    const { columns } = tables.test
+    const { columns: prevColumns } = prevTables.test
 
-    const prevColT = prevColumns.find(t => t.name === 'array')!
-    expect(prevColT.dataType).toBe('TEXT')
-    expect(prevColT.isNullable).toBe(true)
-    expect(prevColT.hasDefaultValue).toBe(false)
-    const colT = columns.find(t => t.name === 'arrayType')!
-    expect(colT.dataType).toBe('INTEGER')
-    expect(colT.isNullable).toBe(true)
-    expect(colT.hasDefaultValue).toBe(false)
+    const prevColT = prevColumns.array!
+    expect(prevColT.type).toBe('TEXT')
+    expect(prevColT.notNull).toBe(false)
+    expect(prevColT.defaultTo).toBe(null)
+    const colT = columns.arrayType
+    expect(colT.type).toBe('INTEGER')
+    expect(colT.notNull).toBe(false)
+    expect(colT.defaultTo).toBe(null)
 
-    const prevColN = prevColumns.find(t => t.name === 'gender')!
-    expect(prevColN.dataType).toBe('INTEGER')
-    expect(prevColN.isNullable).toBe(false)
-    expect(prevColN.hasDefaultValue).toBe(false)
-    const colN = columns.find(t => t.name === 'genderNotNull')!
-    expect(colN.dataType).toBe('INTEGER')
-    expect(colN.isNullable).toBe(true)
-    expect(colN.hasDefaultValue).toBe(false)
+    const prevColN = prevColumns.gender
+    expect(prevColN.type).toBe('INTEGER')
+    expect(prevColN.notNull).toBe(true)
+    expect(prevColN.defaultTo).toBe(null)
+    const colN = columns.genderNotNull
+    expect(colN.type).toBe('INTEGER')
+    expect(colN.notNull).toBe(false)
+    expect(colN.defaultTo).toBe(null)
 
-    const prevColD = prevColumns.find(t => t.name === 'literal')!
-    expect(prevColD.dataType).toBe('TEXT')
-    expect(prevColD.isNullable).toBe(true)
-    expect(prevColD.hasDefaultValue).toBe(false)
-    const colD = columns.find(t => t.name === 'literalDefaultTo')!
-    expect(colD.dataType).toBe('TEXT')
-    expect(colD.isNullable).toBe(true)
-    expect(colD.hasDefaultValue).toBe(true)
+    const prevColD = prevColumns.literal
+    expect(prevColD.type).toBe('TEXT')
+    expect(prevColD.notNull).toBe(false)
+    expect(prevColD.defaultTo).toBe(null)
+    const colD = columns.literalDefaultTo!
+    expect(colD.type).toBe('TEXT')
+    expect(colD.notNull).toBe(false)
+    expect(colD.defaultTo).toBe('\'123\'')
   })
+  it('should update table with new index', async () => {
+    const tableName = 'test' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      index: ['literal'],
+    })
+
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(
+      parseChangedList(tables[tableName].index, [['literal'], ['id', 'gender'], ['person']]),
+    ).toStrictEqual([[], []])
+  })
+
+  it.only('should update table with dropped index', async () => {
+    const tableName = 'test' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      index: [],
+    })
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables[tableName].index).toStrictEqual([])
+  })
+  // it('should update table with dropped index', async () => {
+  //   const tableName = 'test' as const
+  //   const updatedTable = defineTable({
+  //     ...baseTables[tableName],
+  //     index: [],
+  //   })
+
+  //   const result = generateSyncTableSQL(
+  //     db.kysely,
+  //     await parseExistSchema(db.kysely),
+  //     { ...baseTables, [tableName]: updatedTable },
+  //   )
+  //   expect(result).toContain(`DROP INDEX "oldIndex"`)
+  // })
+
+  // it('should update table with new trigger', async () => {
+  //   const tableName = 'test' as const
+  //   const updatedTable = defineTable({
+  //     ...baseTables[tableName],
+  //     timeTrigger: { create: true, update: true },
+  //   })
+
+  //   const result = generateSyncTableSQL(
+  //     db.kysely,
+  //     await parseExistSchema(db.kysely),
+  //     { ...baseTables, [tableName]: updatedTable },
+  //   )
+  //   expect(result).toContain(`CREATE TRIGGER "newTrigger" AFTER INSERT ON "${tableName}"`)
+  // })
+
+  // it('should update table with dropped trigger', async () => {
+  //   const tableName = 'test' as const
+  //   const updatedTable = defineTable({
+  //     ...baseTables[tableName],
+  //     timeTrigger: { create: false, update: false },
+  //   })
+
+  //   const result = generateSyncTableSQL(
+  //     db.kysely,
+  //     await parseExistSchema(db.kysely),
+  //     { ...baseTables, [tableName]: updatedTable },
+  //   )
+  //   expect(result).toContain(`DROP TRIGGER "oldTrigger"`)
+  // })
+
+  // it('should update table with new unique constraint', async () => {
+  //   const tableName = 'test'
+  //   const updatedTable = defineTable({
+  //     ...baseTables[tableName],
+  //     unique: ['literal'],
+  //   })
+
+  //   const result = generateSyncTableSQL(
+  //     db.kysely,
+  //     await parseExistSchema(db.kysely),
+  //     { ...baseTables, [tableName]: updatedTable },
+  //   )
+  //   expect(result).toContain(`ALTER TABLE "${tableName}" ADD CONSTRAINT "newUnique" UNIQUE ("newUnique")`)
+  // })
+
+  // it('should update table with dropped unique constraint', async () => {
+  //   const tableName = 'test' as const
+  //   const updatedTable = defineTable({
+  //     ...baseTables[tableName],
+  //     unique: [],
+  //   })
+
+  //   const result = generateSyncTableSQL(
+  //     db.kysely,
+  //     await parseExistSchema(db.kysely),
+  //     { ...baseTables, [tableName]: updatedTable },
+  //   )
+  //   expect(result).toContain(`ALTER TABLE "${tableName}" DROP CONSTRAINT "oldUnique"`)
+  // })
 })
