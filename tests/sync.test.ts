@@ -89,7 +89,6 @@ describe('test update table', async () => {
     expect(defaultTo).toBe('0')
   })
 
-  // todo)) handle drop on unique column
   it('should drop column', async () => {
     const newColumns = JSON.parse(JSON.stringify(baseTables.test.columns))
     delete newColumns.array
@@ -220,18 +219,16 @@ describe('test update table', async () => {
     expect(tables[tableName].unique).toStrictEqual([['id', 'name'], ['literal']])
   })
 
-  // it('should update table with dropped unique constraint', async () => {
-  //   const tableName = 'test' as const
-  //   const updatedTable = defineTable({
-  //     ...baseTables[tableName],
-  //     unique: [],
-  //   })
+  it('should update table with dropped unique constraint', async () => {
+    const tableName = 'test' as const
+    const updatedTable = defineTable({
+      ...baseTables[tableName],
+      unique: [],
+    })
 
-  //   const result = generateSyncTableSQL(
-  //     db.kysely,
-  //     await parseExistSchema(db.kysely),
-  //     { ...baseTables, [tableName]: updatedTable },
-  //   )
-  //   expect(result).toContain(`ALTER TABLE "${tableName}" DROP CONSTRAINT "oldUnique"`)
-  // })
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    const tables = await parseExistSchema(db.kysely)
+    expect(Object.keys(tables).length).toBe(2)
+    expect(tables[tableName].unique).toStrictEqual([])
+  })
 })

@@ -65,11 +65,11 @@ export type SyncOptions<T extends Schema> = {
   /**
    * Trigger on sync fail
    * @param err error
-   * @param sql failed sql
+   * @param sql failed sql, if `undefined`, there exists some errors in schema
    * @param existSchema old database schema
    * @param targetSchema new database schema
    */
-  onSyncFail?: (err: unknown, sql: string, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
+  onSyncFail?: (err: unknown, sql: string | undefined, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
 }
 
 export async function syncTables<T extends Schema>(
@@ -101,13 +101,20 @@ export async function syncTables<T extends Schema>(
   debug('Sync tables start:')
   const existSchema = await parseExistSchema(db, excludeTablePrefix)
   let i = 0
-  const sqls = generateSyncTableSQL(
-    db,
-    existSchema,
-    targetSchema,
-    truncateIfExists,
-    (e: string): any => log && logger?.debug(`- ${e}`),
-  )
+  let sqls: string[] = []
+  try {
+    sqls = generateSyncTableSQL(
+      db,
+      existSchema,
+      targetSchema,
+      truncateIfExists,
+      (e: string): any => log && logger?.debug(`- ${e}`),
+    )
+  } catch (e) {
+    await onSyncFail?.(e, undefined, existSchema, targetSchema)
+    debug(`Sync tables fail, ${e}`)
+    return { ready: false, error: e }
+  }
 
   return await db.transaction()
     .execute(async (trx) => {
