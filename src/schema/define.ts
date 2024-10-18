@@ -111,8 +111,21 @@ export function defineTable<
   } as Table<T, ParseFalseToNull<C>, ParseFalseToNull<U>, ParseFalseToNull<D>>
 }
 
-type Options<T = any, NotNull extends boolean | null = null> = {
-  defaultTo?: T | RawBuilder<unknown> | null
+type NormalizeType<T> =
+  T extends string
+    ? string
+    : T extends number
+      ? number
+      : T extends boolean
+        ? boolean
+        : T
+
+type Options<
+  T = any,
+  DefaultTo extends T | RawBuilder<unknown> | null = T | RawBuilder<unknown> | null,
+  NotNull extends boolean | null = null,
+> = {
+  defaultTo?: NormalizeType<DefaultTo>
   notNull?: NotNull
 }
 
@@ -153,20 +166,20 @@ export const column = {
   /**
    * Column type: INTEGER
    */
-  int: <T extends number | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  int: <T extends number | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.int, options as any) as ColumnBuilder<_DataType['int'], T, NotNull>,
   /**
    * Column type: REAL
    */
-  float: <T extends number | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  float: <T extends number | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.float, options as any) as ColumnBuilder<_DataType['float'], T, NotNull>,
   /**
    * Column type: text
    */
-  string: <T extends string | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  string: <T extends string | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.string, options as any) as ColumnBuilder<_DataType['string'], T, NotNull>,
   /**
    * Column type: BLOB
@@ -177,19 +190,19 @@ export const column = {
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  boolean: <T extends BooleanColumnType | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  boolean: <T extends BooleanColumnType | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.boolean, options as any) as ColumnBuilder<_DataType['boolean'], T, NotNull>,
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  date: <T extends Date | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  date: <T extends Date | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.date, options as any) as ColumnBuilder<_DataType['date'], T, NotNull>,
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  object: <T extends object | null, NotNull extends boolean | null>(
-    options?: Options<T, NotNull>,
+  object: <T extends object | null, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.object, options as any) as ColumnBuilder<_DataType['object'], T, NotNull>,
 }

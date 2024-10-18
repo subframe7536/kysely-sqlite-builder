@@ -50,11 +50,11 @@ export type ParsedColumnType =
 
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
-  DefaultTo extends InferColumnTypeByNumber<ColType> | null = InferColumnTypeByNumber<ColType> | null,
+  DefaultTo extends InferColumnTypeByNumber<ColType> | RawBuilder<unknown> | null = InferColumnTypeByNumber<ColType> | null | RawBuilder<unknown>,
   NotNull extends true | null = true | null,
 > = {
   type: ColType
-  defaultTo?: DefaultTo | RawBuilder<unknown>
+  defaultTo?: DefaultTo
   notNull?: NotNull
 }
 

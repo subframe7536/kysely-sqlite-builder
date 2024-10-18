@@ -56,13 +56,24 @@ describe('test update table', async () => {
     db = getDatabaseBuilder(false)
     await db.syncDB(useSchema(baseTables, { log: false }))
     await db.insertInto('test')
-      .values({
-        gender: false,
-        array: [],
-        birth: new Date(),
-        literal: 'l1',
-        score: 3.21,
-      })
+      .values([
+        {
+          gender: false,
+          array: [],
+          birth: new Date(),
+          literal: 'l1',
+          score: 3.21,
+        },
+        {
+          gender: true,
+          array: ['test'],
+          birth: new Date(),
+          literal: 'l2',
+          score: 5.5,
+          name: 'testName',
+          person: { name: '11' },
+        },
+      ])
       .execute()
   })
 
