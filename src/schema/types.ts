@@ -50,11 +50,11 @@ export type ParsedColumnType =
 
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
-  DefaultTo extends InferColumnTypeByNumber<ColType> | null = InferColumnTypeByNumber<ColType> | null,
+  DefaultTo extends InferColumnTypeByNumber<ColType> | RawBuilder<unknown> | null = InferColumnTypeByNumber<ColType> | null | RawBuilder<unknown>,
   NotNull extends true | null = true | null,
 > = {
   type: ColType
-  defaultTo?: DefaultTo | RawBuilder<unknown>
+  defaultTo?: DefaultTo
   notNull?: NotNull
 }
 
@@ -74,22 +74,44 @@ export type TableProperty<
 > = {
   /**
    * Primary key constraint, only if have no `column.increments()` key
+   *
+   * Support pattern:
+   * - `'id'`: `id` as primary key
+   * - `['name', 'gender']`: `name` and `gender` as primary key
    */
   primary?: Arrayable<keyof Cols & string>
   /**
    * Unique constraint
+   *
+   * Support pattern:
+   * - `['id']`: `id` as unique
+   * - `[['id']]`: `id` as unique
+   * - `['name', 'gender']`: `name` and `gender` as unique
+   * - `[['name', 'gender'], 'id']`: `name` / `gender` and `id` as unique
    */
   unique?: Arrayable<keyof Cols & string>[]
   /**
    * Column indexes, allow multiple, no unique index support
+   *
+   * Support pattern:
+   * - `['id']`: `id` as index
+   * - `[['id']]`: `id` as index
+   * - `['name', 'gender']`: `name` and `gender` as index
+   * - `[['name', 'gender'], 'id']`: `name` / `gender` and `id` as index
    */
   index?: Arrayable<keyof Cols & string>[]
   /**
    * Time trigger for `createAt` and `updateAt`
+   *
+   * - If type is `true`, column name is `deletedAt`
+   * - If type is `string`, it will be treated as column name
    */
   timeTrigger?: TimeTriggerOptions<Create, Update>
   /**
    * Whether to use soft delete
+   *
+   * - If type is `true`, column name is `deletedAt`
+   * - If type is `string`, it will be treated as column name
    */
   softDelete?: Delete
 }
