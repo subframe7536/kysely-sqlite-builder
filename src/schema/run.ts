@@ -85,9 +85,9 @@ export function createTableWithIndexAndTrigger(
 ): string[] {
   const { index, ...props } = table
   const result: string[] = []
-  const { triggerOptions, sql } = createTable(trx, tableName, props)
+  const { updateColumn, sql } = createTable(trx, tableName, props)
   result.push(sql, ...createTableIndex(tableName, index))
-  const triggerSql = createTimeTrigger(tableName, triggerOptions)
+  const triggerSql = createTimeTrigger(tableName, updateColumn)
   if (triggerSql) {
     result.push(triggerSql)
   }
@@ -107,18 +107,9 @@ export function createTableIndex(
 export function createTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
-  { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-): {
-    triggerOptions: RunTriggerOptions | undefined
-    sql: string
-  } {
-  const _triggerOptions: RunTriggerOptions | undefined = timeTrigger
-    ? {
-        triggerKey: 'rowid',
-        update: undefined,
-      }
-    : undefined
-
+  { columns, primary, unique }: Omit<Table, 'index'>,
+): { updateColumn?: string, sql: string } {
+  let updateColumn
   let autoIncrementColumn
 
   const columnList: string[] = []
@@ -137,8 +128,8 @@ export function createTable(
     } else {
       // update trigger column is not null
       // #hack to detect update column
-      if (_triggerOptions && defaultTo === TGRU) {
-        _triggerOptions.update = columnName
+      if (defaultTo === TGRU) {
+        updateColumn = columnName
       }
       columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValueWithPrefix(trx, defaultTo)}`)
     }
@@ -146,11 +137,12 @@ export function createTable(
 
   // primary/unique key is jointable, so can not be set as trigger key
   if (primary) {
-    const targetKeys = parseArray(primary)[0]
-    if (autoIncrementColumn) {
-      throw new Error(`Exists AUTOINCREMENT column "${autoIncrementColumn}" in table "${tableName}", cannot setup extra primary key (${targetKeys})`)
+    const [targetColumns, key] = parseArray(primary)
+    if (!autoIncrementColumn) {
+      columnList.push(`PRIMARY KEY (${targetColumns})`)
+    } else if (autoIncrementColumn !== key.substring(1)) {
+      throw new Error(`Exists AUTOINCREMENT column "${autoIncrementColumn}" in table "${tableName}", cannot setup extra primary key (${targetColumns})`)
     }
-    columnList.push(`PRIMARY KEY (${targetKeys})`)
   }
 
   if (unique) {
@@ -161,24 +153,16 @@ export function createTable(
 
   return {
     sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList});`,
-    triggerOptions: _triggerOptions,
+    updateColumn,
   }
 }
 
-/**
- * if absent, do not create trigger
- */
-type RunTriggerOptions = {
-  triggerKey: string
-  update?: string
-}
-
-export function createTimeTrigger(tableName: string, options?: RunTriggerOptions): string | undefined {
-  if (!options?.update) {
+export function createTimeTrigger(tableName: string, updateColumn?: string): string | undefined {
+  if (!updateColumn) {
     return
   }
-  const triggerName = `tgr_${tableName}_${options.update}`
-  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${options.update}" = CURRENT_TIMESTAMP WHERE "${options.triggerKey}" = NEW."${options.triggerKey}"; END;`
+  const triggerName = `tgr_${tableName}`
+  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${updateColumn}" = CURRENT_TIMESTAMP WHERE "rowid" = NEW."rowid"; END;`
 }
 
 export function renameTable(tableName: string, newTableName: string): string {
@@ -205,7 +189,7 @@ export function createIndex(tableName: string, columns: string[]): string {
   return `CREATE INDEX IF NOT EXISTS "idx_${tableName}${indexSuffix}" on "${tableName}"(${columnListStr});`
 }
 export function dropIndex(tableName: string, columns: string[]): string {
-  const [,indexSuffix] = parseArray(columns)
+  const [, indexSuffix] = parseArray(columns)
   return `DROP INDEX IF EXISTS "idx_${tableName}${indexSuffix}";`
 }
 

@@ -200,8 +200,8 @@ function updateTable(
   const insertColumnList: string[] = []
   const updateColumnList: RestoreColumnList = []
   const deleteColumnList: string[] = []
+
   let updateTimeColumn
-  let autoIncrementColumn
   let isChanged = isPrimaryKeyChanged(existTable.primary, targetTable.primary)
     || isUniqueChanged(existTable.unique, targetTable.unique)
 
@@ -210,9 +210,6 @@ function updateTable(
     const parsedTargetColumnType = parseColumnType(type)[0]
     if (defaultTo === TGRU) {
       updateTimeColumn = name
-    }
-    if (type === DataType.increments) {
-      autoIncrementColumn = name
     }
     if (existColumnInfo) {
       if (
@@ -268,21 +265,15 @@ function updateTable(
 
   const existTrigger = existTable.trigger[0]
   if (updateTimeColumn) {
-    const _trigger = `tgr_${tableName}_${updateTimeColumn}`
-    if (existTrigger && existTrigger !== _trigger) {
-      // insert to first
+    if (!existTrigger) {
+      result.push(createTimeTrigger(tableName, updateTimeColumn)!)
+    } else if (existTrigger !== `tgr_${tableName}`) {
       result.splice(0, 0, dropTrigger(existTrigger))
+      result.push(createTimeTrigger(tableName, updateTimeColumn)!)
     }
-    result.push(
-      createTimeTrigger(
-        tableName,
-        { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn },
-      )!,
-    )
   } else if (existTrigger) {
-    result.push(dropTrigger(existTrigger))
+    result.splice(0, 0, dropTrigger(existTrigger))
   }
-
   return result
 }
 
@@ -341,7 +332,7 @@ function migrateWholeTable(
   const tempTableName = `_temp_${tableName}`
 
   // 1. create target table with temp name
-  const { triggerOptions, sql } = createTable(trx, tempTableName, targetTable)
+  const { updateColumn, sql } = createTable(trx, tempTableName, targetTable)
   result.push(sql)
 
   // 2. diff and restore data from source table to target table
@@ -357,7 +348,7 @@ function migrateWholeTable(
 
   // 5. restore indexes and triggers
   result.push(...createTableIndex(tableName, targetTable.index))
-  const triggerSql = createTimeTrigger(tableName, triggerOptions)
+  const triggerSql = createTimeTrigger(tableName, updateColumn)
   if (triggerSql) {
     result.push(triggerSql)
   }

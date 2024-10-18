@@ -186,7 +186,7 @@ describe('test update table', async () => {
     await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
-    expect(tables[tableName].trigger).toStrictEqual(['tgr_blob_updateAt'])
+    expect(tables[tableName].trigger).toStrictEqual(['tgr_blob'])
   })
 
   it('should update table with dropped trigger', async () => {
