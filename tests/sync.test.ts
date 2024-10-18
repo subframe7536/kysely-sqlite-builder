@@ -2,7 +2,6 @@ import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { column, DataType, defineTable, generateSyncTableSQL, parseExistSchema, useSchema } from '../src/schema'
-import { parseChangedList } from '../src/schema/core'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test create table', async () => {
@@ -54,8 +53,17 @@ describe('test update table', async () => {
   let db: SqliteBuilder<DB>
 
   beforeEach(async () => {
-    db = getDatabaseBuilder(true)
+    db = getDatabaseBuilder(false)
     await db.syncDB(useSchema(baseTables, { log: false }))
+    await db.insertInto('test')
+      .values({
+        gender: false,
+        array: [],
+        birth: new Date(),
+        literal: 'l1',
+        score: 3.21,
+      })
+      .execute()
   })
 
   it('should have no operation', async () => {
@@ -112,7 +120,8 @@ describe('test update table', async () => {
         columns: {
           ...baseTables.test.columns,
           arrayType: column.int(),
-          genderNotNull: column.boolean({ notNull: false }),
+          floatNotNull: column.float({ notNull: true }),
+          genderNullable: column.boolean({ notNull: false }),
           literalDefaultTo: column.string({ defaultTo: '123' }),
         },
       }),
@@ -136,7 +145,7 @@ describe('test update table', async () => {
     expect(prevColN.type).toBe('INTEGER')
     expect(prevColN.notNull).toBe(true)
     expect(prevColN.defaultTo).toBe(null)
-    const colN = columns.genderNotNull
+    const colN = columns.genderNullable
     expect(colN.type).toBe('INTEGER')
     expect(colN.notNull).toBe(false)
     expect(colN.defaultTo).toBe(null)
@@ -149,6 +158,15 @@ describe('test update table', async () => {
     expect(colD.type).toBe('TEXT')
     expect(colD.notNull).toBe(false)
     expect(colD.defaultTo).toBe('\'123\'')
+
+    const prevColF = prevColumns.score
+    expect(prevColF.type).toBe('REAL')
+    expect(prevColF.notNull).toBe(false)
+    expect(prevColF.defaultTo).toBe(null)
+    const colF = columns.floatNotNull!
+    expect(colF.type).toBe('REAL')
+    expect(colF.notNull).toBe(true)
+    expect(colF.defaultTo).toBe(null)
   })
 
   it('should update table with new index', async () => {
