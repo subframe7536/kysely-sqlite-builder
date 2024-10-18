@@ -133,9 +133,6 @@ export function createTable(
         throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${columnName}) in table ${tableName}`)
       }
       autoIncrementColumn = columnName
-      if (_triggerOptions) {
-        _triggerOptions.triggerKey = columnName
-      }
       columnList.push(`"${columnName}" ${dataType} PRIMARY KEY AUTOINCREMENT`)
     } else {
       // update trigger column is not null
@@ -148,7 +145,10 @@ export function createTable(
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
-  if (!autoIncrementColumn && primary) {
+  if (primary) {
+    if (autoIncrementColumn) {
+      throw new Error(`AUTOINCREMENT column ${autoIncrementColumn} in table ${tableName}, cannot setup extra primary key`)
+    }
     columnList.push(`PRIMARY KEY (${parseArray(primary)[0]})`)
   }
 
