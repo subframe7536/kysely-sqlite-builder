@@ -1,22 +1,27 @@
-import type { Promisable, StringKeys } from '@subframe7536/type-utils'
-import type { Kysely } from 'kysely'
+import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
+import type { Kysely, Transaction } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
-import type { ColumnProperty, InferDatabase, Schema, Table } from './types'
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
+import { TGRU } from './define'
 import { type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
 import {
+  addColumn,
+  createIndex,
   createTable,
   createTableIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
+  dropColumn,
   dropIndex,
   dropTable,
   dropTrigger,
+  migrateColumnsFromTemp,
   parseColumnType,
+  parseDefaultValue,
   renameTable,
-  restoreColumns,
 } from './run'
+import { type Columns, DataType, type InferDatabase, type Schema, type Table, type TableProperty } from './types'
 
 export type SyncOptions<T extends Schema> = {
   /**
@@ -65,133 +70,6 @@ export type SyncOptions<T extends Schema> = {
    * @param targetSchema new database schema
    */
   onSyncFail?: (err: unknown, sql: string, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
-}
-
-export function generateSyncTableSQL<T extends Schema>(
-  db: Kysely<any>,
-  existSchema: ParsedSchema,
-  targetSchema: T,
-  truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
-  debug: (e: string) => void = () => {},
-): string[] {
-  const truncateTableSet = new Set(
-    Array.isArray(truncateIfExists)
-      ? truncateIfExists
-      : truncateIfExists
-        ? Object.keys(existSchema.table)
-        : [],
-  )
-
-  const result: string[] = []
-
-  for (const idx of existSchema.index) {
-    result.push(dropIndex(idx))
-  }
-
-  for (const tgr of existSchema.trigger) {
-    result.push(dropTrigger(tgr))
-  }
-
-  for (const [existTableName, existTable] of Object.entries(existSchema.table)) {
-    if (existTableName in targetSchema) {
-      const targetTable = targetSchema[existTableName]
-      if (truncateTableSet.has(existTableName)) {
-        debug(`Update table "${existTableName}" and truncate`)
-        result.push(dropTable(existTableName))
-        result.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
-      } else {
-        debug(`Update table "${existTableName}"`)
-        const restoreColumnList: RestoreColumnList = parseRestoreColumnList(targetTable, existTable)
-
-        // if all columns are in same table structure, skip
-        if (restoreColumnList.length !== Object.keys(existTable.columns).length) {
-          result.push(...updateTableSchemaSQL(db, existTableName, restoreColumnList, targetTable))
-        }
-      }
-    } else {
-      debug(`Delete table "${existTableName}"`)
-      result.push(dropTable(existTableName))
-    }
-  }
-
-  for (const [targetTableName, targetTable] of Object.entries(targetSchema)) {
-    if (!(targetTableName in existSchema.table)) {
-      debug(`Create table "${targetTableName}"`)
-      result.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
-    }
-  }
-
-  return result
-}
-
-/**
- * Restore column list with default value
- * - If value is `0` or `'0'`, the column is exists in old table
- * - If value is `1` or `'1'`, the column is not exists in old table
- * - If value is `undefined`, the column is no need to fix value in old table
- */
-export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
-
-function parseRestoreColumnList(targetTable: Table, existTable: ParsedTableInfo): RestoreColumnList {
-  const restoreColumnList: RestoreColumnList = []
-
-  for (const [name, prop] of Object.entries(targetTable.columns)) {
-    const { type, defaultTo, notNull } = prop as ColumnProperty
-    const existColumnInfo = existTable.columns[name]
-    const targetColumnTypeIsText = parseColumnType(type)[0] === 'TEXT'
-
-    if (existColumnInfo) {
-      // column exists in old table and have same type
-      restoreColumnList.push([
-        name,
-        (existColumnInfo.notNull || !notNull)
-          ? undefined // exist column already not null, or new table column is nullable, so no need to set fallback value
-          : targetColumnTypeIsText ? '0' : 0,
-      ])
-    } else if (!existColumnInfo && notNull && !defaultTo) {
-      // column not exists in old table, and new table column is not null and have no default value
-      restoreColumnList.push([name, targetColumnTypeIsText ? '1' : 1])
-    }
-  }
-
-  return restoreColumnList
-}
-
-/**
- * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
- */
-export function updateTableSchemaSQL(
-  trx: Kysely<any>,
-  tableName: string,
-  restoreColumnList: RestoreColumnList,
-  targetTable: Table,
-): string[] {
-  const result: string[] = []
-  const tempTableName = `_temp_${tableName}`
-
-  // 1. create target table with temp name
-  const { triggerOptions, sql } = createTable(trx, tempTableName, targetTable)
-  result.push(sql)
-
-  // 2. diff and restore data from source table to target table
-  if (restoreColumnList.length) {
-    result.push(restoreColumns(tableName, tempTableName, restoreColumnList))
-  }
-
-  // 3. remove old table
-  result.push(dropTable(tableName))
-
-  // 4. rename temp table to target table name
-  result.push(renameTable(tempTableName, tableName))
-
-  // 5. restore indexes and triggers
-  result.push(...createTableIndex(tableName, targetTable.index))
-  const triggerSql = createTimeTrigger(tableName, triggerOptions)
-  if (triggerSql) {
-    result.push(triggerSql)
-  }
-
-  return result
 }
 
 export async function syncTables<T extends Schema>(
@@ -247,4 +125,235 @@ export async function syncTables<T extends Schema>(
       debug(`Sync tables fail, ${e}`)
       return { ready: false, error: e }
     })
+}
+
+export function generateSyncTableSQL<T extends Schema>(
+  db: Kysely<any>,
+  existSchema: ParsedSchema,
+  targetSchema: T,
+  truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
+  debug: (e: string) => void = () => {},
+): string[] {
+  const existTableMap = new Map(Object.entries(existSchema))
+  const targetSchemaMap = new Map(Object.entries(targetSchema))
+
+  const truncateTableSet = new Set(
+    Array.isArray(truncateIfExists)
+      ? truncateIfExists
+      : truncateIfExists
+        ? existTableMap.keys()
+        : [],
+  )
+
+  const result: string[] = []
+
+  for (const [existTableName, existTable] of existTableMap) {
+    if (targetSchemaMap.has(existTableName)) {
+      const targetTable = targetSchemaMap.get(existTableName)!
+      if (truncateTableSet.has(existTableName)) {
+        debug(`Update table "${existTableName}" and truncate`)
+        result.push(dropTable(existTableName))
+        result.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
+      } else {
+        debug(`Update table "${existTableName}"`)
+        result.push(...updateTable(db, existTableName, existTable, targetTable))
+      }
+    } else {
+      debug(`Delete table "${existTableName}"`)
+      result.push(dropTable(existTableName))
+    }
+  }
+
+  for (const [targetTableName, targetTable] of targetSchemaMap) {
+    if (!existTableMap.has(targetTableName)) {
+      debug(`Create table "${targetTableName}"`)
+      result.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
+    }
+  }
+
+  return result
+}
+
+/**
+ * Restore column list with default value
+ * - If value is `0` or `'0'`, the column is exists in old table
+ * - If value is `1` or `'1'`, the column is not exists in old table
+ * - If value is `undefined`, the column is no need to fix value in old table
+ */
+export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
+
+function updateTable(
+  trx: Kysely<any> | Transaction<any>,
+  tableName: string,
+  existTable: ParsedTableInfo,
+  targetTable: Table,
+): string[] {
+  const targetColumnMap = new Map(Object.entries(targetTable.columns as Columns))
+  const existColumnMap = new Map(Object.entries(existTable.columns))
+  const insertColumnList: string[] = []
+  const updateColumnList: RestoreColumnList = []
+  const deleteColumnList: string[] = []
+  let updateTimeColumn
+  let autoIncrementColumn
+  let isChanged = isPrimaryKeyChanged(existTable.primary, targetTable.primary)
+    || isUniqueChanged(existTable.unique, targetTable.unique)
+
+  for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
+    const existColumnInfo = existColumnMap.get(name)
+    const parsedTargetColumnType = parseColumnType(type)[0]
+    if (defaultTo === TGRU) {
+      updateTimeColumn = name
+    }
+    if (type === DataType.increments) {
+      autoIncrementColumn = name
+    }
+    if (existColumnInfo) {
+      if (
+        existColumnInfo.type === parsedTargetColumnType
+        && existColumnInfo.notNull === !!notNull
+        && existColumnInfo.defaultTo === (parseDefaultValue(trx, defaultTo) || null)
+      ) {
+        updateColumnList.push([name, undefined])
+      } else {
+        isChanged = true
+        updateColumnList.push([
+          name,
+          // exist column already not null,
+          // or new table column is nullable,
+          // so no need to set fallback value
+          (existColumnInfo.notNull || !notNull)
+            ? undefined
+            : parsedTargetColumnType === 'TEXT' ? '0' : 0,
+        ])
+      }
+    } else {
+      insertColumnList.push(name)
+
+      // if new column is not null and have no default value, set fallback value
+      if (notNull && !defaultTo) {
+        isChanged = true
+        updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
+      }
+    }
+  }
+  for (const [name] of existColumnMap) {
+    if (!targetColumnMap.has(name)) {
+      deleteColumnList.push(name)
+    }
+  }
+  if (isChanged) {
+    return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
+  }
+
+  const result = [
+    ...insertColumnList.map(col => addColumn(trx, tableName, col, targetColumnMap.get(col)!)),
+    // no need to handle drop column on unique / primary key
+    // because in this case, `isChanged` will be true
+    ...deleteColumnList.map(col => dropColumn(tableName, col)),
+  ]
+
+  const [insertIndexList, deleteIndexList] = parseChangedList(existTable.index, targetTable.index || [])
+
+  result.push(
+    ...insertIndexList.map(colList => createIndex(tableName, colList)),
+    ...deleteIndexList.map(colList => dropIndex(tableName, colList)),
+  )
+
+  const existTrigger = existTable.trigger[0]
+  if (updateTimeColumn) {
+    const _trigger = `tgr_${tableName}_${updateTimeColumn}`
+    if (existTrigger && existTrigger !== _trigger) {
+      // insert to first
+      result.splice(0, 0, dropTrigger(existTrigger))
+    }
+    result.push(
+      createTimeTrigger(
+        tableName,
+        { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn },
+      )!,
+    )
+  } else if (existTrigger) {
+    result.push(dropTrigger(existTrigger))
+  }
+
+  return result
+}
+
+function isPrimaryKeyChanged(existPK: string[], targetPK: TableProperty<any>['primary']): boolean {
+  if (!targetPK) {
+    return existPK.length > 0
+  }
+  if (!Array.isArray(targetPK)) {
+    targetPK = [targetPK]
+  }
+  if (existPK.length !== targetPK.length) {
+    return true
+  }
+  return existPK.some((v, i) => v !== targetPK[i])
+}
+
+function isUniqueChanged(existUnique: string[][], targetUnique: TableProperty<any>['unique']): boolean {
+  if (!targetUnique) {
+    return existUnique.length > 0
+  }
+  const [insertUniqueList, deleteUniqueList] = parseChangedList(existUnique, targetUnique)
+  return insertUniqueList.length > 0 || deleteUniqueList.length > 0
+}
+
+export function parseChangedList(
+  existIndexList: string[][],
+  targetIndexList: Arrayable<string>[],
+): [add: string[][], del: string[][]] {
+  const existSet = new Set(existIndexList.map(arr => arr.join('|')))
+  const targetSet = new Set()
+  const addList: string[][] = []
+
+  for (const index of targetIndexList) {
+    const hash = Array.isArray(index) ? index.join('|') : index
+    targetSet.add(hash)
+    if (!existSet.has(hash)) {
+      addList.push(Array.isArray(index) ? index : [index])
+    }
+  }
+
+  const delList = existIndexList.filter(index => !targetSet.has(index.join('|')))
+
+  return [addList, delList]
+}
+
+/**
+ * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
+ */
+function migrateWholeTable(
+  trx: Kysely<any>,
+  tableName: string,
+  restoreColumnList: RestoreColumnList,
+  targetTable: Table,
+): string[] {
+  const result: string[] = []
+  const tempTableName = `_temp_${tableName}`
+
+  // 1. create target table with temp name
+  const { triggerOptions, sql } = createTable(trx, tempTableName, targetTable)
+  result.push(sql)
+
+  // 2. diff and restore data from source table to target table
+  if (restoreColumnList.length) {
+    result.push(migrateColumnsFromTemp(tableName, tempTableName, restoreColumnList))
+  }
+
+  // 3. remove old table
+  result.push(dropTable(tableName))
+
+  // 4. rename temp table to target table name
+  result.push(renameTable(tempTableName, tableName))
+
+  // 5. restore indexes and triggers
+  result.push(...createTableIndex(tableName, targetTable.index))
+  const triggerSql = createTimeTrigger(tableName, triggerOptions)
+  if (triggerSql) {
+    result.push(triggerSql)
+  }
+
+  return result
 }

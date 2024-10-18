@@ -7,7 +7,7 @@ describe('test buffer type', async () => {
   await db.syncDB(useSchema(baseTables))
   // node sqlite wasm always return Uint8Array
   it('test Buffer', async () => {
-    const testBuffer = Buffer.alloc(4).fill(0xDD)
+    const testBuffer = Buffer.alloc(4).fill(0xDD) as any
     await db.insertInto('blob').values({ id: 0, buffer: testBuffer }).execute()
     const result = await db.selectFrom('blob').where('id', '=', 0).selectAll().executeTakeFirstOrThrow()
 

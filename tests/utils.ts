@@ -14,6 +14,7 @@ const testTable = defineTable({
     literal: column.string().$cast<'l1' | 'l2' | string & {}>(),
   },
   primary: 'id',
+  unique: ['literal'],
   index: ['person', ['id', 'gender']],
   timeTrigger: { create: true, update: true },
 })
@@ -35,14 +36,16 @@ export const baseTables = {
 }
 export type DB = InferDatabase<typeof baseTables>
 
-export function getDatabaseBuilder(debug = false): SqliteBuilder<DB> {
-  return new SqliteBuilder<DB>({
-    dialect: new NodeWasmDialect({
-      database: new Database(':memory:'),
-      async onCreateConnection(connection) {
-        await optimizePragma(connection)
-      },
-    }),
+export const dialect = new NodeWasmDialect({
+  database: new Database(':memory:'),
+  async onCreateConnection(connection) {
+    await optimizePragma(connection)
+  },
+})
+
+export function getDatabaseBuilder<T extends Record<string, any> = DB>(debug = false): SqliteBuilder<T> {
+  return new SqliteBuilder<T>({
+    dialect,
     logger: console,
     onQuery: debug,
   })

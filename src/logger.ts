@@ -1,7 +1,4 @@
-import type {
-  LogEvent,
-  RootOperationNode,
-} from 'kysely'
+import type { LogEvent, RootOperationNode } from 'kysely'
 
 export type LoggerParams = {
   sql: string
