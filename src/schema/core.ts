@@ -202,6 +202,7 @@ function updateTable(
   const deleteColumnList: string[] = []
 
   let updateTimeColumn
+  let autoIncrementColumn
   let isChanged = isPrimaryKeyChanged(existTable.primary, targetTable.primary)
     || isUniqueChanged(existTable.unique, targetTable.unique)
 
@@ -210,6 +211,12 @@ function updateTable(
     const parsedTargetColumnType = parseColumnType(type)[0]
     if (defaultTo === TGRU) {
       updateTimeColumn = name
+    }
+    if (type === DataType.increments) {
+      if (autoIncrementColumn) {
+        throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${name}) in table ${tableName}`)
+      }
+      autoIncrementColumn = name
     }
     if (existColumnInfo) {
       if (

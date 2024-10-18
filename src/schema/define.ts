@@ -1,5 +1,5 @@
 import type { IsNotNull } from '@subframe7536/type-utils'
-import type { RawBuilder } from 'kysely'
+import type { Generated, RawBuilder } from 'kysely'
 import {
   type _DataType,
   type BooleanColumnType,
@@ -162,7 +162,7 @@ export const column = {
   /**
    * Column type: INTEGER AUTO INCREMENT
    */
-  increments: () => ({ type: DataType.increments } as const),
+  increments: () => ({ type: DataType.increments }) as ColumnBuilder<_DataType['increments'], Generated<number>, null>,
   /**
    * Column type: INTEGER
    */

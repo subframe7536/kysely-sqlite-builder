@@ -1,4 +1,15 @@
-import { type DeleteQueryBuilder, DeleteResult, type InsertQueryBuilder, type InsertResult, type JoinType, type Kysely, type OperandExpression, type SelectQueryBuilder, type UpdateQueryBuilder, type UpdateResult, type WhereInterface } from 'kysely'
+import {
+  type DeleteQueryBuilder,
+  DeleteResult,
+  type InsertQueryBuilder,
+  type InsertResult,
+  type JoinType,
+  type Kysely,
+  type SelectQueryBuilder,
+  type UpdateQueryBuilder,
+  type UpdateResult,
+  type WhereInterface,
+} from 'kysely'
 
 type CamelCase<S extends string> = S extends `${infer First}${infer Rest}`
   ? First extends Uppercase<First>

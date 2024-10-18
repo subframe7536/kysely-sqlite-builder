@@ -260,4 +260,41 @@ describe('test update table', async () => {
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].unique).toStrictEqual([])
   })
+  it('should return `ready: false` when have multiple primary keys', async () => {
+    const result = await db.syncDB(
+      useSchema({
+        ...baseTables,
+        test: {
+          ...baseTables.test,
+          primary: ['id', 'name'],
+        },
+      }),
+    )
+    expect(result.ready).toBeFalse()
+  })
+  it('should return `ready: false` when have multiple increment columns', async () => {
+    const result = await db.syncDB(
+      useSchema({
+        ...baseTables,
+        test: defineTable({
+          ...baseTables.test,
+          columns: {
+            ...baseTables.test.columns,
+            inc: column.increments(),
+          },
+        }),
+      }),
+    )
+    expect(result.ready).toBeFalse()
+
+    const result2 = await db.syncDB(useSchema({
+      a: defineTable({
+        columns: {
+          i1: column.increments(),
+          i2: column.increments(),
+        },
+      }),
+    }))
+    expect(result2.ready).toBeFalse()
+  })
 })
