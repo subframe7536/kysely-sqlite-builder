@@ -245,8 +245,10 @@ function updateTable(
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
 
-  let result = [
+  const result = [
     ...insertColumnList.map(col => addColumn(trx, tableName, col, targetColumnMap.get(col)!)),
+    // no need to handle drop column on unique / primary key
+    // because in this case, `isChanged` will be true
     ...deleteColumnList.map(col => dropColumn(tableName, col)),
   ]
 
@@ -257,17 +259,21 @@ function updateTable(
     ...deleteIndexList.map(colList => dropIndex(tableName, colList)),
   )
 
+  const existTrigger = existTable.trigger[0]
   if (updateTimeColumn) {
     const _trigger = `tgr_${tableName}_${updateTimeColumn}`
-    if (existTable.trigger[0] !== _trigger) {
-      result = [
-        dropTrigger(existTable.trigger[0]),
-        ...result,
-        createTimeTrigger(tableName, { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn })!,
-      ]
+    if (existTrigger && existTrigger !== _trigger) {
+      // insert to first
+      result.splice(0, 0, dropTrigger(existTrigger))
     }
-  } else if (existTable.trigger[0]) {
-    result.push(dropTrigger(existTable.trigger[0]))
+    result.push(
+      createTimeTrigger(
+        tableName,
+        { triggerKey: autoIncrementColumn || 'rowid', update: updateTimeColumn },
+      )!,
+    )
+  } else if (existTrigger) {
+    result.push(dropTrigger(existTrigger))
   }
 
   return result
