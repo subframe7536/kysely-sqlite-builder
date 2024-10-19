@@ -1,7 +1,16 @@
 import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { column, DataType, defineTable, generateSyncTableSQL, parseExistSchema, useSchema } from '../src/schema'
+import { sql } from 'kysely'
+import {
+  column,
+  DataType,
+  defaultFallbackFunction,
+  defineTable,
+  generateSyncTableSQL,
+  parseExistSchema,
+  useSchema,
+} from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test create table', async () => {
@@ -67,9 +76,9 @@ describe('test update table', async () => {
         {
           gender: true,
           array: ['test'],
-          birth: new Date(),
+          // birth: new Date(),
+          // score: 5.5,
           literal: 'l2',
-          score: 5.5,
           name: 'testName',
           person: { name: '11' },
         },
@@ -215,7 +224,7 @@ describe('test update table', async () => {
     await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
-    expect(tables[tableName].trigger).toStrictEqual(['tgr_blob'])
+    expect(tables[tableName].trigger).toStrictEqual(['tgr_blob_updateAt'])
   })
 
   it('should update table with dropped trigger', async () => {
@@ -224,9 +233,9 @@ describe('test update table', async () => {
       ...baseTables[tableName],
       timeTrigger: { create: false, update: false },
     })
-    // @ts-expect-error create at
+    // @ts-expect-error delete create at
     delete updatedTable.columns.createAt
-    // @ts-expect-error create at
+    // @ts-expect-error delete update at
     delete updatedTable.columns.updateAt
 
     await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
@@ -296,5 +305,30 @@ describe('test update table', async () => {
       }),
     }))
     expect(result2.ready).toBeFalse()
+  })
+  it('should use fallback value when have different not null value', async () => {
+    await db.syncDB(
+      useSchema({
+        ...baseTables,
+        test: defineTable({
+          ...baseTables.test,
+          columns: {
+            ...baseTables.test.columns,
+            birth: column.date({ notNull: true }),
+            score: column.float({ notNull: true }),
+          },
+        }),
+      }, {
+        fallback: data => data.target.type === DataType.date ? sql`CURRENT_TIMESTAMP` : defaultFallbackFunction(data),
+      }),
+    )
+    const [result] = await db
+      .selectFrom('test')
+      .select(['birth', 'score'])
+      .where('id', '=', 2)
+      .execute()
+
+    expect(result.score).toBe(0)
+    expect(result.birth).toBeInstanceOf(Date)
   })
 })

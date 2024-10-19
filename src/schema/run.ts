@@ -161,7 +161,7 @@ export function createTimeTrigger(tableName: string, updateColumn?: string): str
   if (!updateColumn) {
     return
   }
-  const triggerName = `tgr_${tableName}`
+  const triggerName = `tgr_${tableName}_${updateColumn}`
   return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${updateColumn}" = CURRENT_TIMESTAMP WHERE "rowid" = NEW."rowid"; END;`
 }
 
@@ -204,24 +204,9 @@ export function migrateColumnsFromTemp(
 ): string {
   let cols = ''
   let values = ''
-  for (const [name, notNullFallbackValue] of restoreColumns) {
+  for (const [name, select] of restoreColumns) {
     cols += `,"${name}"`
-    switch (notNullFallbackValue) {
-      case 0: // have nullable column in old table
-        values += `,IFNULL(CAST("${name}" AS INTEGER),0)`
-        break
-      case '0': // have nullable column in old table
-        values += `,IFNULL(CAST("${name}" AS TEXT),'0')`
-        break
-      case 1: // no such column in old table
-        values += `,0`
-        break
-      case '1': // no such column in old table
-        values += `,'0'`
-        break
-      default: // same as old table
-        values += `,"${name}"`
-    }
+    values += `,${select}`
   }
   return `INSERT INTO "${toTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${fromTableName}";`
 }

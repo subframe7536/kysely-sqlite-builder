@@ -65,7 +65,7 @@
     "@subframe7536/type-utils": "^0.1.6",
     "@types/bun": "^1.1.11",
     "bumpp": "^9.7.1",
-    "eslint": "^9.12.0",
+    "eslint": "^9.13.0",
     "kysely": "^0.27.4",
     "kysely-wasm": "^0.6.3",
     "node-sqlite3-wasm": "^0.8.24",

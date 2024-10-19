@@ -8,7 +8,7 @@ import {
   type ColumnsWithErrorInfo,
   DataType,
   type DataTypeValue,
-  type InferColumnTypeByNumber,
+  type InferColumnType,
   type Table,
   type TableProperty,
 } from './types'
@@ -136,7 +136,7 @@ function parse(type: DataTypeValue, options?: Options): any {
 
 type ColumnBuilder<
   T extends DataTypeValue,
-  Type extends InferColumnTypeByNumber<T> | null,
+  Type extends InferColumnType<T> | null,
   NotNull extends boolean | null,
 > = ColumnProperty<
   T,
@@ -147,7 +147,7 @@ type ColumnBuilder<
    * Define column type manually
    */
   $cast: <
-    NarrowedType extends InferColumnTypeByNumber<T>,
+    NarrowedType extends InferColumnType<T>,
   >() => ColumnProperty<
     T,
     IsNotNull<Type> extends true ? NarrowedType : NarrowedType | null,

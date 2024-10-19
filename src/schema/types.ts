@@ -21,7 +21,7 @@ export type DataTypeValue = _DataType[keyof _DataType]
 
 export type BooleanColumnType = ColumnType<0 | 1, boolean, boolean>
 
-export type InferColumnTypeByNumber<T extends DataTypeValue> =
+export type InferColumnType<T extends DataTypeValue> =
   T extends _DataType['string'] ? string :
     T extends _DataType['boolean'] ? BooleanColumnType :
       T extends _DataType['int'] | _DataType['float'] ? number :
@@ -50,7 +50,7 @@ export type ParsedColumnType =
 
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
-  DefaultTo extends InferColumnTypeByNumber<ColType> | RawBuilder<unknown> | null = InferColumnTypeByNumber<ColType> | null | RawBuilder<unknown>,
+  DefaultTo extends InferColumnType<ColType> | RawBuilder<unknown> | null = InferColumnType<ColType> | null | RawBuilder<unknown>,
   NotNull extends true | null = true | null,
 > = {
   type: ColType
@@ -133,7 +133,7 @@ export type ColumnsWithErrorInfo<T extends Columns> = {
         type: {
           error: 'TypeError: [defaultTo] not satisfied [type]'
           column: K
-          typeIs: InferColumnTypeByNumber<T[K]['type']>
+          typeIs: InferColumnType<T[K]['type']>
           defaultToIs: T[K]['defaultTo']
         }
       };

@@ -1,10 +1,10 @@
 import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
-import type { Kysely, Transaction } from 'kysely'
 import type { DBLogger, StatusResult } from '../types'
+import { type Kysely, type RawBuilder, sql, type Transaction } from 'kysely'
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
 import { TGRU } from './define'
-import { type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
+import { type ParsedColumnProperty, type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
 import {
   addColumn,
   createIndex,
@@ -21,7 +21,46 @@ import {
   parseDefaultValue,
   renameTable,
 } from './run'
-import { type Columns, DataType, type InferDatabase, type Schema, type Table, type TableProperty } from './types'
+import {
+  type Columns,
+  DataType,
+  type DataTypeValue,
+  type InferDatabase,
+  type ParsedColumnType,
+  type Schema,
+  type Table,
+  type TableProperty,
+} from './types'
+
+export type ColumnFallbackInfo = {
+  /**
+   * Table name
+   */
+  table: string
+  /**
+   * Column name
+   */
+  column: string
+  /**
+   * Exist column info, `undefined` if there is no exising column with same target name
+   */
+  exist: ParsedColumnProperty | undefined
+  /**
+   * Target column info
+   */
+  target: Omit<ParsedColumnProperty, 'type'> & {
+    /**
+     * {@link DataType} in schema
+     */
+    type: DataTypeValue
+    /**
+     * DataType in SQLite
+     */
+    parsedType: ParsedColumnType
+  }
+}
+
+type ColumnFallbackFn = (data: ColumnFallbackInfo) => RawBuilder<unknown>
 
 export type SyncOptions<T extends Schema> = {
   /**
@@ -51,6 +90,11 @@ export type SyncOptions<T extends Schema> = {
    * Do not restore data from old table to new table
    */
   truncateIfExists?: boolean | Array<StringKeys<T> | string & {}>
+  /**
+   * Function to determine default values for migrated columns,
+   * default is {@link defaultFallbackFunction}
+   */
+  fallback?: ColumnFallbackFn
   /**
    * Trigger on sync success
    * @param db kysely instance
@@ -85,6 +129,7 @@ export async function syncTables<T extends Schema>(
     excludeTablePrefix,
     onSyncSuccess,
     onSyncFail,
+    fallback: fallbackColumnValue,
   } = options
 
   let oldVersion: number
@@ -103,12 +148,13 @@ export async function syncTables<T extends Schema>(
   let i = 0
   let sqls: string[] = []
   try {
-    sqls = generateSyncTableSQL(
+    sqls = generateSyncTableSQL<T>(
       db,
       existSchema,
       targetSchema,
       truncateIfExists,
-      (e: string): any => log && logger?.debug(`- ${e}`),
+      debug,
+      fallbackColumnValue,
     )
   } catch (e) {
     await onSyncFail?.(e, undefined, existSchema, targetSchema)
@@ -134,12 +180,30 @@ export async function syncTables<T extends Schema>(
     })
 }
 
+/**
+ * Restore column list with default value (sql string)
+ */
+export type RestoreColumnList = [name: string, select: string][]
+
+export const defaultFallbackFunction: ColumnFallbackFn = ({ target }) => target.parsedType === 'TEXT' ? sql`'0'` : sql`0`
+
+/**
+ * Generates SQL statements for synchronizing a database schema.
+ *
+ * @param db - The Kysely database instance.
+ * @param existSchema - The existing database schema.
+ * @param targetSchema - The target schema to synchronize to.
+ * @param truncateIfExists - Tables to truncate if they exist, default is `[]`.
+ * @param debug - Optional debug function for logging SQL generation steps.
+ * @param fallback - Function to determine default values for migrated columns, default is {@link defaultFallbackFunction}
+ */
 export function generateSyncTableSQL<T extends Schema>(
   db: Kysely<any>,
   existSchema: ParsedSchema,
   targetSchema: T,
   truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
-  debug: (e: string) => void = () => {},
+  debug: (msg: string) => void = () => { },
+  fallback: ColumnFallbackFn = defaultFallbackFunction,
 ): string[] {
   const existTableMap = new Map(Object.entries(existSchema))
   const targetSchemaMap = new Map(Object.entries(targetSchema))
@@ -152,48 +216,40 @@ export function generateSyncTableSQL<T extends Schema>(
         : [],
   )
 
-  const result: string[] = []
+  const sqls: string[] = []
 
   for (const [existTableName, existTable] of existTableMap) {
     if (targetSchemaMap.has(existTableName)) {
       const targetTable = targetSchemaMap.get(existTableName)!
       if (truncateTableSet.has(existTableName)) {
         debug(`Update table "${existTableName}" and truncate`)
-        result.push(dropTable(existTableName))
-        result.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
+        sqls.push(dropTable(existTableName))
+        sqls.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
       } else {
         debug(`Update table "${existTableName}"`)
-        result.push(...updateTable(db, existTableName, existTable, targetTable))
+        sqls.push(...updateTable(db, existTableName, existTable, targetTable, fallback))
       }
     } else {
       debug(`Delete table "${existTableName}"`)
-      result.push(dropTable(existTableName))
+      sqls.push(dropTable(existTableName))
     }
   }
 
   for (const [targetTableName, targetTable] of targetSchemaMap) {
     if (!existTableMap.has(targetTableName)) {
       debug(`Create table "${targetTableName}"`)
-      result.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
+      sqls.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
     }
   }
-
-  return result
+  return sqls
 }
-
-/**
- * Restore column list with default value
- * - If value is `0` or `'0'`, the column is exists in old table
- * - If value is `1` or `'1'`, the column is not exists in old table
- * - If value is `undefined`, the column is no need to fix value in old table
- */
-export type RestoreColumnList = [name: string, notNullFallbackValue: 0 | 1 | '0' | '1' | undefined][]
 
 function updateTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
   existTable: ParsedTableInfo,
   targetTable: Table,
+  migrateColumn: Exclude<SyncOptions<any>['fallback'], undefined>,
 ): string[] {
   const targetColumnMap = new Map(Object.entries(targetTable.columns as Columns))
   const existColumnMap = new Map(Object.entries(existTable.columns))
@@ -208,23 +264,37 @@ function updateTable(
 
   for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
     const existColumnInfo = existColumnMap.get(name)
-    const parsedTargetColumnType = parseColumnType(type)[0]
+    const parsedTargetColumn: ColumnFallbackInfo['target'] = {
+      type,
+      parsedType: parseColumnType(type)[0],
+      defaultTo: parseDefaultValue(trx, defaultTo) || null,
+      notNull: !!notNull,
+    }
+    const getFallbackValue = (): string => migrateColumn({
+      column: name,
+      exist: existColumnInfo,
+      target: parsedTargetColumn,
+      table: tableName,
+    }).compile(trx).sql
+
     if (defaultTo === TGRU) {
       updateTimeColumn = name
     }
+
     if (type === DataType.increments) {
       if (autoIncrementColumn) {
         throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${name}) in table ${tableName}`)
       }
       autoIncrementColumn = name
     }
+
     if (existColumnInfo) {
       if (
-        existColumnInfo.type === parsedTargetColumnType
-        && existColumnInfo.notNull === !!notNull
-        && existColumnInfo.defaultTo === (parseDefaultValue(trx, defaultTo) || null)
+        existColumnInfo.type === parsedTargetColumn.parsedType
+        && existColumnInfo.notNull === parsedTargetColumn.notNull
+        && existColumnInfo.defaultTo === parsedTargetColumn.defaultTo
       ) {
-        updateColumnList.push([name, undefined])
+        updateColumnList.push([name, `"${name}"`])
       } else {
         isChanged = true
         updateColumnList.push([
@@ -233,8 +303,8 @@ function updateTable(
           // or new table column is nullable,
           // so no need to set fallback value
           (existColumnInfo.notNull || !notNull)
-            ? undefined
-            : parsedTargetColumnType === 'TEXT' ? '0' : 0,
+            ? `"${name}"`
+            : `IFNULL(CAST("${name}" AS ${parsedTargetColumn.parsedType}),${getFallbackValue()})`,
         ])
       }
     } else {
@@ -243,15 +313,17 @@ function updateTable(
       // if new column is not null and have no default value, set fallback value
       if (notNull && !defaultTo) {
         isChanged = true
-        updateColumnList.push([name, parsedTargetColumnType === 'TEXT' ? '1' : 1])
+        updateColumnList.push([name, getFallbackValue()])
       }
     }
   }
+
   for (const [name] of existColumnMap) {
     if (!targetColumnMap.has(name)) {
       deleteColumnList.push(name)
     }
   }
+
   if (isChanged) {
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
@@ -271,16 +343,15 @@ function updateTable(
   )
 
   const existTrigger = existTable.trigger[0]
-  if (updateTimeColumn) {
-    if (!existTrigger) {
-      result.push(createTimeTrigger(tableName, updateTimeColumn)!)
-    } else if (existTrigger !== `tgr_${tableName}`) {
+  if (existTrigger !== `tgr_${tableName}_${updateTimeColumn}`) {
+    if (existTrigger) {
       result.splice(0, 0, dropTrigger(existTrigger))
+    }
+    if (updateTimeColumn) {
       result.push(createTimeTrigger(tableName, updateTimeColumn)!)
     }
-  } else if (existTrigger) {
-    result.splice(0, 0, dropTrigger(existTrigger))
   }
+
   return result
 }
 

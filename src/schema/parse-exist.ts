@@ -3,12 +3,14 @@ import { type Kysely, sql } from 'kysely'
 
 export type ParsedSchema = Record<string, ParsedTableInfo>
 
+export type ParsedColumnProperty = {
+  type: ParsedColumnType
+  notNull: boolean
+  defaultTo: string | null
+}
+
 export type ParsedTableInfo = {
-  columns: Record<string, {
-    type: ParsedColumnType
-    notNull: boolean
-    defaultTo: string | null
-  }>
+  columns: Record<string, ParsedColumnProperty>
   /**
    * Primary key constraint
    */
