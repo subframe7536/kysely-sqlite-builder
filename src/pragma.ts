@@ -7,7 +7,7 @@ import { executeSQL, type KyselyInstance } from './utils'
 export async function checkIntegrity(db: KyselyInstance): Promise<boolean> {
   const { rows } = await executeSQL(db, 'PRAGMA integrity_check')
   if (!rows.length) {
-    throw new Error('fail to check integrity')
+    return false
   }
   // @ts-expect-error result
   return rows[0].integrity_check === 'ok'

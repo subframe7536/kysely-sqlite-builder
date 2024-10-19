@@ -15,7 +15,7 @@ const testTable = defineTable({
     birth: column.date(),
     literal: column.string().$cast<'l1' | 'l2' | string & {}>(),
   },
-  primary: 'id',
+  primary: 'id', // optional
   unique: ['literal'],
   index: ['person', ['id', 'gender']],
   timeTrigger: { create: true, update: true },

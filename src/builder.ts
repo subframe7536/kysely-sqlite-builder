@@ -9,7 +9,12 @@ import type {
   RawBuilder,
   Transaction,
 } from 'kysely'
-import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
+import type {
+  ExtractTableAlias,
+  From,
+  FromTables,
+  TableReference,
+} from 'kysely/dist/cjs/parser/table-parser'
 import { Kysely } from 'kysely'
 import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 import { baseExecutor, type Executor, type JoinFnName } from './executor'
@@ -27,27 +32,27 @@ import { executeSQL } from './utils'
 
 export type SqliteBuilderOptions = {
   /**
-   * kysely dialect
+   * Kysely dialect
    */
   dialect: Dialect
   /**
-   * like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
+   * Like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
    *
-   * if value is `true`, it will log result sql and and other {@link LoggerParams} in console
+   * If value is `true`, it will log result sql and and other {@link LoggerParams} in console
    */
   onQuery?: boolean | LoggerOptions
   /**
-   * additional plugins
+   * Additional plugins
    *
    * **do NOT use camelCase plugin with syncDB(useSchema(...)), this will lead to sync fail
    */
   plugins?: KyselyPlugin[]
   /**
-   * db logger
+   * DB logger
    */
   logger?: DBLogger
   /**
-   * custom executor
+   * Custom executor
    * @example
    * import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
    *
@@ -67,11 +72,11 @@ export type SqliteBuilderOptions = {
 interface TransactionOptions<T> {
   errorMsg?: string
   /**
-   * after commit hook
+   * On commit hook
    */
   onCommit?: (result: T) => Promisable<void>
   /**
-   * after rollback hook
+   * On rollback hook
    */
   onRollback?: (err: unknown) => Promisable<void>
 }
@@ -127,9 +132,11 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    *     manual: { type: DataType.boolean },
    *     array: column.object().$cast<string[]>(),
    *     literal: column.string().$cast<'l1' | 'l2'>(),
+   *     score: column.float(),
+   *     birth: column.date(),
    *     buffer: column.blob(),
    *   },
-   *   primary: 'id',
+   *   primary: 'id', // optional
    *   index: ['person', ['id', 'gender']],
    *   timeTrigger: { create: true, update: true },
    * })
@@ -217,13 +224,13 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * @example
    * import { useSchema } from 'kysely-sqlite-builder/schema'
    * import { useMigrator } from 'kysely-sqlite-builder/migrator'
-   * import { FileMigrationProvider } from 'kysely'
+   * import { createCodeProvider } from 'kysely-sqlite-builder/migrator'
    *
    * // update tables using schema
-   * await builder.syncDB(useSchema(Schema, { logger: false }))
+   * await db.syncDB(useSchema(Schema, { logger: false }))
    *
    * // update tables using MigrationProvider and migrate to latest
-   * await builder.syncDB(useMigrator(new FileMigrationProvider(...)))
+   * await db.syncDB(useMigrator(createCodeProvider(...)))
    */
   public async syncDB(updater: SchemaUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
@@ -232,10 +239,10 @@ export class SqliteBuilder<DB extends Record<string, any>> {
         return { ready: false, error: new IntegrityError() }
       }
       const result = await updater(this.ky, this.log)
-      this.log?.info('Table sync success')
+      this.log?.info('Sync completed')
       return result
     } catch (error) {
-      this.logError(error, 'Unknown error when syncing tables')
+      this.logError(error, 'Unknown error while syncing')
       return {
         ready: false,
         error,

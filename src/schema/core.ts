@@ -101,7 +101,7 @@ export type SyncOptions<T extends Schema> = {
    * @param oldSchema old database schema
    * @param oldVersion old database version
    */
-  onSyncSuccess?: (
+  onSuccess?: (
     db: Kysely<InferDatabase<T>>,
     oldSchema: ParsedSchema,
     oldVersion: number | undefined
@@ -113,7 +113,7 @@ export type SyncOptions<T extends Schema> = {
    * @param existSchema old database schema
    * @param targetSchema new database schema
    */
-  onSyncFail?: (err: unknown, sql: string | undefined, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
+  onError?: (err: unknown, sql: string | undefined, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
 }
 
 export async function syncTables<T extends Schema>(
@@ -127,9 +127,9 @@ export async function syncTables<T extends Schema>(
     log,
     version: { current, skipSyncWhenSame } = {},
     excludeTablePrefix,
-    onSyncSuccess,
-    onSyncFail,
-    fallback: fallbackColumnValue,
+    onSuccess,
+    onError,
+    fallback,
   } = options
 
   let oldVersion: number
@@ -143,7 +143,7 @@ export async function syncTables<T extends Schema>(
   }
 
   const debug = (e: string): any => log && logger?.debug(e)
-  debug('Sync tables start:')
+  debug('Sync tables start')
   const existSchema = await parseExistSchema(db, excludeTablePrefix)
   let i = 0
   let sqls: string[] = []
@@ -154,11 +154,11 @@ export async function syncTables<T extends Schema>(
       targetSchema,
       truncateIfExists,
       debug,
-      fallbackColumnValue,
+      fallback,
     )
   } catch (e) {
-    await onSyncFail?.(e, undefined, existSchema, targetSchema)
-    debug(`Sync tables fail, ${e}`)
+    await onError?.(e, undefined, existSchema, targetSchema)
+    debug(`Sync failed, ${e}`)
     return { ready: false, error: e }
   }
 
@@ -169,13 +169,13 @@ export async function syncTables<T extends Schema>(
       }
     })
     .then(async () => {
-      await onSyncSuccess?.(db, existSchema, oldVersion)
-      debug('Sync tables success')
+      await onSuccess?.(db, existSchema, oldVersion)
+      debug('Sync success')
       return { ready: true as const }
     })
     .catch(async (e) => {
-      await onSyncFail?.(e, sqls[i], existSchema, targetSchema)
-      debug(`Sync tables fail, ${e}`)
+      await onError?.(e, sqls[i], existSchema, targetSchema)
+      debug(`Sync failed, ${e}`)
       return { ready: false, error: e }
     })
 }
@@ -222,22 +222,22 @@ export function generateSyncTableSQL<T extends Schema>(
     if (targetSchemaMap.has(existTableName)) {
       const targetTable = targetSchemaMap.get(existTableName)!
       if (truncateTableSet.has(existTableName)) {
-        debug(`Update table "${existTableName}" and truncate`)
+        debug(`- Update table "${existTableName}" and truncate`)
         sqls.push(dropTable(existTableName))
         sqls.push(...createTableWithIndexAndTrigger(db, existTableName, targetTable))
       } else {
-        debug(`Update table "${existTableName}"`)
+        debug(`- Update table "${existTableName}"`)
         sqls.push(...updateTable(db, existTableName, existTable, targetTable, fallback))
       }
     } else {
-      debug(`Delete table "${existTableName}"`)
+      debug(`- Delete table "${existTableName}"`)
       sqls.push(dropTable(existTableName))
     }
   }
 
   for (const [targetTableName, targetTable] of targetSchemaMap) {
     if (!existTableMap.has(targetTableName)) {
-      debug(`Create table "${targetTableName}"`)
+      debug(`- Create table "${targetTableName}"`)
       sqls.push(...createTableWithIndexAndTrigger(db, targetTableName, targetTable))
     }
   }
