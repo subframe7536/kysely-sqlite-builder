@@ -22,6 +22,8 @@ export async function foreignKeys(db: KyselyInstance, enable: boolean): Promise<
 
 /**
  * Get or set user_version pragma, **no param check**
+ *
+ * `version` must be integer
  */
 export async function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number> {
   if (version) {
@@ -30,7 +32,7 @@ export async function getOrSetDBVersion(db: KyselyInstance, version?: number): P
   }
   const { rows } = await executeSQL(db, 'PRAGMA user_version')
   if (!rows.length) {
-    throw new Error('fail to get DBVersion')
+    throw new Error('Fail to get DBVersion')
   }
   // @ts-expect-error get user version
   return rows[0].user_version
@@ -105,5 +107,6 @@ export async function optimizePragma(
  * @see https://www.sqlite.org/lang_vacuum.html
  */
 export async function optimizeSize(db: KyselyInstance, rebuild = false): Promise<QueryResult<unknown>> {
+  await executeSQL(db, 'pragma shrink_memory')
   return await executeSQL(db, rebuild ? 'vacuum' : 'pragma optimize')
 }

@@ -72,7 +72,7 @@ export type SyncOptions<T extends Schema> = {
    */
   version?: {
     /**
-     * Current version
+     * Current version. **Integer only**
      */
     current: number
     /**

@@ -12,8 +12,16 @@ describe('test builder', async () => {
     await db.syncDB(useSchema(baseTables))
 
     console.log(await db.transaction(async () => {
-      await db.insertInto('test').values([{ gender: false }, { gender: true }]).execute()
-      return await db.updateTable('test').set({ gender: true }).where('id', '=', 2).returningAll().execute()
+      await db
+        .insertInto('test')
+        .values([{ gender: false }, { gender: true }])
+        .execute()
+      return await db
+        .updateTable('test')
+        .set({ gender: true })
+        .where('id', '=', 2)
+        .returningAll()
+        .execute()
     }, {
       onCommit: () => {
         console.log('after commit')
@@ -39,16 +47,24 @@ describe('test builder', async () => {
     await db.syncDB(useSchema(baseTables))
 
     const select = precompile<{ person: { name: string }, test?: 'asd' }>()
-      .build(param =>
-        db.selectFrom('test').selectAll().where('person', '=', param('person')),
+      .build(
+        param => db
+          .selectFrom('test')
+          .selectAll()
+          .where('person', '=', param('person')),
       )
     const insert = precompile<{ gender: boolean }>()
-      .build(param =>
-        db.insertInto('test').values({ gender: param('gender') }),
+      .build(
+        param => db
+          .insertInto('test')
+          .values({ gender: param('gender') }),
       )
     const update = precompile<{ gender: boolean }>()
-      .build(param =>
-        db.updateTable('test').set({ gender: param('gender') }).where('id', '=', 1),
+      .build(
+        param => db
+          .updateTable('test')
+          .set({ gender: param('gender') })
+          .where('id', '=', 1),
       )
 
     const start = performance.now()
@@ -88,14 +104,25 @@ describe('test builder', async () => {
     const db = getDatabaseBuilder<InferDatabase<typeof softDeleteSchema>>()
     await db.syncDB(useSchema(softDeleteSchema, { log: false }))
 
-    const insertResult = await db.insertInto('testSoftDelete').values({ name: 'test' }).returning('isDeleted').executeTakeFirst()
+    const insertResult = await db
+      .insertInto('testSoftDelete')
+      .values({ name: 'test' })
+      .returning('isDeleted')
+      .executeTakeFirst()
     expect(insertResult?.isDeleted).toBe(0)
 
     await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
-    const selectResult = await db.selectFrom('testSoftDelete').selectAll().executeTakeFirst()
+    const selectResult = await db
+      .selectFrom('testSoftDelete')
+      .selectAll()
+      .executeTakeFirst()
     expect(selectResult).toBeUndefined()
 
-    const updateResult = await db.updateTable('testSoftDelete').set({ name: 'test' }).where('id', '=', 1).executeTakeFirst()
+    const updateResult = await db
+      .updateTable('testSoftDelete')
+      .set({ name: 'test' })
+      .where('id', '=', 1)
+      .executeTakeFirst()
     expect(updateResult?.numUpdatedRows).toBe(0n)
   })
 
@@ -103,7 +130,10 @@ describe('test builder', async () => {
     const db = getDatabaseBuilder()
     await db.syncDB(useSchema(baseTables))
     for (let i = 0; i < 10; i++) {
-      await db.insertInto('test').values({ gender: true, literal: `l${i}` }).execute()
+      await db
+        .insertInto('test')
+        .values({ gender: true, literal: `l${i}` })
+        .execute()
     }
     const qb = db.selectFrom('test').selectAll()
     const page1 = await pageQuery(qb, { num: 1, size: 4, queryTotal: true })

@@ -13,6 +13,25 @@ import {
 } from '../src/schema'
 import { baseTables, getDatabaseBuilder } from './utils'
 
+describe('test user_version', () => {
+  it('should skip when version same', async () => {
+    const db = getDatabaseBuilder()
+    await db.syncDB(useSchema(baseTables, { version: { current: 1, skipSyncWhenSame: true } }))
+    const tableName = 'asd'
+    await db.syncDB(
+      useSchema(
+        {
+          ...baseTables,
+          [tableName]: defineTable({ columns: { asd: column.int() } }),
+        },
+        { version: { current: 1, skipSyncWhenSame: true } },
+      ),
+    )
+    const schema = await parseExistSchema(db.kysely)
+    expect(schema[tableName]).toBeUndefined()
+  })
+})
+
 describe('test create table', async () => {
   it('should create new table', async () => {
     const db = getDatabaseBuilder()
@@ -29,7 +48,8 @@ describe('test create table', async () => {
         col2: { type: DataType.string },
       },
       index: ['col2'],
-      timeTrigger: { create: true, update: true },
+      createAt: true,
+      updateAt: true,
       unique: ['col2'],
     })
 
@@ -218,7 +238,8 @@ describe('test update table', async () => {
     const tableName = 'blob' as const
     const updatedTable = defineTable({
       ...baseTables[tableName],
-      timeTrigger: { create: true, update: true },
+      createAt: true,
+      updateAt: true,
     })
 
     await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
@@ -231,7 +252,8 @@ describe('test update table', async () => {
     const tableName = 'test' as const
     const updatedTable = defineTable({
       ...baseTables[tableName],
-      timeTrigger: { create: false, update: false },
+      createAt: false,
+      updateAt: false,
     })
     // @ts-expect-error delete create at
     delete updatedTable.columns.createAt
@@ -319,7 +341,9 @@ describe('test update table', async () => {
           },
         }),
       }, {
-        fallback: data => data.target.type === DataType.date ? sql`CURRENT_TIMESTAMP` : defaultFallbackFunction(data),
+        fallback: data => data.target.type === DataType.date
+          ? sql`CURRENT_TIMESTAMP`
+          : defaultFallbackFunction(data),
       }),
     )
     const [result] = await db

@@ -38,7 +38,7 @@ type CreateSoftDeleteExecutorReturn = {
   /**
    * SQLite builder executor
    * @example
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * const { executor, whereExists } = createSoftDeleteExecutor()
    *
    * const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
    *   dialect: new SqliteDialect({
@@ -52,10 +52,17 @@ type CreateSoftDeleteExecutorReturn = {
   /**
    * Filter query builder with `where('isDeleted', '=', 0)`
    * @example
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
-   * db.selectFrom('test').selectAll().$call(withNoDelete)
+   * const { executor, whereExists } = createSoftDeleteExecutor()
+   * db.selectFrom('test').selectAll().$call(whereExists)
    */
-  withNoDelete: <T>(qb: T) => T
+  whereExists: <T>(qb: T) => T
+  /**
+   * Filter query builder with `where('isDeleted', '=', 1)`
+   * @example
+   * const { executor, whereDeleted } = createSoftDeleteExecutor()
+   * db.selectFrom('test').selectAll().$call(whereDeleted)
+   */
+  whereDeleted: <T>(qb: T) => T
 }
 
 /**
@@ -73,7 +80,8 @@ export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): Create
       updateTable: (db: Kysely<any>, table: any) => db.updateTable(table).where(deleteColumnName, '=', 0),
       deleteFrom: (db: Kysely<any>, table: any) => db.updateTable(table).set(deleteColumnName, 1) as any,
     },
-    withNoDelete: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName, '=', 0) as T,
+    whereExists: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName, '=', 0) as T,
+    whereDeleted: <T>(qb: T) => (qb as WhereInterface<any, any>).where(deleteColumnName, '=', 1) as T,
   }
 }
 

@@ -52,7 +52,8 @@ const testTable = defineTable({
   },
   primary: 'id', // optional
   index: ['person', ['id', 'gender']],
-  timeTrigger: { create: true, update: true },
+  create: true, // `createTime` column
+  update: true, // `updateTime` column
 })
 
 const DBSchema = {
@@ -241,7 +242,7 @@ const softDeleteTable = defineTable({
 const softDeleteSchema = {
   testSoftDelete: softDeleteTable,
 }
-const { executor, withNoDelete } = createSoftDeleteExecutor()
+const { executor, whereExists, whereDeleted } = createSoftDeleteExecutor()
 
 const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
   dialect: new SqliteDialect({
@@ -254,16 +255,17 @@ const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
 await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
 
-await db.kysely.selectFrom('testSoftDelete').selectAll().$call(withNoDelete).execute()
+// If you are using original kysely instance:
+await db.kysely.selectFrom('testSoftDelete').selectAll().$call(whereExists).execute()
 ```
 
 ### Page Query
 
 page query, using offset
 
-if num <= 0 or size <= 0, return all records
+if `num <= 0` or `size <= 0`, return all records
 
-inspired by Mybatis-Plus PaginationInnerInterceptor
+inspired by Mybatis-Plus `PaginationInnerInterceptor`
 
 ```ts
 import { pageQuery } from 'kysely-sqlite-builder'
@@ -282,27 +284,19 @@ const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 
 console.log(page.convertRecords(p => p.literal).records)
 ```
 
-### Util
-
-```ts
-import { createSoftDeleteSqliteBuilder, createSqliteBuilder } from 'kysely-sqlite-builder'
-
-const db = await createSqliteBuilder({
-  dialect,
-  schema: { test: testTable },
-  // other options
-})
-
-const [softDeleteDB, withNoDelete] = createSoftDeleteSqliteBuilder({
-  dialect,
-  schema: { test: testTable },
-})
-```
-
-### Pragma
+### Pragma / Utils
 
 ```ts
 type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
+/**
+ * Execute compiled query and return result list
+ */
+function executeSQL<O>(kysely: KyselyInstance, query: CompiledQuery<O>): Promise<QueryResult<O>>
+/**
+ * Execute sql string
+ */
+function executeSQL<O>(kysely: KyselyInstance, rawSql: string, parameters?: unknown[]): Promise<QueryResult<O>>
+
 /**
  * check integrity_check pragma
  */
@@ -313,6 +307,8 @@ function checkIntegrity(db: KyselyInstance): Promise<boolean>
 function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void>
 /**
  * get or set user_version pragma, **no param check**
+ *
+ * `version` must be integer
  */
 function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number>
 
@@ -366,6 +362,50 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
  * @see https://www.sqlite.org/lang_vacuum.html
  */
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
+```
+
+#### Parse Exist Database
+
+```ts
+import { parseExistSchema } from 'kusely-sqlite-builder/schema'
+
+const schema = await parseExistSchema(db.kysely)
+```
+
+type:
+
+```ts
+type ParsedSchema = Record<string, ParsedTableInfo>
+
+type ParsedTableInfo = {
+  columns: Record<string, ParsedColumnProperty>
+  /**
+   * Primary key constraint
+   */
+  primary: string[]
+  /**
+   * Unique constraint
+   */
+  unique: string[][]
+  /**
+   * Index
+   */
+  index: string[][]
+  /**
+   * Trigger
+   */
+  trigger: string[]
+  /**
+   * Auto increment column name
+   */
+  increment?: string
+}
+
+type ParsedColumnProperty = {
+  type: ParsedColumnType
+  notNull: boolean
+  defaultTo: string | null
+}
 ```
 
 ### Migrate By Code

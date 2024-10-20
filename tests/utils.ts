@@ -18,7 +18,8 @@ const testTable = defineTable({
   primary: 'id', // optional
   unique: ['literal'],
   index: ['person', ['id', 'gender']],
-  timeTrigger: { create: true, update: true },
+  createAt: true,
+  updateAt: true,
 })
 
 const blobTable = defineTable({

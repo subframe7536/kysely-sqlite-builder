@@ -2,7 +2,7 @@ import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 import type { ColumnType, Generated, RawBuilder } from 'kysely'
 
 /**
- * Column data typ
+ * Column data type
  */
 export const DataType = {
   increments: 0,
@@ -58,19 +58,34 @@ export type ColumnProperty<
   notNull?: NotNull
 }
 
-export type TimeTriggerOptions<
-  Create extends string | true | null,
-  Update extends string | true | null,
-> = {
-  create?: Create
-  update?: Update
+export type ExtraOptions<Create, Update, Delete> = {
+  /**
+  /**
+   * Create time column
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `createAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  createAt?: Create
+  /**
+   * Update time column. Use trigger to update
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `updateAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  updateAt?: Update
+  /**
+   * Soft delete column
+   *
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `isDeleted`
+   * - If type is `string`, it will be treated as column name
+   */
+  softDelete?: Delete
 }
 
 export type TableProperty<
   Cols extends Columns,
-  Create extends string | true | null = null,
-  Update extends string | true | null = null,
-  Delete extends string | true | null = null,
 > = {
   /**
    * Primary key constraint, only if have no `column.increments()` key
@@ -100,20 +115,6 @@ export type TableProperty<
    * - `[['name', 'gender'], 'id']`: `name` / `gender` and `id` as index
    */
   index?: Arrayable<keyof Cols & string>[]
-  /**
-   * Time trigger for `createAt` and `updateAt`
-   *
-   * - If type is `true`, column name is `deletedAt`
-   * - If type is `string`, it will be treated as column name
-   */
-  timeTrigger?: TimeTriggerOptions<Create, Update>
-  /**
-   * Whether to use soft delete
-   *
-   * - If type is `true`, column name is `deletedAt`
-   * - If type is `string`, it will be treated as column name
-   */
-  softDelete?: Delete
 }
 
 export type Columns = Record<string, ColumnProperty>
@@ -146,18 +147,9 @@ export type Table<
   Delete extends string | true | null = null,
 > = {
   columns: ColumnsWithErrorInfo<Cols>
-} & TableProperty<Cols, Create, Update, Delete>
+} & TableProperty<Cols> & ExtraOptions<Create, Update, Delete>
 
 export type Schema = Record<string, Table<any, any, any, any>>
-
-// export type FilterGenerated<
-//   Table extends object,
-//   EscapeKeys extends string = never,
-// > = {
-//   [K in keyof Table]: K extends EscapeKeys
-//     ? Table[K]
-//     : InferGenereated<Table[K]>
-// }
 
 type TriggerKey<A, B> =
   | (A extends true ? 'createAt' : A extends string ? A : never)
@@ -172,20 +164,20 @@ type ExtraColumnsKey<
     ? (TriggerKey | 'isDeleted')
     : TriggerKey
 
-export type ParseTableWithExtraColumns<
+type ParseTableWithExtraColumns<
   T extends Columns,
-  P extends TimeTriggerOptions<any, any> | undefined,
+  Create extends string | true | undefined,
+  Update extends string | true | undefined,
   Delete extends string | true | undefined,
-> = P extends TimeTriggerOptions<infer A, infer B>
-  // eslint-disable-next-line style/indent-binary-ops
-  ? Omit<T, ExtraColumnsKey<TriggerKey<A, B>, Delete>> & ({
-    [K in ExtraColumnsKey<TriggerKey<A, B>, Delete>]: {
-      type: _DataType['increments'] // #hack to ensure Generated
-      defaultTo: Generated<K extends TriggerKey<A, B> ? Date : number> | null
-      notNull: null
-    }
-  })
-  : never
+  Time extends TriggerKey<Create, Update> = TriggerKey<Create, Update>,
+  Extra extends ExtraColumnsKey<Time, Delete> = ExtraColumnsKey<Time, Delete>,
+> = Omit<T, Extra> & {
+  [K in Extra]: {
+    type: _DataType['increments'] // #hack to ensure Generated
+    defaultTo: Generated<K extends Time ? Date : number> | null
+    notNull: null
+  }
+}
 
 /**
  * Util type for infering type of table
@@ -193,10 +185,11 @@ export type ParseTableWithExtraColumns<
 export type InferTable<
   T extends {
     columns: Columns
-    timeTrigger?: TimeTriggerOptions<any, any>
+    createAt?: any
+    updateAt?: any
     softDelete?: any
   },
-  P = ParseTableWithExtraColumns<T['columns'], T['timeTrigger'], T['softDelete']>,
+  P = ParseTableWithExtraColumns<T['columns'], T['createAt'], T['updateAt'], T['softDelete']>,
 > = Prettify<{
   [K in keyof P]: P[K] extends ColumnProperty
     // if not null
@@ -228,7 +221,8 @@ export type InferTable<
 export type InferDatabase<T extends Schema> = Prettify<{
   [K in keyof T]: T[K] extends {
     columns: Columns
-    timeTrigger?: TimeTriggerOptions<any, any>
+    createAt?: any
+    updateAt?: any
     softDelete?: any
   }
     ? InferTable<T[K]>

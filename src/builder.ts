@@ -38,13 +38,14 @@ export type SqliteBuilderOptions = {
   /**
    * Like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
    *
-   * If value is `true`, it will log result sql and and other {@link LoggerParams} in console
+   * If value is `true`, it will only `error` level result sql and and other {@link LoggerParams} in console
    */
   onQuery?: boolean | LoggerOptions
   /**
    * Additional plugins
    *
-   * **do NOT use camelCase plugin with syncDB(useSchema(...)), this will lead to sync fail
+   * **DO NOT** use camelCase plugin with `db.syncDB(useSchema(...))`,
+   * this will lead to sync fail if you set `create` / `update` / `softDelete` to `boolean`
    */
   plugins?: KyselyPlugin[]
   /**
@@ -56,7 +57,7 @@ export type SqliteBuilderOptions = {
    * @example
    * import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
    *
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * const { executor, whereExists } = createSoftDeleteExecutor()
    *
    * const db = new SqliteBuilder<DB>({
    *   dialect: new SqliteDialect({
@@ -98,6 +99,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
   public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
   public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
+  // Omit delete from multiple tables
   public deleteFrom: {
     <TR extends keyof DB & string>(from: TR): Omit<
       DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
@@ -146,7 +148,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * }
    *
    * // create soft delete executor
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * const { executor, whereExists } = createSoftDeleteExecutor()
    *
    * const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
    *   dialect: new SqliteDialect({
