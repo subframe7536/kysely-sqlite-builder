@@ -325,8 +325,9 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
 
     this.trxCount++
-    this.log?.debug(`Run in savepoint: SP_${this.trxCount}`)
-    const { release, rollback } = await savePoint(this.kysely, `SP_${this.trxCount}`)
+    const sp = `SP_${this.trxCount}`
+    this.log?.debug(`Run in savepoint: ${sp}`)
+    const { release, rollback } = await savePoint(this.kysely, sp)
 
     return await fn(this.kysely as Transaction<DB>)
       .then(async (result) => {

@@ -86,7 +86,7 @@ export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): Create
 }
 
 /**
- * Fix the type of `DeleteResult` when using soft delete
+ * Convert `UpdateResult` to `DeleteResult`, usefult for soft delete
  * @param result the result of `deleteFrom` in `createSoftDeleteExecutor`
  */
 export function toDeleteResult(result: DeleteResult): DeleteResult {
