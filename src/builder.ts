@@ -99,7 +99,35 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
   public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
   public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
-  // Omit delete from multiple tables
+  /**
+   * Creates a delete query.
+   *
+   * See the {@link DeleteQueryBuilder.where} method for examples on how to specify
+   * a where clause for the delete operation.
+   *
+   * The return value of the query is an instance of {@link DeleteResult}.
+   *
+   * ### Examples
+   *
+   * <!-- siteExample("delete", "Single row", 10) -->
+   *
+   * Delete a single row:
+   *
+   * ```ts
+   * const result = await db
+   *   .deleteFrom('person')
+   *   .where('person.id', '=', '1')
+   *   .executeTakeFirst()
+   *
+   * console.log(result.numDeletedRows)
+   * ```
+   *
+   * The generated SQL (PostgreSQL):
+   *
+   * ```sql
+   * delete from "person" where "person"."id" = $1
+   * ```
+   */
   public deleteFrom: {
     <TR extends keyof DB & string>(from: TR): Omit<
       DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
