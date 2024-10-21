@@ -100,13 +100,13 @@ export async function optimizePragma(
   }
 }
 /**
- * Optimize db file
+ * Save memory for current connection and optimize db file
  * @param db database connection
- * @param rebuild if is true, run `vacuum` instead of `pragma optimize`
+ * @param rebuild if is true, run `VACUUM` instead of `PRAGMA optimize`
  * @see https://sqlite.org/pragma.html#pragma_optimize
  * @see https://www.sqlite.org/lang_vacuum.html
  */
-export async function optimizeSize(db: KyselyInstance, rebuild = false): Promise<QueryResult<unknown>> {
-  await executeSQL(db, 'pragma shrink_memory')
-  return await executeSQL(db, rebuild ? 'vacuum' : 'pragma optimize')
+export async function optimizeDB(db: KyselyInstance, rebuild = false): Promise<void> {
+  await executeSQL(db, 'PRAGMA shrink_memory')
+  await executeSQL(db, rebuild ? 'VACUUM' : 'PRAGMA optimize')
 }
