@@ -50,9 +50,10 @@ const testTable = defineTable({
     literal: column.string().$cast<'l1' | 'l2'>(),
     buffer: column.blob(),
   },
-  primary: 'id',
+  primary: 'id', // optional
   index: ['person', ['id', 'gender']],
-  timeTrigger: { create: true, update: true },
+  create: true, // `createTime` column
+  update: true, // `updateTime` column
 })
 
 const DBSchema = {
@@ -79,43 +80,92 @@ sync options type:
 ```ts
 export type SyncOptions<T extends Schema> = {
   /**
-   * whether to enable debug logger
+   * Whether to enable debug logger
    */
   log?: boolean
   /**
-   * version control
+   * Version control
    */
   version?: {
     /**
-     * current version
+     * Current version
      */
     current: number
     /**
-     * whether to skip sync when the db's `user_version` is same with `version.current`
+     * Whether to skip sync when the db's `user_version` is same with `version.current`
      */
     skipSyncWhenSame: boolean
   }
   /**
-   * exclude table prefix list, append with `%`
+   * Exclude table prefix list, append with `%`
    *
    * `sqlite_%` by default
    */
   excludeTablePrefix?: string[]
   /**
-   * do not restore data from old table to new table
+   * Do not restore data from old table to new table
    */
   truncateIfExists?: boolean | Array<StringKeys<T> | string & {}>
   /**
-   * trigger on sync success
-   * @param db kysely instance
+   * Function to determine default values for migrated columns,
+   * default is {@link defaultFallbackFunction}
    */
-  onSyncSuccess?: (db: Kysely<InferDatabase<T>>) => Promisable<void>
+  fallback?: ColumnFallbackFn
   /**
-   * trigger on sync fail
+   * Trigger on sync success
+   * @param db kysely instance
+   * @param oldSchema old database schema
+   * @param oldVersion old database version
    */
-  onSyncFail?: (err: unknown) => Promisable<void>
+  onSuccess?: (
+    db: Kysely<InferDatabase<T>>,
+    oldSchema: ParsedSchema,
+    oldVersion: number | undefined
+  ) => Promisable<void>
+  /**
+   * Trigger on sync fail
+   * @param err error
+   * @param sql failed sql, if `undefined`, there exists some errors in schema
+   * @param existSchema old database schema
+   * @param targetSchema new database schema
+   */
+  onError?: (err: unknown, sql: string | undefined, existSchema: ParsedSchema, targetSchema: T) => Promisable<void>
+}
+
+type ColumnFallbackFn = (data: ColumnFallbackInfo) => RawBuilder<unknown>
+
+export type ColumnFallbackInfo = {
+  /**
+   * Table name
+   */
+  table: string
+  /**
+   * Column name
+   */
+  column: string
+  /**
+   * Exist column info, `undefined` if there is no exising column with same target name
+   */
+  exist: ParsedColumnProperty | undefined
+  /**
+   * Target column info
+   */
+  target: Omit<ParsedColumnProperty, 'type'> & {
+    /**
+     * {@link DataType} in schema
+     */
+    type: DataTypeValue
+    /**
+     * DataType in SQLite
+     */
+    parsedType: ParsedColumnType
+  }
 }
 ```
+
+#### Limitation of Schema
+
+No `check` or `foreign key` support
 
 ### Execute Queries
 
@@ -192,7 +242,7 @@ const softDeleteTable = defineTable({
 const softDeleteSchema = {
   testSoftDelete: softDeleteTable,
 }
-const { executor, withNoDelete } = createSoftDeleteExecutor()
+const { executor, whereExists, whereDeleted } = createSoftDeleteExecutor()
 
 const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
   dialect: new SqliteDialect({
@@ -205,16 +255,17 @@ const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
 await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
 
-await db.kysely.selectFrom('testSoftDelete').selectAll().$call(withNoDelete).execute()
+// If you are using original kysely instance:
+await db.kysely.selectFrom('testSoftDelete').selectAll().$call(whereExists).execute()
 ```
 
 ### Page Query
 
 page query, using offset
 
-if num <= 0 or size <= 0, return all records
+if `num <= 0` or `size <= 0`, return all records
 
-inspired by Mybatis-Plus PaginationInnerInterceptor
+inspired by Mybatis-Plus `PaginationInnerInterceptor`
 
 ```ts
 import { pageQuery } from 'kysely-sqlite-builder'
@@ -233,27 +284,19 @@ const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 
 console.log(page.convertRecords(p => p.literal).records)
 ```
 
-### Util
-
-```ts
-import { createSoftDeleteSqliteBuilder, createSqliteBuilder } from 'kysely-sqlite-builder'
-
-const db = await createSqliteBuilder({
-  dialect,
-  schema: { test: testTable },
-  // other options
-})
-
-const [softDeleteDB, withNoDelete] = createSoftDeleteSqliteBuilder({
-  dialect,
-  schema: { test: testTable },
-})
-```
-
-### Pragma
+### Pragma / Utils
 
 ```ts
 type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
+/**
+ * Execute compiled query and return result list
+ */
+function executeSQL<O>(kysely: KyselyInstance, query: CompiledQuery<O>): Promise<QueryResult<O>>
+/**
+ * Execute sql string
+ */
+function executeSQL<O>(kysely: KyselyInstance, rawSql: string, parameters?: unknown[]): Promise<QueryResult<O>>
+
 /**
  * check integrity_check pragma
  */
@@ -264,6 +307,8 @@ function checkIntegrity(db: KyselyInstance): Promise<boolean>
 function foreignKeys(db: KyselyInstance, enable: boolean): Promise<void>
 /**
  * get or set user_version pragma, **no param check**
+ *
+ * `version` must be integer
  */
 function getOrSetDBVersion(db: KyselyInstance, version?: number): Promise<number>
 
@@ -317,6 +362,50 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
  * @see https://www.sqlite.org/lang_vacuum.html
  */
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
+```
+
+#### Parse Exist Database
+
+```ts
+import { parseExistSchema } from 'kusely-sqlite-builder/schema'
+
+const schema = await parseExistSchema(db.kysely)
+```
+
+type:
+
+```ts
+type ParsedSchema = Record<string, ParsedTableInfo>
+
+type ParsedTableInfo = {
+  columns: Record<string, ParsedColumnProperty>
+  /**
+   * Primary key constraint
+   */
+  primary: string[]
+  /**
+   * Unique constraint
+   */
+  unique: string[][]
+  /**
+   * Index
+   */
+  index: string[][]
+  /**
+   * Trigger
+   */
+  trigger: string[]
+  /**
+   * Auto increment column name
+   */
+  increment?: string
+}
+
+type ParsedColumnProperty = {
+  type: ParsedColumnType
+  notNull: boolean
+  defaultTo: string | null
+}
 ```
 
 ### Migrate By Code

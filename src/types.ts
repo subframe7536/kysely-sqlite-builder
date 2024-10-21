@@ -29,6 +29,6 @@ export type SchemaUpdater = (db: Kysely<any>, logger?: DBLogger) => Promise<Stat
 export type QueryBuilderOutput<QB> = QB extends Compilable<infer O> ? O : never
 export class IntegrityError extends Error {
   constructor() {
-    super('db file maybe corrupted')
+    super('DB file maybe corrupted')
   }
 }
