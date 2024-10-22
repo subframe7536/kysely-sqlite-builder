@@ -1,4 +1,3 @@
-import type { QueryResult } from 'kysely'
 import { executeSQL, type KyselyInstance } from './utils'
 
 /**

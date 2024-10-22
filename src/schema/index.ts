@@ -2,13 +2,15 @@ import type { Kysely } from 'kysely'
 import type { DBLogger, SchemaUpdater } from '../types'
 import type { SyncOptions } from './core'
 import type { Schema } from './types'
-import { syncTables } from './core'
+import { generateSyncTableSQL, syncTables } from './core'
+import { parseExistSchema } from './parse-exist'
 
 export { defaultFallbackFunction, generateSyncTableSQL } from './core'
-export type { ColumnFallbackInfo as FallbackColumnInfo } from './core'
+export type { ColumnFallbackInfo } from './core'
 export { column, defineTable } from './define'
 export { parseExistSchema } from './parse-exist'
-export * from './types'
+export { DataType } from './types'
+export type { ColumnProperty, InferDatabase, InferTable, Schema } from './types'
 
 /**
  * Auto sync table using schema, only sync table/index/trigger
@@ -24,5 +26,20 @@ export function useSchema<T extends Schema>(
     schema,
     options,
     options.log ? logger : undefined,
+  )
+}
+
+export async function generateMigrateSQL<T extends Schema>(
+  db: Kysely<any>,
+  schema: T,
+  options: Pick<SyncOptions<T>, 'excludeTablePrefix' | 'truncateIfExists' | 'fallback'> = {},
+): Promise<string[]> {
+  return generateSyncTableSQL(
+    db,
+    await parseExistSchema(db, options.excludeTablePrefix),
+    schema,
+    options.truncateIfExists,
+    undefined,
+    options.fallback,
   )
 }
