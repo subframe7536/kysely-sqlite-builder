@@ -221,7 +221,13 @@ export function migrateWholeTable(
 
   // 2. diff and restore data from source table to target table
   if (restoreColumnList.length) {
-    result.push(migrateColumnsFromTemp(tableName, tempTableName, restoreColumnList))
+    let cols = ''
+    let values = ''
+    for (const [name, selectSQL] of restoreColumnList) {
+      cols += `,"${name}"`
+      values += `,${selectSQL}`
+    }
+    result.push(`INSERT INTO "${tableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${tempTableName}";`)
   }
 
   // 3. remove old table
@@ -238,18 +244,4 @@ export function migrateWholeTable(
   }
 
   return result
-}
-
-function migrateColumnsFromTemp(
-  fromTableName: string,
-  toTableName: string,
-  restoreColumns: RestoreColumnList,
-): string {
-  let cols = ''
-  let values = ''
-  for (const [name, selectSQL] of restoreColumns) {
-    cols += `,"${name}"`
-    values += `,${selectSQL}`
-  }
-  return `INSERT INTO "${toTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${fromTableName}";`
 }
