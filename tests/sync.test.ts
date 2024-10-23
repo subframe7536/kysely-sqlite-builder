@@ -7,7 +7,7 @@ import {
   DataType,
   defaultFallbackFunction,
   defineTable,
-  generateSyncTableSQL,
+  generateMigrateSQL,
   parseExistSchema,
   useSchema,
 } from '../src/schema'
@@ -108,9 +108,8 @@ describe('test update table', async () => {
 
   it('should have no operation', async () => {
     expect(
-      generateSyncTableSQL(
+      await generateMigrateSQL(
         db.kysely,
-        await parseExistSchema(db.kysely),
         baseTables,
       ),
     ).toStrictEqual([])
