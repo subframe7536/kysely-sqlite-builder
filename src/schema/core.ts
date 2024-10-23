@@ -4,22 +4,25 @@ import { type Kysely, type RawBuilder, sql, type Transaction } from 'kysely'
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
 import { TGRU } from './define'
-import { type ParsedColumnProperty, type ParsedSchema, type ParsedTableInfo, parseExistSchema } from './parse-exist'
+import {
+  type ParsedColumnProperty,
+  type ParsedSchema,
+  type ParsedTableInfo,
+  parseExistSchema,
+} from './parse-exist'
 import {
   addColumn,
   createIndex,
-  createTable,
-  createTableIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
   dropColumn,
   dropIndex,
   dropTable,
   dropTrigger,
-  migrateColumnsFromTemp,
+  migrateWholeTable,
   parseColumnType,
   parseDefaultValue,
-  renameTable,
+  type RestoreColumnList,
 } from './run'
 import {
   type Columns,
@@ -179,11 +182,6 @@ export async function syncTables<T extends Schema>(
       return { ready: false, error: e }
     })
 }
-
-/**
- * Restore column list with default value (sql string)
- */
-export type RestoreColumnList = [name: string, select: string][]
 
 export const defaultFallbackFunction: ColumnFallbackFn = ({ target }) => target.parsedType === 'TEXT' ? sql`'0'` : sql`0`
 
@@ -346,6 +344,7 @@ function updateTable(
   )
 
   const existTrigger = existTable.trigger[0]
+  // old trigger is not on the correct column, or no exist trigger
   if (existTrigger !== `tgr_${tableName}_${updateTimeColumn}`) {
     if (existTrigger) {
       result.splice(0, 0, dropTrigger(existTrigger))
@@ -398,41 +397,4 @@ export function parseChangedList(
   const delList = existIndexList.filter(index => !targetSet.has(index.join('|')))
 
   return [addList, delList]
-}
-
-/**
- * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
- */
-function migrateWholeTable(
-  trx: Kysely<any>,
-  tableName: string,
-  restoreColumnList: RestoreColumnList,
-  targetTable: Table,
-): string[] {
-  const result: string[] = []
-  const tempTableName = `_temp_${tableName}`
-
-  // 1. create target table with temp name
-  const { updateColumn, sql } = createTable(trx, tempTableName, targetTable)
-  result.push(sql)
-
-  // 2. diff and restore data from source table to target table
-  if (restoreColumnList.length) {
-    result.push(migrateColumnsFromTemp(tableName, tempTableName, restoreColumnList))
-  }
-
-  // 3. remove old table
-  result.push(dropTable(tableName))
-
-  // 4. rename temp table to target table name
-  result.push(renameTable(tempTableName, tableName))
-
-  // 5. restore indexes and triggers
-  result.push(...createTableIndex(tableName, targetTable.index))
-  const triggerSql = createTimeTrigger(tableName, updateColumn)
-  if (triggerSql) {
-    result.push(triggerSql)
-  }
-
-  return result
 }

@@ -1,6 +1,5 @@
 import type { Arrayable } from '@subframe7536/type-utils'
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
-import type { RestoreColumnList } from './core'
 import { defaultSerializer } from '../serialize'
 import { TGRC, TGRU } from './define'
 import {
@@ -197,16 +196,60 @@ export function dropTrigger(triggerName: string): string {
   return `DROP TRIGGER IF EXISTS "${triggerName}";`
 }
 
-export function migrateColumnsFromTemp(
+/**
+ * Restore column list with default value (sql string)
+ *
+ * `INSERT INTO table_name (${names}) SELECT ${selectSQL} FROM _temp_table_name;`
+ */
+export type RestoreColumnList = [name: string, selectSQL: string][]
+
+/**
+ * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
+ */
+export function migrateWholeTable(
+  trx: Kysely<any>,
+  tableName: string,
+  restoreColumnList: RestoreColumnList,
+  targetTable: Table,
+): string[] {
+  const result: string[] = []
+  const tempTableName = `_temp_${tableName}`
+
+  // 1. create target table with temp name
+  const { updateColumn, sql } = createTable(trx, tempTableName, targetTable)
+  result.push(sql)
+
+  // 2. diff and restore data from source table to target table
+  if (restoreColumnList.length) {
+    result.push(migrateColumnsFromTemp(tableName, tempTableName, restoreColumnList))
+  }
+
+  // 3. remove old table
+  result.push(dropTable(tableName))
+
+  // 4. rename temp table to target table name
+  result.push(renameTable(tempTableName, tableName))
+
+  // 5. restore indexes and triggers
+  result.push(...createTableIndex(tableName, targetTable.index))
+  const triggerSql = createTimeTrigger(tableName, updateColumn)
+  if (triggerSql) {
+    result.push(triggerSql)
+  }
+
+  return result
+}
+
+function migrateColumnsFromTemp(
   fromTableName: string,
   toTableName: string,
   restoreColumns: RestoreColumnList,
 ): string {
   let cols = ''
   let values = ''
-  for (const [name, select] of restoreColumns) {
+  for (const [name, selectSQL] of restoreColumns) {
     cols += `,"${name}"`
-    values += `,${select}`
+    values += `,${selectSQL}`
   }
   return `INSERT INTO "${toTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${fromTableName}";`
 }
