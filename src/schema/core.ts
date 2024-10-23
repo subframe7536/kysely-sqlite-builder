@@ -259,8 +259,7 @@ function updateTable(
 
   let updateTimeColumn
   let autoIncrementColumn
-  let isChanged = isPrimaryKeyChanged(existTable.primary, targetTable.primary)
-    || isUniqueChanged(existTable.unique, targetTable.unique)
+  let isChanged = false
 
   for (const [name, { type, defaultTo, notNull }] of targetColumnMap) {
     const existColumnInfo = existColumnMap.get(name)
@@ -324,7 +323,11 @@ function updateTable(
     }
   }
 
-  if (isChanged) {
+  if (
+    isChanged
+    || isPrimaryKeyChanged(existTable.primary, targetTable.primary || autoIncrementColumn)
+    || isUniqueChanged(existTable.unique, targetTable.unique)
+  ) {
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
 

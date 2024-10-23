@@ -7,7 +7,6 @@ import {
   DataType,
   defaultFallbackFunction,
   defineTable,
-  generateMigrateSQL,
   parseExistSchema,
   useSchema,
 } from '../src/schema'
@@ -104,15 +103,6 @@ describe('test update table', async () => {
         },
       ])
       .execute()
-  })
-
-  it('should have no operation', async () => {
-    expect(
-      await generateMigrateSQL(
-        db.kysely,
-        baseTables,
-      ),
-    ).toStrictEqual([])
   })
 
   it('should add column', async () => {

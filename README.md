@@ -52,8 +52,8 @@ const testTable = defineTable({
   },
   primary: 'id', // optional
   index: ['person', ['id', 'gender']],
-  create: true, // `createTime` column
-  update: true, // `updateTime` column
+  createAt: true, // `createTime` column
+  updateAt: true, // `updateTime` column
 })
 
 const DBSchema = {
@@ -184,7 +184,7 @@ db.transaction(async (trx) => {
   })
 })
 
-// use origin instance: Kysely or Transaction
+// use origin instance: Kysely or current Transaction
 await db.kysely.insertInto('test').values({ gender: false }).execute()
 
 // run raw sql
@@ -364,10 +364,38 @@ function optimizePragma(db: KyselyInstance, options?: OptimizePragmaOptions): Pr
 function optimizeSize(db: KyselyInstance, rebuild?: boolean): Promise<QueryResult<unknown>>
 ```
 
+#### Generate Migrate SQL
+
+```ts
+import { generateMigrateSQL } from 'kysely-sqlite-buidler/schema'
+
+const db = new Kysely({/* options */})
+const testTable = defineTable({
+  columns: {
+    id: column.increments(),
+    person: column.object({ defaultTo: { name: 'test' } }),
+    gender: column.boolean({ notNull: true }),
+    // or just object
+    manual: { type: DataType.boolean },
+    array: column.object().$cast<string[]>(),
+    literal: column.string().$cast<'l1' | 'l2'>(),
+    buffer: column.blob(),
+  },
+  primary: 'id', // optional
+  index: ['person', ['id', 'gender']],
+  createAt: true, // `createTime` column
+  updateAt: true, // `updateTime` column
+})
+
+await generateMigrateSQL(db, { test: testTable }, {/* options */})
+```
+
+More cases: [tests/sync-sql.test.ts](tests/sync-sql.test.ts)
+
 #### Parse Exist Database
 
 ```ts
-import { parseExistSchema } from 'kusely-sqlite-builder/schema'
+import { parseExistSchema } from 'kysely-sqlite-builder/schema'
 
 const schema = await parseExistSchema(db.kysely)
 ```
