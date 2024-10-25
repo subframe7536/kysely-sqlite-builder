@@ -2,7 +2,7 @@
 
 Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
 
-- Breaking updates may occur, use at your own risk
+- Under development, breaking updates may occur, use at your own risk
 
 ## Features
 
