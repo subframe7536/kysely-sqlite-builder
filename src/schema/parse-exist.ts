@@ -1,90 +1,116 @@
 import type { ParsedColumnType } from './types'
-import { type QueryCreator, sql } from 'kysely'
+import { type Kysely, sql } from 'kysely'
 
-export type ParseExistSchemaExecutor = Pick<QueryCreator<any>, 'selectFrom'>
+export type ParsedSchema = Record<string, ParsedTableInfo>
 
-export type ParsedSchema = {
-  table: ParsedTables
-  index: string[]
-  trigger: string[]
-}
-type ParsedTables = Record<string, ParsedTableInfo>
-export type ParsedTableInfo = {
-  columns: Record<string, ParsedColumnProperty>
-  primary: string[]
-}
 export type ParsedColumnProperty = {
   type: ParsedColumnType
   notNull: boolean
-  defaultTo?: any
+  defaultTo: string | null
+}
+
+export type ParsedTableInfo = {
+  columns: Record<string, ParsedColumnProperty>
+  /**
+   * Primary key constraint
+   */
+  primary: string[]
+  /**
+   * Unique constraint
+   */
+  unique: string[][]
+  /**
+   * Index
+   */
+  index: string[][]
+  /**
+   * Trigger
+   */
+  trigger: string[]
+  /**
+   * Auto increment column name
+   */
+  increment?: string
 }
 
 /**
  * parse table object
  * @param db kysely instance
  * @param tableName table name
- * @todo support extra constraints
  */
-export async function parseTable(db: ParseExistSchemaExecutor, tableName: string): Promise<ParsedTableInfo> {
+export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncrement: boolean): Promise<ParsedTableInfo> {
   const result: ParsedTableInfo = {
     columns: {},
     primary: [],
+    unique: [],
+    index: [],
+    trigger: [],
   }
 
-  const cols = await db
-    .selectFrom(sql`pragma_table_info(${tableName})`.as('c'))
-    .select(['name', 'type', 'notnull', 'dflt_value', 'pk'])
-    .execute()
+  type TableInfoPragma = {
+    name: string
+    type: ParsedColumnType
+    notnull: 0 | 1
+    dflt_value: string | null
+    pk: number
+  }
+  const cols = (await sql<TableInfoPragma>`SELECT "name", "type", "notnull", "dflt_value", "pk" FROM PRAGMA_TABLE_INFO(${tableName})`.execute(db)).rows
+
   for (const { dflt_value, name, notnull, pk, type } of cols) {
     result.columns[name] = {
       type,
-      notNull: !!notnull,
+      notNull: !!notnull as any,
       defaultTo: dflt_value,
     }
-    if (pk) {
+    if (pk !== 0) {
+      if (hasAutoIncrement && pk === 1 && type === 'INTEGER') {
+        result.increment = name
+      }
       result.primary.push(name)
     }
+  }
+
+  type IndexInfoPragma = {
+    origin: string
+    columns: string
+  }
+
+  const indexes = (await sql<IndexInfoPragma>`SELECT "origin", (SELECT GROUP_CONCAT(name) FROM PRAGMA_INDEX_INFO(i.name)) as "columns" FROM PRAGMA_INDEX_LIST(${tableName}) as i WHERE "origin" != 'pk'`.execute(db)).rows
+
+  for (const { columns, origin } of indexes) {
+    result[origin === 'u' ? 'unique' : 'index'].push(
+      (columns as string).split(',').map(c => c.trim()),
+    )
   }
 
   return result
 }
 
 /**
- * parse exist db structures
+ * Parse exist db structures
  */
 export async function parseExistSchema(
-  db: ParseExistSchemaExecutor,
+  db: Kysely<any>,
   prefix: string[] = [],
 ): Promise<ParsedSchema> {
-  const tables = await db
-    .selectFrom('sqlite_master')
-    .where('type', 'in', ['table', 'trigger', 'index'])
-    .where('name', 'not like', 'sqlite_%')
-    .orderBy('type', 'desc')
-    .$if(prefix.length > 0, qb => qb.where(
-      eb => eb.and(
-        prefix.map(t => eb('name', 'not like', `${t}%`)),
-      ),
-    ))
-    .select(['name', 'type'])
-    .execute()
-
-  const tableMap: ParsedSchema = {
-    table: {},
-    index: [],
-    trigger: [],
+  type MasterData = {
+    type: 'table' | 'trigger'
+    name: 1 | string
+    table: string
   }
-  for (const { name, type } of tables) {
-    switch (type) {
-      case 'table':
-        tableMap.table[name] = await parseTable(db, name)
-        break
-      case 'index':
-        tableMap.index.push(name)
-        break
-      case 'trigger':
-        tableMap.trigger.push(name)
-        break
+
+  // when type is table, name === 1 indicates that AUTOINCREMENT column exists
+  // when type is trigger, name is trigger's name
+  const extraColumns = prefix.length ? ` AND ${prefix.map(t => `"name" NOT LIKE '${t}%'`).join(' AND ')}` : ''
+  const tables = (await sql<MasterData>`SELECT "type", "tbl_name" AS "table", CASE WHEN "sql" LIKE '%PRIMARY KEY AUTOINCREMENT%' THEN 1 ELSE "name" END AS "name" FROM "sqlite_master" WHERE "type" IN ('table', 'trigger') AND "name" NOT LIKE 'SQLITE_%'${sql.raw(extraColumns)} ORDER BY "type"`.execute(db)).rows
+
+  const tableMap: ParsedSchema = {}
+  for (const { name, table, type } of tables) {
+    // type only can be 'table' or 'trigger'
+    if (type === 'table') {
+      tableMap[table] = await parseTable(db, table, (name as number | string) === 1)
+    } else {
+      tableMap[table].trigger.push(name as string)
     }
   }
   return tableMap

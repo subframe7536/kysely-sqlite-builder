@@ -1,45 +1,28 @@
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 import type { ColumnType, Generated, RawBuilder } from 'kysely'
-
-/**
- * Column data typ
- */
-export const DataType = {
-  increments: 0,
-  int: 1,
-  float: 2,
-  string: 3,
-  blob: 4,
-  object: 5,
-  boolean: 6,
-  date: 7,
-} as const
-
-export type _DataType = typeof DataType
-
-export type DataTypeValue = _DataType[keyof _DataType]
+import type { DataTypeValue, TDataType } from './column'
 
 export type BooleanColumnType = ColumnType<0 | 1, boolean, boolean>
 
-export type InferColumnTypeByNumber<T extends DataTypeValue> =
-  T extends _DataType['string'] ? string :
-    T extends _DataType['boolean'] ? BooleanColumnType :
-      T extends _DataType['int'] | _DataType['float'] ? number :
-        T extends _DataType['increments'] ? Generated<number> :
-          T extends _DataType['date'] ? Date :
-            T extends _DataType['blob'] ? Uint8Array :
-              T extends _DataType['object'] ? object :
+export type InferColumnType<T extends DataTypeValue> =
+  T extends TDataType['string'] ? string :
+    T extends TDataType['boolean'] ? BooleanColumnType :
+      T extends TDataType['int'] | TDataType['float'] ? number :
+        T extends TDataType['increments'] ? Generated<number> :
+          T extends TDataType['date'] ? Date :
+            T extends TDataType['blob'] ? Uint8Array :
+              T extends TDataType['object'] ? object :
                 never
 
 export type InferStringByColumnType<T> =
-  T extends string ? _DataType['string'] :
-    T extends BooleanColumnType ? _DataType['boolean'] :
-      T extends Generated<number> ? _DataType['increments'] | _DataType['int'] | _DataType['float'] :
-        T extends number ? _DataType['int'] | _DataType['float'] :
-          T extends Date ? _DataType['date'] :
-            T extends ArrayBufferLike ? _DataType['blob'] :
+  T extends string ? TDataType['string'] :
+    T extends BooleanColumnType ? TDataType['boolean'] :
+      T extends Generated<number> ? TDataType['increments'] | TDataType['int'] | TDataType['float'] :
+        T extends number ? TDataType['int'] | TDataType['float'] :
+          T extends Date ? TDataType['date'] :
+            T extends ArrayBufferLike ? TDataType['blob'] :
               T extends Generated<infer P> ? InferStringByColumnType<P> :
-                T extends object ? _DataType['object'] :
+                T extends object ? TDataType['object'] :
                   never
 
 export type ParsedColumnType =
@@ -50,48 +33,71 @@ export type ParsedColumnType =
 
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
-  DefaultTo extends InferColumnTypeByNumber<ColType> | null = InferColumnTypeByNumber<ColType> | null,
+  DefaultTo extends InferColumnType<ColType> | RawBuilder<unknown> | null = InferColumnType<ColType> | null | RawBuilder<unknown>,
   NotNull extends true | null = true | null,
 > = {
   type: ColType
-  defaultTo?: DefaultTo | RawBuilder<unknown>
+  defaultTo?: DefaultTo
   notNull?: NotNull
 }
 
-export type TimeTriggerOptions<
-  Create extends string | true | null,
-  Update extends string | true | null,
-> = {
-  create?: Create
-  update?: Update
+export type ExtraOptions<Create, Update, Delete> = {
+  /**
+  /**
+   * Create time column
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `createAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  createAt?: Create
+  /**
+   * Update time column. Use trigger to update
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `updateAt`
+   * - If type is `string`, it will be treated as column name
+   */
+  updateAt?: Update
+  /**
+   * Soft delete column
+   *
+   * - If type is `undefined` or `false`, ignore
+   * - If type is `true`, column name is `isDeleted`
+   * - If type is `string`, it will be treated as column name
+   */
+  softDelete?: Delete
 }
 
 export type TableProperty<
   Cols extends Columns,
-  Create extends string | true | null = null,
-  Update extends string | true | null = null,
-  Delete extends string | true | null = null,
 > = {
   /**
    * Primary key constraint, only if have no `column.increments()` key
+   *
+   * Support pattern:
+   * - `'id'`: `id` as primary key
+   * - `['name', 'gender']`: `name` and `gender` as primary key
    */
   primary?: Arrayable<keyof Cols & string>
   /**
    * Unique constraint
+   *
+   * Support pattern:
+   * - `['id']`: `id` as unique
+   * - `[['id']]`: `id` as unique
+   * - `['name', 'gender']`: `name` and `gender` as unique
+   * - `[['name', 'gender'], 'id']`: `name` / `gender` and `id` as unique
    */
   unique?: Arrayable<keyof Cols & string>[]
   /**
    * Column indexes, allow multiple, no unique index support
+   *
+   * Support pattern:
+   * - `['id']`: `id` as index
+   * - `[['id']]`: `id` as index
+   * - `['name', 'gender']`: `name` and `gender` as index
+   * - `[['name', 'gender'], 'id']`: `name` / `gender` and `id` as index
    */
   index?: Arrayable<keyof Cols & string>[]
-  /**
-   * Time trigger for `createAt` and `updateAt`
-   */
-  timeTrigger?: TimeTriggerOptions<Create, Update>
-  /**
-   * Whether to use soft delete
-   */
-  softDelete?: Delete
 }
 
 export type Columns = Record<string, ColumnProperty>
@@ -111,7 +117,7 @@ export type ColumnsWithErrorInfo<T extends Columns> = {
         type: {
           error: 'TypeError: [defaultTo] not satisfied [type]'
           column: K
-          typeIs: InferColumnTypeByNumber<T[K]['type']>
+          typeIs: InferColumnType<T[K]['type']>
           defaultToIs: T[K]['defaultTo']
         }
       };
@@ -124,18 +130,9 @@ export type Table<
   Delete extends string | true | null = null,
 > = {
   columns: ColumnsWithErrorInfo<Cols>
-} & TableProperty<Cols, Create, Update, Delete>
+} & TableProperty<Cols> & ExtraOptions<Create, Update, Delete>
 
 export type Schema = Record<string, Table<any, any, any, any>>
-
-// export type FilterGenerated<
-//   Table extends object,
-//   EscapeKeys extends string = never,
-// > = {
-//   [K in keyof Table]: K extends EscapeKeys
-//     ? Table[K]
-//     : InferGenereated<Table[K]>
-// }
 
 type TriggerKey<A, B> =
   | (A extends true ? 'createAt' : A extends string ? A : never)
@@ -150,20 +147,20 @@ type ExtraColumnsKey<
     ? (TriggerKey | 'isDeleted')
     : TriggerKey
 
-export type ParseTableWithExtraColumns<
+type ParseTableWithExtraColumns<
   T extends Columns,
-  P extends TimeTriggerOptions<any, any> | undefined,
+  Create extends string | true | undefined,
+  Update extends string | true | undefined,
   Delete extends string | true | undefined,
-> = P extends TimeTriggerOptions<infer A, infer B>
-  // eslint-disable-next-line style/indent-binary-ops
-  ? Omit<T, ExtraColumnsKey<TriggerKey<A, B>, Delete>> & ({
-    [K in ExtraColumnsKey<TriggerKey<A, B>, Delete>]: {
-      type: _DataType['increments'] // #hack to ensure Generated
-      defaultTo: Generated<K extends TriggerKey<A, B> ? Date : number> | null
-      notNull: null
-    }
-  })
-  : never
+  Time extends TriggerKey<Create, Update> = TriggerKey<Create, Update>,
+  Extra extends ExtraColumnsKey<Time, Delete> = ExtraColumnsKey<Time, Delete>,
+> = Omit<T, Extra> & {
+  [K in Extra]: {
+    type: TDataType['increments'] // #hack to ensure Generated
+    defaultTo: Generated<K extends Time ? Date : number> | null
+    notNull: null
+  }
+}
 
 /**
  * Util type for infering type of table
@@ -171,10 +168,11 @@ export type ParseTableWithExtraColumns<
 export type InferTable<
   T extends {
     columns: Columns
-    timeTrigger?: TimeTriggerOptions<any, any>
+    createAt?: any
+    updateAt?: any
     softDelete?: any
   },
-  P = ParseTableWithExtraColumns<T['columns'], T['timeTrigger'], T['softDelete']>,
+  P = ParseTableWithExtraColumns<T['columns'], T['createAt'], T['updateAt'], T['softDelete']>,
 > = Prettify<{
   [K in keyof P]: P[K] extends ColumnProperty
     // if not null
@@ -182,7 +180,7 @@ export type InferTable<
       // return required defaultTo
       ? Exclude<P[K]['defaultTo'], null>
       // if type is "increments"
-      : P[K]['type'] extends _DataType['increments']
+      : P[K]['type'] extends TDataType['increments']
         // return "Generated<...>"
         ? Exclude<P[K]['defaultTo'], null>
         // if defaultTo is not null
@@ -206,7 +204,8 @@ export type InferTable<
 export type InferDatabase<T extends Schema> = Prettify<{
   [K in keyof T]: T[K] extends {
     columns: Columns
-    timeTrigger?: TimeTriggerOptions<any, any>
+    createAt?: any
+    updateAt?: any
     softDelete?: any
   }
     ? InferTable<T[K]>

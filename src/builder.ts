@@ -9,7 +9,12 @@ import type {
   RawBuilder,
   Transaction,
 } from 'kysely'
-import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
+import type {
+  ExtractTableAlias,
+  From,
+  FromTables,
+  TableReference,
+} from 'kysely/dist/cjs/parser/table-parser'
 import { Kysely } from 'kysely'
 import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 import { baseExecutor, type Executor, type JoinFnName } from './executor'
@@ -27,31 +32,32 @@ import { executeSQL } from './utils'
 
 export type SqliteBuilderOptions = {
   /**
-   * kysely dialect
+   * Kysely dialect
    */
   dialect: Dialect
   /**
-   * like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
+   * Like `KyselyConfig.log`, use {@link createKyselyLogger} to better render log, options: {@link LoggerOptions}
    *
-   * if value is `true`, it will log result sql and and other {@link LoggerParams} in console
+   * If value is `true`, it will only `error` level result sql and and other {@link LoggerParams} in console
    */
   onQuery?: boolean | LoggerOptions
   /**
-   * additional plugins
+   * Additional plugins
    *
-   * **do NOT use camelCase plugin with syncDB(useSchema(...)), this will lead to sync fail
+   * **DO NOT** use camelCase plugin with `db.syncDB(useSchema(...))`,
+   * this will lead to sync fail if you set `create` / `update` / `softDelete` to `boolean`
    */
   plugins?: KyselyPlugin[]
   /**
-   * db logger
+   * DB logger
    */
   logger?: DBLogger
   /**
-   * custom executor
+   * Custom executor
    * @example
    * import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
    *
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * const { executor, whereExists } = createSoftDeleteExecutor()
    *
    * const db = new SqliteBuilder<DB>({
    *   dialect: new SqliteDialect({
@@ -67,11 +73,11 @@ export type SqliteBuilderOptions = {
 interface TransactionOptions<T> {
   errorMsg?: string
   /**
-   * after commit hook
+   * On commit hook
    */
   onCommit?: (result: T) => Promisable<void>
   /**
-   * after rollback hook
+   * On rollback hook
    */
   onRollback?: (err: unknown) => Promisable<void>
 }
@@ -91,8 +97,38 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
+  public replaceInto: Kysely<DB>['replaceInto'] = tb => this.e.replaceInto(this.kysely, tb)
   public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
   public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
+  /**
+   * Creates a delete query.
+   *
+   * See the {@link DeleteQueryBuilder.where} method for examples on how to specify
+   * a where clause for the delete operation.
+   *
+   * The return value of the query is an instance of {@link DeleteResult}.
+   *
+   * ### Examples
+   *
+   * <!-- siteExample("delete", "Single row", 10) -->
+   *
+   * Delete a single row:
+   *
+   * ```ts
+   * const result = await db
+   *   .deleteFrom('person')
+   *   .where('person.id', '=', '1')
+   *   .executeTakeFirst()
+   *
+   * console.log(result.numDeletedRows)
+   * ```
+   *
+   * The generated SQL (PostgreSQL):
+   *
+   * ```sql
+   * delete from "person" where "person"."id" = $1
+   * ```
+   */
   public deleteFrom: {
     <TR extends keyof DB & string>(from: TR): Omit<
       DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
@@ -127,9 +163,11 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    *     manual: { type: DataType.boolean },
    *     array: column.object().$cast<string[]>(),
    *     literal: column.string().$cast<'l1' | 'l2'>(),
+   *     score: column.float(),
+   *     birth: column.date(),
    *     buffer: column.blob(),
    *   },
-   *   primary: 'id',
+   *   primary: 'id', // optional
    *   index: ['person', ['id', 'gender']],
    *   timeTrigger: { create: true, update: true },
    * })
@@ -139,7 +177,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * }
    *
    * // create soft delete executor
-   * const { executor, withNoDelete } = createSoftDeleteExecutor()
+   * const { executor, whereExists } = createSoftDeleteExecutor()
    *
    * const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
    *   dialect: new SqliteDialect({
@@ -217,13 +255,13 @@ export class SqliteBuilder<DB extends Record<string, any>> {
    * @example
    * import { useSchema } from 'kysely-sqlite-builder/schema'
    * import { useMigrator } from 'kysely-sqlite-builder/migrator'
-   * import { FileMigrationProvider } from 'kysely'
+   * import { createCodeProvider } from 'kysely-sqlite-builder/migrator'
    *
    * // update tables using schema
-   * await builder.syncDB(useSchema(Schema, { logger: false }))
+   * await db.syncDB(useSchema(Schema, { logger: false }))
    *
    * // update tables using MigrationProvider and migrate to latest
-   * await builder.syncDB(useMigrator(new FileMigrationProvider(...)))
+   * await db.syncDB(useMigrator(createCodeProvider(...)))
    */
   public async syncDB(updater: SchemaUpdater, checkIntegrity?: boolean): Promise<StatusResult> {
     try {
@@ -232,10 +270,10 @@ export class SqliteBuilder<DB extends Record<string, any>> {
         return { ready: false, error: new IntegrityError() }
       }
       const result = await updater(this.ky, this.log)
-      this.log?.info('Table sync success')
+      this.log?.info('Sync completed')
       return result
     } catch (error) {
-      this.logError(error, 'Unknown error when syncing tables')
+      this.logError(error, 'Unknown error while syncing')
       return {
         ready: false,
         error,
@@ -288,8 +326,9 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
 
     this.trxCount++
-    this.log?.debug(`Run in savepoint: SP_${this.trxCount}`)
-    const { release, rollback } = await savePoint(this.kysely, `SP_${this.trxCount}`)
+    const sp = `SP_${this.trxCount}`
+    this.log?.debug(`Run in savepoint: ${sp}`)
+    const { release, rollback } = await savePoint(this.kysely, sp)
 
     return await fn(this.kysely as Transaction<DB>)
       .then(async (result) => {

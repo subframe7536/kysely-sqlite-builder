@@ -1,68 +1,81 @@
 import type { IsNotNull } from '@subframe7536/type-utils'
-import type { RawBuilder } from 'kysely'
-import {
-  type _DataType,
-  type BooleanColumnType,
-  type ColumnProperty,
-  type Columns,
-  type ColumnsWithErrorInfo,
-  DataType,
-  type DataTypeValue,
-  type InferColumnTypeByNumber,
-  type Table,
-  type TableProperty,
+import type { Generated, RawBuilder } from 'kysely'
+import type {
+  BooleanColumnType,
+  ColumnProperty,
+  Columns,
+  ColumnsWithErrorInfo,
+  ExtraOptions,
+  InferColumnType,
+  Table,
+  TableProperty,
 } from './types'
+import { DataType, type DataTypeValue, type TDataType } from './column'
 
 export const TGRC = '_TC_'
 export const TGRU = '_TU_'
 
+type DefineTableOptions<
+  T extends Columns,
+  C extends string | boolean | null = null,
+  U extends string | boolean | null = null,
+  D extends string | boolean | null = null,
+> = TableProperty<T> & ExtraOptions<C, U, D> & {
+  /**
+   * Table columns definition
+   */
+  columns: T
+}
+
+type ParseFalseToNull<T extends boolean | string | null> = T extends false ? null : T
+
 /**
- * Define table
- *
- * you can use it with {@link $col}
+ * Define table schema with {@link column}
  *
  * @example
+ * import { column, defineTable } from 'kysely-sqlite-builder/schema'
+ *
  * const testTable = defineTable({
- *   id: column.increments(),
- *   // or just object
- *   simple: { type: 'string', defaultTo: 'test' }
- *   person: column.object({ name: 'test' }),
- *   gender: column.boolean().NotNull(),
- *   array: column.object<string[]>(),
- *   literal: column.string<'l1' | 'l2'>(),
- *   buffer: column.blob(),
- * }, {
- *   primary: 'id',
+ *   columns: {
+ *     id: column.increments(),
+ *     person: column.object({ defaultTo: { name: 'test' } }),
+ *     gender: column.boolean({ notNull: true }),
+ *     // or just object
+ *     manual: { type: DataType.boolean },
+ *     array: column.object().$cast<string[]>(),
+ *     literal: column.string().$cast<'l1' | 'l2'>(),
+ *     buffer: column.blob(),
+ *   },
+ *   primary: 'id', // optional
  *   index: ['person', ['id', 'gender']],
- *   timeTrigger: { create: true, update: true },
+ *   unique: [['id', 'gender']],
+ *   // these params will auto add columns into table
+ *   createAt: true, // `createTime` column
+ *   updateAt: true, // `updateTime` column
+ *   softDelete: true, // `isDeleted` column
  * })
  */
 export function defineTable<
   T extends Columns,
-  C extends string | true | null = null,
-  U extends string | true | null = null,
-  D extends string | true | null = null,
+  C extends string | boolean | null = null,
+  U extends string | boolean | null = null,
+  D extends string | boolean | null = null,
 >(
-  options: {
-    /**
-     * table columns
-     */
-    columns: T
-  } & TableProperty<T, C, U, D>,
-): Table<T, C, U, D> {
+  options: DefineTableOptions<T, C, U, D>,
+): Table<T, ParseFalseToNull<C>, ParseFalseToNull<U>, ParseFalseToNull<D>> {
   const { columns, ...rest } = options
-  const { timeTrigger: { create, update } = {}, softDelete } = rest
+  const { updateAt, createAt, softDelete } = rest
 
-  if (create) {
+  if (createAt) {
     // #hack if `defaultTo === TGRC`, the column is updateAt
     // @ts-expect-error assign
-    columns[create === true ? 'createAt' : create] = { type: DataType.date, defaultTo: TGRC }
+    columns[createAt === true ? 'createAt' : createAt] = { type: DataType.date, defaultTo: TGRC }
   }
 
-  if (update) {
+  if (updateAt) {
     // #hack if `defaultTo === TGRU`, the column is updateAt
     // @ts-expect-error assign
-    columns[update === true ? 'updateAt' : update] = { type: DataType.date, defaultTo: TGRU }
+    columns[updateAt === true ? 'updateAt' : updateAt] = { type: DataType.date, defaultTo: TGRU }
   }
 
   if (softDelete) {
@@ -73,11 +86,24 @@ export function defineTable<
   return {
     ...rest,
     columns: columns as unknown as ColumnsWithErrorInfo<T>,
-  }
+  } as Table<T, ParseFalseToNull<C>, ParseFalseToNull<U>, ParseFalseToNull<D>>
 }
 
-type Options<T = any, NotNull extends true | null = true | null> = {
-  defaultTo?: T | RawBuilder<unknown> | null
+type NormalizeType<T> =
+  T extends string
+    ? string
+    : T extends number
+      ? number
+      : T extends boolean
+        ? boolean
+        : T
+
+type Options<
+  T = any,
+  DefaultTo extends T | RawBuilder<unknown> | null = T | RawBuilder<unknown> | null,
+  NotNull extends boolean | null = null,
+> = {
+  defaultTo?: NormalizeType<DefaultTo>
   notNull?: NotNull
 }
 
@@ -88,66 +114,73 @@ function parse(type: DataTypeValue, options?: Options): any {
 
 type ColumnBuilder<
   T extends DataTypeValue,
-  Type extends InferColumnTypeByNumber<T> | null,
-  NotNull extends true | null,
-  HasDefaultTo = IsNotNull<Type>,
-> = ColumnProperty<T, HasDefaultTo extends true ? Type : Type | null, NotNull> & {
+  Type extends InferColumnType<T> | null,
+  NotNull extends boolean | null,
+> = ColumnProperty<
+  T,
+  IsNotNull<Type> extends true ? Type : Type | null,
+  NotNull extends false ? null : true
+> & {
   /**
    * Define column type manually
    */
   $cast: <
-    NarrowedType extends InferColumnTypeByNumber<T>,
-  >() => ColumnProperty<T, HasDefaultTo extends true ? NarrowedType : NarrowedType | null, NotNull>
+    NarrowedType extends InferColumnType<T>,
+  >() => ColumnProperty<
+    T,
+    IsNotNull<Type> extends true ? NarrowedType : NarrowedType | null,
+    NotNull extends false ? null : true
+  >
 }
 
 /**
- * define column util
+ * Define column util
  */
 export const column = {
   /**
    * Column type: INTEGER AUTO INCREMENT
    */
-  increments: () => ({ type: DataType.increments } as const),
+  increments: () => ({ type: DataType.increments }) as ColumnBuilder<TDataType['increments'], Generated<number>, null>,
   /**
    * Column type: INTEGER
    */
-  int: <T extends number | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.int, options as any) as ColumnBuilder<_DataType['int'], T, NotNull>,
+  int: <T extends number, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.int, options as any) as ColumnBuilder<TDataType['int'], T, NotNull>,
   /**
    * Column type: REAL
    */
-  float: <T extends number | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.float, options as any) as ColumnBuilder<_DataType['float'], T, NotNull>,
+  float: <T extends number, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.float, options as any) as ColumnBuilder<TDataType['float'], T, NotNull>,
   /**
    * Column type: text
    */
-  string: <T extends string | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.string, options as any) as ColumnBuilder<_DataType['string'], T, NotNull>,
+  string: <T extends string, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.string, options as any) as ColumnBuilder<TDataType['string'], T, NotNull>,
   /**
    * Column type: BLOB
    */
-  blob: <T extends Uint8Array | null, NotNull extends true | null>(
+  blob: <T extends Uint8Array, NotNull extends boolean | null>(
     options?: { notNull?: NotNull },
-  ) => parse(DataType.blob, options as any) as ColumnBuilder<_DataType['blob'], T, NotNull>,
+  ) => parse(DataType.blob, options as any) as ColumnBuilder<TDataType['blob'], T, NotNull>,
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  boolean: <T extends BooleanColumnType | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.boolean, options as any) as ColumnBuilder<_DataType['boolean'], T, NotNull>,
+  boolean: <T extends BooleanColumnType, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.boolean, options as any) as ColumnBuilder<TDataType['boolean'], T, NotNull>,
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  date: <T extends Date | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.date, options as any) as ColumnBuilder<_DataType['date'], T, NotNull>,
+  date: <T extends Date, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.date, options as any) as ColumnBuilder<TDataType['date'], T, NotNull>,
   /**
    * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  object: <T extends object | null, NotNull extends true | null>(
-    options?: Options<T, NotNull>,
-  ) => parse(DataType.object, options as any) as ColumnBuilder<_DataType['object'], T, NotNull>,
+  object: <T extends object, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
+    options?: Options<T, DefaultTo, NotNull>,
+  ) => parse(DataType.object, options as any) as ColumnBuilder<TDataType['object'], T, NotNull>,
 }

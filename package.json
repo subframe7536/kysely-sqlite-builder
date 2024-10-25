@@ -61,13 +61,15 @@
     "kysely-plugin-serialize": "^0.6.3"
   },
   "devDependencies": {
-    "@subframe7536/eslint-config": "^0.9.4",
+    "@subframe7536/eslint-config": "^0.9.5",
     "@subframe7536/type-utils": "^0.1.6",
-    "@types/bun": "^1.1.10",
-    "bumpp": "^9.5.2",
-    "eslint": "^9.11.1",
+    "@types/bun": "^1.1.11",
+    "bumpp": "^9.7.1",
+    "eslint": "^9.13.0",
     "kysely": "^0.27.4",
+    "kysely-wasm": "^0.6.3",
+    "node-sqlite3-wasm": "^0.8.24",
     "tsup": "^8.3.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   }
 }

@@ -1,7 +1,7 @@
 import type { InferDatabase } from '../src/schema'
 import { NodeWasmDialect } from 'kysely-wasm'
 import { Database } from 'node-sqlite3-wasm'
-import { optimizePragma, SqliteBuilder } from '../src'
+import { type LoggerOptions, optimizePragma, SqliteBuilder } from '../src'
 import { column, defineTable } from '../src/schema'
 
 const testTable = defineTable({
@@ -11,11 +11,15 @@ const testTable = defineTable({
     person: column.object({ defaultTo: { name: 'test' } }),
     gender: column.boolean({ notNull: true }),
     array: column.object().$cast<string[]>(),
+    score: column.float(),
+    birth: column.date(),
     literal: column.string().$cast<'l1' | 'l2' | string & {}>(),
   },
-  primary: 'id',
+  primary: 'id', // optional
+  unique: ['literal'],
   index: ['person', ['id', 'gender']],
-  timeTrigger: { create: true, update: true },
+  createAt: true,
+  updateAt: true,
 })
 
 const blobTable = defineTable({
@@ -35,14 +39,20 @@ export const baseTables = {
 }
 export type DB = InferDatabase<typeof baseTables>
 
-export function getDatabaseBuilder(debug = false): SqliteBuilder<DB> {
-  return new SqliteBuilder<DB>({
-    dialect: new NodeWasmDialect({
-      database: new Database(':memory:'),
-      async onCreateConnection(connection) {
-        await optimizePragma(connection)
-      },
-    }),
+export function createDialect(): NodeWasmDialect {
+  return new NodeWasmDialect({
+    database: new Database(':memory:'),
+    async onCreateConnection(connection) {
+      await optimizePragma(connection)
+    },
+  })
+}
+
+export function getDatabaseBuilder<T extends Record<string, any> = DB>(
+  debug: boolean | LoggerOptions = false,
+): SqliteBuilder<T> {
+  return new SqliteBuilder<T>({
+    dialect: createDialect(),
     logger: console,
     onQuery: debug,
   })
