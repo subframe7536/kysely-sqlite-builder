@@ -192,9 +192,9 @@ export function dropTrigger(triggerName: string): string {
 }
 
 /**
- * Restore column list with default value (sql string)
+ * Restore column list with default value (sql string) for {@link migrateWholeTable}
  *
- * `INSERT INTO table_name (${names}) SELECT ${selectSQL} FROM _temp_table_name;`
+ * `INSERT INTO tempTableName (${names}) SELECT ${selectSQL} FROM tableName;`
  */
 export type RestoreColumnList = [name: string, selectSQL: string][]
 
