@@ -1,34 +1,26 @@
 import type { Promisable } from '@subframe7536/type-utils'
 import type {
   CompiledQuery,
-  DeleteQueryBuilder,
-  DeleteResult,
   Dialect,
+  JoinType,
   KyselyPlugin,
   QueryResult,
   RawBuilder,
   Transaction,
 } from 'kysely'
-import type {
-  ExtractTableAlias,
-  From,
-  FromTables,
-  TableReference,
-} from 'kysely/dist/cjs/parser/table-parser'
 import { Kysely } from 'kysely'
 import { BaseSerializePlugin } from 'kysely-plugin-serialize'
-import { baseExecutor, type Executor, type JoinFnName } from './executor'
-import { createKyselyLogger, type LoggerOptions } from './logger'
-import { checkIntegrity as runCheckIntegrity } from './pragma'
-import { savePoint } from './savepoint'
-import { defaultDeserializer, defaultSerializer } from './serialize'
+import { createKyselyLogger, type LoggerOptions } from '../logger'
+import { checkIntegrity as runCheckIntegrity } from '../pragma'
+import { savePoint } from '../savepoint'
+import { defaultDeserializer, defaultSerializer } from '../serialize'
 import {
   type DBLogger,
   IntegrityError,
   type SchemaUpdater,
   type StatusResult,
-} from './types'
-import { executeSQL } from './utils'
+} from '../types'
+import { executeSQL } from '../utils'
 
 export type SqliteBuilderOptions = {
   /**
@@ -52,22 +44,6 @@ export type SqliteBuilderOptions = {
    * DB logger
    */
   logger?: DBLogger
-  /**
-   * Custom executor
-   * @example
-   * import { SqliteBuilder, createSoftDeleteExecutor } from 'kysely-sqlite-builder'
-   *
-   * const { executor, whereExists } = createSoftDeleteExecutor()
-   *
-   * const db = new SqliteBuilder<DB>({
-   *   dialect: new SqliteDialect({
-   *     database: new Database(':memory:'),
-   *   }),
-   *   // use soft delete executor
-   *   executor,
-   * })
-   */
-  executor?: Executor
 }
 
 interface TransactionOptions<T> {
@@ -82,12 +58,18 @@ interface TransactionOptions<T> {
   onRollback?: (err: unknown) => Promisable<void>
 }
 
-export class SqliteBuilder<DB extends Record<string, any>> {
+type CamelCase<S extends string> = S extends `${infer First}${infer Rest}`
+  ? First extends Uppercase<First>
+    ? `${Lowercase<First>}${Rest}`
+    : S
+  : S
+export type JoinFnName = CamelCase<JoinType>
+
+export class BaseSqliteBuilder<DB extends Record<string, any>> {
   public trxCount = 0
   private ky: Kysely<DB>
   private trx?: Transaction<DB>
   private log?: DBLogger
-  private e: Executor
 
   /**
    * Current kysely / transaction instance
@@ -96,136 +78,12 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     return this.trx || this.ky
   }
 
-  public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
-  public replaceInto: Kysely<DB>['replaceInto'] = tb => this.e.replaceInto(this.kysely, tb)
-  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
-  public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
-  /**
-   * Creates a delete query.
-   *
-   * See the {@link DeleteQueryBuilder.where} method for examples on how to specify
-   * a where clause for the delete operation.
-   *
-   * The return value of the query is an instance of {@link DeleteResult}.
-   *
-   * ### Examples
-   *
-   * <!-- siteExample("delete", "Single row", 10) -->
-   *
-   * Delete a single row:
-   *
-   * ```ts
-   * const result = await db
-   *   .deleteFrom('person')
-   *   .where('person.id', '=', '1')
-   *   .executeTakeFirst()
-   *
-   * console.log(result.numDeletedRows)
-   * ```
-   *
-   * The generated SQL (PostgreSQL):
-   *
-   * ```sql
-   * delete from "person" where "person"."id" = $1
-   * ```
-   */
-  public deleteFrom: {
-    <TR extends keyof DB & string>(from: TR): Omit<
-      DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
-      JoinFnName
-    >
-    <TR extends TableReference<DB>>(table: TR): Omit<
-      DeleteQueryBuilder<From<DB, TR>, FromTables<DB, never, TR>, DeleteResult>,
-      JoinFnName
-    >
-  } = (tb: any) => this.e.deleteFrom(this.kysely, tb) as any
-
-  /**
-   * SQLite builder. All methods will run in current transaction
-   * @param options options
-   * @example
-   * ### Definition
-   *
-   * ```ts
-   * import { FileMigrationProvider, SqliteDialect, createSoftDeleteExecutor } from 'kysely'
-   * import { SqliteBuilder } from 'kysely-sqlite-builder'
-   * import { useMigrator } from 'kysely-sqlite-builder/migrator'
-   * import Database from 'better-sqlite3'
-   * import type { InferDatabase } from 'kysely-sqlite-builder/schema'
-   * import { DataType, column, defineTable } from 'kysely-sqlite-builder/schema'
-   *
-   * const testTable = defineTable({
-   *   columns: {
-   *     id: column.increments(),
-   *     person: column.object({ defaultTo: { name: 'test' } }),
-   *     gender: column.boolean({ notNull: true }),
-   *     // or just object
-   *     manual: { type: DataType.boolean },
-   *     array: column.object().$cast<string[]>(),
-   *     literal: column.string().$cast<'l1' | 'l2'>(),
-   *     score: column.float(),
-   *     birth: column.date(),
-   *     buffer: column.blob(),
-   *   },
-   *   primary: 'id', // optional
-   *   index: ['person', ['id', 'gender']],
-   *   timeTrigger: { create: true, update: true },
-   * })
-   *
-   * const DBSchema = {
-   *   test: testTable,
-   * }
-   *
-   * // create soft delete executor
-   * const { executor, whereExists } = createSoftDeleteExecutor()
-   *
-   * const db = new SqliteBuilder<InferDatabase<typeof DBSchema>>({
-   *   dialect: new SqliteDialect({
-   *     database: new Database(':memory:'),
-   *   }),
-   *   logger: console,
-   *   onQuery: true,
-   *   executor, // use soft delete executor
-   * })
-   *
-   * // update table using schema
-   * await db.syncDB(useSchema(DBSchema, { logger: false }))
-   *
-   * // update table using migrator
-   * await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), { options}))
-   *
-   * // usage: insertInto / selectFrom / updateTable / deleteFrom
-   * await db.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
-   *
-   * db.transaction(async (trx) => {
-   *   // auto load transaction
-   *   await db.insertInto('test').values({ gender: true }).execute()
-   *   // or
-   *   await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
-   *   db.transaction(async () => {
-   *     // nest transaction, use savepoint
-   *     await db.selectFrom('test').where('gender', '=', true).execute()
-   *   })
-   * })
-   *
-   * // use origin instance: Kysely or Transaction
-   * await db.kysely.insertInto('test').values({ gender: false }).execute()
-   *
-   * // run raw sql
-   * await db.execute(sql`PRAGMA user_version = ${2}`)
-   * await db.execute('PRAGMA user_version = ?', [2])
-   *
-   * // destroy
-   * await db.destroy()
-   * ```
-   */
   public constructor(options: SqliteBuilderOptions) {
     const {
       dialect,
       logger,
       onQuery,
       plugins = [],
-      executor = baseExecutor,
     } = options
     this.log = logger
     plugins.push(new BaseSerializePlugin({
@@ -245,7 +103,6 @@ export class SqliteBuilder<DB extends Record<string, any>> {
     }
 
     this.ky = new Kysely<DB>({ dialect, log, plugins })
-    this.e = executor
   }
 
   /**

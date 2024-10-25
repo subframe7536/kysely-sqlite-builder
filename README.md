@@ -78,10 +78,10 @@ await db.syncDB(useSchema(DBSchema, { logger: false }))
 await db.syncDB(useMigrator(new FileMigrationProvider('./migrations'), {/* options */}))
 ```
 
-sync options type:
+Schema sync options type:
 
 ```ts
-export type SyncOptions<T extends Schema> = {
+export type SchemaSyncOptions<T extends Schema> = {
   /**
    * Whether to enable debug logger
    */
@@ -245,21 +245,21 @@ const softDeleteTable = defineTable({
 const softDeleteSchema = {
   testSoftDelete: softDeleteTable,
 }
-const { executor, whereExists, whereDeleted } = createSoftDeleteExecutor()
 
-const db = new SqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
+const db = new SoftDeleteSqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
   dialect: new SqliteDialect({
     database: new Database(':memory:'),
   }),
-  // use soft delete executor
-  executor,
 })
 
 await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 // update "testSoftDelete" set "isDeleted" = 1 where "id" = 1
 
-// If you are using original kysely instance:
-await db.kysely.selectFrom('testSoftDelete').selectAll().$call(whereExists).execute()
+// if you are using original kysely instance:
+await db.kysely.selectFrom('testSoftDelete').selectAll().$call(db.whereExists).execute()
+
+// fix `DeleteResult` runtime type
+db.toDeleteResult(await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute())
 ```
 
 ### Page Query

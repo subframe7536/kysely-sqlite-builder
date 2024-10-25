@@ -1,9 +1,9 @@
 import type { InferDatabase } from '../src/schema'
 import { describe, expect, it } from 'bun:test'
-import { pageQuery, precompile } from '../src'
+import { pageQuery, precompile, SoftDeleteSqliteBuilder } from '../src'
 import { getOrSetDBVersion } from '../src/pragma'
 import { column, defineTable, useSchema } from '../src/schema'
-import { baseTables, getDatabaseBuilder } from './utils'
+import { baseTables, createDialect, getDatabaseBuilder } from './utils'
 
 describe('test builder', async () => {
   it('should insert', async () => {
@@ -101,7 +101,11 @@ describe('test builder', async () => {
       testSoftDelete: softDeleteTable,
     }
 
-    const db = getDatabaseBuilder<InferDatabase<typeof softDeleteSchema>>()
+    const db = new SoftDeleteSqliteBuilder<InferDatabase<typeof softDeleteSchema>>({
+      dialect: createDialect(),
+      logger: console,
+      onQuery: false,
+    })
     await db.syncDB(useSchema(softDeleteSchema, { log: false }))
 
     const insertResult = await db
@@ -111,12 +115,22 @@ describe('test builder', async () => {
       .executeTakeFirst()
     expect(insertResult?.isDeleted).toBe(0)
 
-    await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
+    const deleteResult = await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
+    expect(deleteResult[0].numDeletedRows).toBeUndefined()
+    const fixedDeleteResult = db.toDeleteResult(deleteResult)
+    expect(fixedDeleteResult[0].numDeletedRows).toBe(1n)
+
     const selectResult = await db
       .selectFrom('testSoftDelete')
       .selectAll()
       .executeTakeFirst()
     expect(selectResult).toBeUndefined()
+    const selectResult1 = await db.kysely
+      .selectFrom('testSoftDelete')
+      .selectAll()
+      .$call(db.whereExists)
+      .executeTakeFirst()
+    expect(selectResult1).toBeUndefined()
 
     const updateResult = await db
       .updateTable('testSoftDelete')

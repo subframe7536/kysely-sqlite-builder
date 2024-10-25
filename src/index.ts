@@ -1,5 +1,4 @@
 export * from './builder'
-export * from './executor'
 export * from './logger'
 export * from './page-query'
 export * from './pragma'
