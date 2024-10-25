@@ -24,12 +24,14 @@ export type JoinFnName = CamelCase<JoinType>
 export interface Executor {
   selectFrom: (db: Kysely<any>, tb: any) => SelectQueryBuilder<any, any, {}>
   insertInto: (db: Kysely<any>, tb: any) => InsertQueryBuilder<any, any, InsertResult>
+  replaceInto: (db: Kysely<any>, tb: any) => InsertQueryBuilder<any, any, InsertResult>
   updateTable: (db: Kysely<any>, tb: any) => UpdateQueryBuilder<any, any, any, UpdateResult>
   deleteFrom: (db: Kysely<any>, tb: any) => DeleteQueryBuilder<any, any, DeleteResult>
 }
 export const baseExecutor: Executor = {
   selectFrom: (db, tb) => db.selectFrom(tb),
   insertInto: (db, tb) => db.insertInto(tb),
+  replaceInto: (db, tb) => db.replaceInto(tb),
   updateTable: (db, tb) => db.updateTable(tb),
   deleteFrom: (db, tb) => db.deleteFrom(tb),
 }
@@ -77,6 +79,7 @@ export function createSoftDeleteExecutor(deleteColumnName = 'isDeleted'): Create
     executor: {
       selectFrom: (db: Kysely<any>, table: any) => db.selectFrom(table).where(deleteColumnName, '=', 0),
       insertInto: (db: Kysely<any>, table: any) => db.insertInto(table),
+      replaceInto: (db: Kysely<any>, table: any) => db.replaceInto(table),
       updateTable: (db: Kysely<any>, table: any) => db.updateTable(table).where(deleteColumnName, '=', 0),
       deleteFrom: (db: Kysely<any>, table: any) => db.updateTable(table).set(deleteColumnName, 1) as any,
     },

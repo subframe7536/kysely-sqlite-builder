@@ -97,6 +97,7 @@ export class SqliteBuilder<DB extends Record<string, any>> {
   }
 
   public insertInto: Kysely<DB>['insertInto'] = tb => this.e.insertInto(this.kysely, tb)
+  public replaceInto: Kysely<DB>['replaceInto'] = tb => this.e.replaceInto(this.kysely, tb)
   public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.e.selectFrom(this.kysely, tb)
   public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.e.updateTable(this.kysely, tb)
   /**
