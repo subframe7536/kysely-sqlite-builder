@@ -320,7 +320,7 @@ describe('test update table', async () => {
     expect(result2.ready).toBeFalse()
   })
 
-  it.only('should use fallback value when have different not null value', async () => {
+  it('should use fallback value when have different not null value', async () => {
     await db.syncDB(
       useSchema({
         ...baseTables,

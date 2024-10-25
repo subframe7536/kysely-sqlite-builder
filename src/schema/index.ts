@@ -5,12 +5,12 @@ import type { Schema } from './types'
 import { generateSyncTableSQL, syncTables } from './core'
 import { parseExistSchema } from './parse-exist'
 
+export { DataType } from './column'
 export { defaultFallbackFunction, generateSyncTableSQL } from './core'
 export type { ColumnFallbackInfo } from './core'
 export { column, defineTable } from './define'
 export { parseExistSchema } from './parse-exist'
 export { migrateWholeTable, parseColumnType, type RestoreColumnList } from './run'
-export { DataType } from './types'
 export type { ColumnProperty, Columns, InferDatabase, InferTable, Schema, Table, TableProperty } from './types'
 
 /**

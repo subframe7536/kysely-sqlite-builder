@@ -1,45 +1,28 @@
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 import type { ColumnType, Generated, RawBuilder } from 'kysely'
-
-/**
- * Column data type
- */
-export const DataType = {
-  increments: 0,
-  int: 1,
-  float: 2,
-  string: 3,
-  blob: 4,
-  object: 5,
-  boolean: 6,
-  date: 7,
-} as const
-
-export type _DataType = typeof DataType
-
-export type DataTypeValue = _DataType[keyof _DataType]
+import type { DataTypeValue, TDataType } from './column'
 
 export type BooleanColumnType = ColumnType<0 | 1, boolean, boolean>
 
 export type InferColumnType<T extends DataTypeValue> =
-  T extends _DataType['string'] ? string :
-    T extends _DataType['boolean'] ? BooleanColumnType :
-      T extends _DataType['int'] | _DataType['float'] ? number :
-        T extends _DataType['increments'] ? Generated<number> :
-          T extends _DataType['date'] ? Date :
-            T extends _DataType['blob'] ? Uint8Array :
-              T extends _DataType['object'] ? object :
+  T extends TDataType['string'] ? string :
+    T extends TDataType['boolean'] ? BooleanColumnType :
+      T extends TDataType['int'] | TDataType['float'] ? number :
+        T extends TDataType['increments'] ? Generated<number> :
+          T extends TDataType['date'] ? Date :
+            T extends TDataType['blob'] ? Uint8Array :
+              T extends TDataType['object'] ? object :
                 never
 
 export type InferStringByColumnType<T> =
-  T extends string ? _DataType['string'] :
-    T extends BooleanColumnType ? _DataType['boolean'] :
-      T extends Generated<number> ? _DataType['increments'] | _DataType['int'] | _DataType['float'] :
-        T extends number ? _DataType['int'] | _DataType['float'] :
-          T extends Date ? _DataType['date'] :
-            T extends ArrayBufferLike ? _DataType['blob'] :
+  T extends string ? TDataType['string'] :
+    T extends BooleanColumnType ? TDataType['boolean'] :
+      T extends Generated<number> ? TDataType['increments'] | TDataType['int'] | TDataType['float'] :
+        T extends number ? TDataType['int'] | TDataType['float'] :
+          T extends Date ? TDataType['date'] :
+            T extends ArrayBufferLike ? TDataType['blob'] :
               T extends Generated<infer P> ? InferStringByColumnType<P> :
-                T extends object ? _DataType['object'] :
+                T extends object ? TDataType['object'] :
                   never
 
 export type ParsedColumnType =
@@ -173,7 +156,7 @@ type ParseTableWithExtraColumns<
   Extra extends ExtraColumnsKey<Time, Delete> = ExtraColumnsKey<Time, Delete>,
 > = Omit<T, Extra> & {
   [K in Extra]: {
-    type: _DataType['increments'] // #hack to ensure Generated
+    type: TDataType['increments'] // #hack to ensure Generated
     defaultTo: Generated<K extends Time ? Date : number> | null
     notNull: null
   }
@@ -197,7 +180,7 @@ export type InferTable<
       // return required defaultTo
       ? Exclude<P[K]['defaultTo'], null>
       // if type is "increments"
-      : P[K]['type'] extends _DataType['increments']
+      : P[K]['type'] extends TDataType['increments']
         // return "Generated<...>"
         ? Exclude<P[K]['defaultTo'], null>
         // if defaultTo is not null

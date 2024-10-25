@@ -52,8 +52,11 @@ const testTable = defineTable({
   },
   primary: 'id', // optional
   index: ['person', ['id', 'gender']],
+  unique: [['id', 'gender']],
+  // these params will auto add columns into table
   createAt: true, // `createTime` column
   updateAt: true, // `updateTime` column
+  softDelete: true, // `isDeleted` column
 })
 
 const DBSchema = {
