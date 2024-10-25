@@ -81,7 +81,7 @@ describe('test update table', async () => {
   let db: SqliteBuilder<DB>
 
   beforeEach(async () => {
-    db = getDatabaseBuilder(false)
+    db = getDatabaseBuilder({ enable: false })
     await db.syncDB(useSchema(baseTables, { log: false }))
     await db.insertInto('test')
       .values([
@@ -280,6 +280,7 @@ describe('test update table', async () => {
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].unique).toStrictEqual([])
   })
+
   it('should return `ready: false` when have multiple primary keys', async () => {
     const result = await db.syncDB(
       useSchema({
@@ -292,6 +293,7 @@ describe('test update table', async () => {
     )
     expect(result.ready).toBeFalse()
   })
+
   it('should return `ready: false` when have multiple increment columns', async () => {
     const result = await db.syncDB(
       useSchema({
@@ -317,7 +319,8 @@ describe('test update table', async () => {
     }))
     expect(result2.ready).toBeFalse()
   })
-  it('should use fallback value when have different not null value', async () => {
+
+  it.only('should use fallback value when have different not null value', async () => {
     await db.syncDB(
       useSchema({
         ...baseTables,

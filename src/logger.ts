@@ -11,7 +11,7 @@ export type LoggerParams = {
    */
   params: readonly unknown[]
   /**
-   * Execution duration in milliseconds
+   * Execution duration in milliseconds, precision is 2
    */
   duration: number
   /**
@@ -89,7 +89,7 @@ export function createKyselyLogger(
     const param: LoggerParams = {
       sql: _sql.replace(regexp, '?'),
       params: parameters,
-      duration: queryDurationMillis,
+      duration: Math.round(queryDurationMillis * 100) / 100,
       error: err,
     }
     if (logQueryNode) {
