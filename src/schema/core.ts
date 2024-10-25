@@ -64,7 +64,7 @@ export type ColumnFallbackInfo = {
 
 type ColumnFallbackFn = (data: ColumnFallbackInfo) => RawBuilder<unknown>
 
-export type SyncOptions<T extends Schema> = {
+export type SchemaSyncOptions<T extends Schema> = {
   /**
    * Whether to enable debug logger
    */
@@ -121,7 +121,7 @@ export type SyncOptions<T extends Schema> = {
 export async function syncTables<T extends Schema>(
   db: Kysely<any>,
   targetSchema: T,
-  options: SyncOptions<T> = {},
+  options: SchemaSyncOptions<T> = {},
   logger?: DBLogger,
 ): Promise<StatusResult> {
   const {
@@ -198,7 +198,7 @@ export function generateSyncTableSQL<T extends Schema>(
   db: Kysely<any>,
   existSchema: ParsedSchema,
   targetSchema: T,
-  truncateIfExists: SyncOptions<T>['truncateIfExists'] = [],
+  truncateIfExists: SchemaSyncOptions<T>['truncateIfExists'] = [],
   debug: (msg: string) => void = () => { },
   fallback: ColumnFallbackFn = defaultFallbackFunction,
 ): string[] {
@@ -246,7 +246,7 @@ function updateTable(
   tableName: string,
   existTable: ParsedTableInfo,
   targetTable: Table,
-  migrateColumn: Exclude<SyncOptions<any>['fallback'], undefined>,
+  migrateColumn: Exclude<SchemaSyncOptions<any>['fallback'], undefined>,
 ): string[] {
   const targetColumnMap = new Map(Object.entries(targetTable.columns as Columns))
   const existColumnMap = new Map(Object.entries(existTable.columns))

@@ -1,13 +1,13 @@
 import type { Kysely } from 'kysely'
 import type { DBLogger, SchemaUpdater } from '../types'
-import type { SyncOptions } from './core'
+import type { SchemaSyncOptions } from './core'
 import type { Schema } from './types'
 import { generateSyncTableSQL, syncTables } from './core'
 import { parseExistSchema } from './parse-exist'
 
 export { DataType } from './column'
 export { defaultFallbackFunction, generateSyncTableSQL } from './core'
-export type { ColumnFallbackInfo } from './core'
+export type { ColumnFallbackInfo, SchemaSyncOptions } from './core'
 export { column, defineTable } from './define'
 export { parseExistSchema } from './parse-exist'
 export { migrateWholeTable, parseColumnType, type RestoreColumnList } from './run'
@@ -20,7 +20,7 @@ export type { ColumnProperty, Columns, InferDatabase, InferTable, Schema, Table,
  */
 export function useSchema<T extends Schema>(
   schema: T,
-  options: SyncOptions<T> = {},
+  options: SchemaSyncOptions<T> = {},
 ): SchemaUpdater {
   return async (db: Kysely<any>, logger?: DBLogger) => await syncTables(
     db,
@@ -33,7 +33,7 @@ export function useSchema<T extends Schema>(
 export async function generateMigrateSQL<T extends Schema>(
   db: Kysely<any>,
   schema: T,
-  options: Pick<SyncOptions<T>, 'excludeTablePrefix' | 'truncateIfExists' | 'fallback'> = {},
+  options: Pick<SchemaSyncOptions<T>, 'excludeTablePrefix' | 'truncateIfExists' | 'fallback'> = {},
 ): Promise<string[]> {
   return generateSyncTableSQL(
     db,
