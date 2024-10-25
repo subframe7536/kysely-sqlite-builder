@@ -227,7 +227,7 @@ export function migrateWholeTable(
       cols += `,"${name}"`
       values += `,${selectSQL}`
     }
-    result.push(`INSERT INTO "${tableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${tempTableName}";`)
+    result.push(`INSERT INTO "${tempTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${tableName}";`)
   }
 
   // 3. remove old table
