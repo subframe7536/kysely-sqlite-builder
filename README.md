@@ -287,6 +287,10 @@ const page = await pageQuery(db.selectFrom('test').selectAll(), { num: 1, size: 
 console.log(page.convertRecords(p => p.literal).records)
 ```
 
+### Upsert (SaveOrUpdate)
+
+Use `db.replaceInto()` or `db.insertInto().onConflict()`
+
 ### Pragma / Utils
 
 ```ts
