@@ -1,5 +1,5 @@
-import { sql } from 'kysely'
 import type { Kysely, Transaction } from 'kysely'
+import { sql } from 'kysely'
 
 export type SavePoint = {
   release: () => Promise<void>
@@ -22,14 +22,14 @@ export async function savePoint(
   db: Kysely<any> | Transaction<any>,
   name?: string,
 ): Promise<SavePoint> {
-  const _name = name || `sp_${Date.now() % 1e12}_${Math.floor(Math.random() * 1e4)}`
-  await sql`savepoint ${sql.raw(_name)}`.execute(db)
+  const _name = name?.toUpperCase() || `SP_${Date.now() % 1e12}_${Math.floor(Math.random() * 1e4)}`
+  await sql`SAVEPOINT ${sql.raw(_name)}`.execute(db)
   return {
     release: async () => {
-      await sql`release savepoint ${sql.raw(_name)}`.execute(db)
+      await sql`RELEASE SAVEPOINT ${sql.raw(_name)}`.execute(db)
     },
     rollback: async () => {
-      await sql`rollback to savepoint ${sql.raw(_name)}`.execute(db)
+      await sql`ROLLBACK TO SAVEPOINT ${sql.raw(_name)}`.execute(db)
     },
   }
 }

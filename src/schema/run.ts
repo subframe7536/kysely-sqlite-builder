@@ -1,41 +1,30 @@
 import type { Arrayable } from '@subframe7536/type-utils'
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
+import type { ColumnProperty, ParsedColumnType, Table } from './types'
 import { defaultSerializer } from '../serialize'
-import { executeSQL } from '../utils'
-import { TGR } from './define'
-import {
-  type ColumnProperty,
-  DataType,
-  type DataTypeValue,
-  type Table,
-} from './types'
+import { DataType, type DataTypeValue } from './column'
+import { TGRC, TGRU } from './define'
 
-type ParsedColumnType =
-  | 'text'
-  | 'integer'
-  | 'blob'
-  | 'real'
-
-export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isIncrements: boolean] {
+export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isAutoIncrement: boolean] {
   let dataType: ParsedColumnType
   let isIncrements = false
   switch (type) {
     case DataType.float:
-      dataType = 'real'
+      dataType = 'REAL'
       break
     case DataType.increments:
       isIncrements = true
     // eslint-disable-next-line no-fallthrough
     case DataType.boolean:
     case DataType.int:
-      dataType = 'integer'
+      dataType = 'INTEGER'
       break
     case DataType.blob:
-      dataType = 'blob'
+      dataType = 'BLOB'
       break
     // date, object, string or other
     default:
-      dataType = 'text'
+      dataType = 'TEXT'
   }
   return [dataType, isIncrements]
 }
@@ -45,39 +34,58 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
  *
  * Return merged string and parsed array
  */
-export function parseArray<T>(arr: Arrayable<T>): [key: string, columns: T[]] {
+function parseArray(arr: Arrayable<any>): [columnListStr: string, key: string] {
   const columns = Array.isArray(arr) ? arr : [arr]
-  return [columns.reduce((a, b) => `${a}_${b}`, ''), columns]
+  let key = ''
+  let columnList = ''
+  for (const c of columns) {
+    key += `_${c}`
+    columnList += `"${c}",`
+  }
+  return [columnList.slice(0, -1), key]
 }
 
-export async function runDropTable(trx: Kysely<any>, tableName: string): Promise<void> {
-  await executeSQL(trx, dropTable(tableName))
+/**
+ * Parse default value
+ */
+export function parseDefaultValue(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
+  if (defaultTo === undefined || defaultTo === null) {
+    return ''
+  }
+  if (defaultTo === TGRC || defaultTo === TGRU) {
+    return 'CURRENT_TIMESTAMP'
+  }
+  let _defaultTo = (defaultTo as RawBuilder<unknown>).isRawBuilder
+    ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
+    : defaultSerializer(defaultTo)
+  _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
+
+  return _defaultTo !== undefined ? String(_defaultTo) : ''
+}
+
+function parseDefaultValueWithPrefix(trx: Kysely<any> | Transaction<any>, defaultTo: any): string {
+  const result = parseDefaultValue(trx, defaultTo)
+  return result ? ` DEFAULT ${result}` : ''
 }
 
 export function dropTable(tableName: string): string {
-  return `drop table if exists "${tableName}";`
+  return `DROP TABLE IF EXISTS "${tableName}";`
 }
 
-export async function runCreateTableWithIndexAndTrigger(
-  trx: Transaction<any>,
+export function createTableWithIndexAndTrigger(
+  trx: Kysely<any> | Transaction<any>,
   tableName: string,
   table: Table<any>,
-): Promise<void> {
+): string[] {
   const { index, ...props } = table
-  const triggerOptions = await runCreateTable(trx, tableName, props)
-  await runCreateTimeTrigger(trx, tableName, triggerOptions)
-  await runCreateTableIndex(trx, tableName, index)
-}
-
-export async function runCreateTableIndex(
-  trx: Transaction<any>,
-  tableName: string,
-  index: Arrayable<string>[] = [],
-): Promise<void> {
-  const sqls = createTableIndex(tableName, index)
-  for (const sql of sqls) {
-    await executeSQL(trx, sql)
+  const result: string[] = []
+  const { updateColumn, sql } = createTable(trx, tableName, props)
+  result.push(sql, ...createTableIndex(tableName, index))
+  const triggerSql = createTimeTrigger(tableName, updateColumn)
+  if (triggerSql) {
+    result.push(triggerSql)
   }
+  return result
 }
 
 export function createTableIndex(
@@ -85,37 +93,18 @@ export function createTableIndex(
   index: Arrayable<string>[] = [],
 ): string[] {
   return index.map((i) => {
-    const [key, columns] = parseArray(i)
-    return `create index if not exists idx_${tableName + key} on "${tableName}" (${columns.map(c => `"${c}"`)});`
+    const [columnListStr, key] = parseArray(i)
+    return `CREATE INDEX IF NOT EXISTS idx_${tableName + key} on "${tableName}" (${columnListStr});`
   })
-}
-
-export async function runCreateTable(
-  trx: Transaction<any>,
-  tableName: string,
-  { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-): Promise<RunTriggerOptions | undefined> {
-  const { triggerOptions, sql } = createTable(trx, tableName, { columns, primary, timeTrigger, unique })
-  await executeSQL(trx, sql)
-  return triggerOptions
 }
 
 export function createTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
-  { columns, primary, timeTrigger, unique }: Omit<Table, 'index'>,
-): {
-    triggerOptions: RunTriggerOptions | undefined
-    sql: string
-  } {
-  const _triggerOptions: RunTriggerOptions | undefined = timeTrigger
-    ? {
-        triggerKey: 'rowid',
-        update: undefined,
-      }
-    : undefined
-
-  let _haveAutoKey = false
+  { columns, primary, unique }: Omit<Table, 'index'>,
+): { updateColumn?: string, sql: string } {
+  let updateColumn
+  let autoIncrementColumn
 
   const columnList: string[] = []
 
@@ -125,130 +114,129 @@ export function createTable(
     const [dataType, isIncrements] = parseColumnType(type)
 
     if (isIncrements) {
-      _haveAutoKey = true
-      if (_triggerOptions) {
-        _triggerOptions.triggerKey = columnName
+      if (autoIncrementColumn) {
+        throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${columnName}) in table ${tableName}`)
       }
-      columnList.push(`"${columnName}" ${dataType} primary key autoincrement`)
-    } else if (
-      // see hacks in `./define.ts`
-      // time trigger column is default with TGR
-      defaultTo === TGR
-    ) {
+      autoIncrementColumn = columnName
+      columnList.push(`"${columnName}" ${dataType} PRIMARY KEY AUTOINCREMENT`)
+    } else {
       // update trigger column is not null
       // #hack to detect update column
-      if (_triggerOptions && notNull) {
-        _triggerOptions.update = columnName
+      if (defaultTo === TGRU) {
+        updateColumn = columnName
       }
-      // default with current_timestamp
-      columnList.push(`"${columnName}" ${dataType} default CURRENT_TIMESTAMP`)
-    } else {
-      let _defaultTo
-      if (defaultTo !== undefined) {
-        _defaultTo = (defaultTo && typeof defaultTo === 'object' && '$cast' in defaultTo)
-          ? (defaultTo as RawBuilder<unknown>).compile(trx).sql
-          : defaultSerializer(defaultTo)
-        _defaultTo = typeof _defaultTo === 'string' ? `'${_defaultTo}'` : _defaultTo
-      }
-      columnList.push(`"${columnName}" ${dataType}${notNull ? ' not null' : ''}${defaultTo !== undefined ? ` default ${_defaultTo}` : ''}`)
+      columnList.push(`"${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValueWithPrefix(trx, defaultTo)}`)
     }
   }
 
   // primary/unique key is jointable, so can not be set as trigger key
-
-  if (!_haveAutoKey && primary) {
-    const [key, columns] = parseArray(primary)
-    columnList.push(`constraint pk${key} primary key (${columns.map(v => `"${v}"`)})`)
+  if (primary) {
+    const [targetColumns, key] = parseArray(primary)
+    if (!autoIncrementColumn) {
+      columnList.push(`PRIMARY KEY (${targetColumns})`)
+    } else if (autoIncrementColumn !== key.substring(1)) {
+      throw new Error(`Exists AUTOINCREMENT column "${autoIncrementColumn}" in table "${tableName}", cannot setup extra primary key (${targetColumns})`)
+    }
   }
 
-  for (const uk of unique || []) {
-    const [key, columns] = parseArray(uk)
-    columnList.push(`constraint uk${key} unique (${columns.map(v => `"${v}"`)})`)
+  if (unique) {
+    for (const uk of unique) {
+      columnList.push(`UNIQUE (${parseArray(uk)[0]})`)
+    }
   }
 
   return {
-    sql: `create table if not exists "${tableName}" (${columnList});`,
-    triggerOptions: _triggerOptions,
+    sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList});`,
+    updateColumn,
   }
 }
 
-/**
- * if absent, do not create trigger
- */
-type RunTriggerOptions = {
-  triggerKey: string
-  update?: string
-}
-
-export async function runCreateTimeTrigger(
-  trx: Transaction<any>,
-  tableName: string,
-  options?: RunTriggerOptions,
-): Promise<void> {
-  const sql = createTimeTrigger(tableName, options)
-  if (sql) {
-    await executeSQL(trx, sql)
-  }
-}
-
-export function createTimeTrigger(
-  tableName: string,
-  options?: RunTriggerOptions,
-): string | undefined {
-  if (!options?.update) {
+export function createTimeTrigger(tableName: string, updateColumn?: string): string | undefined {
+  if (!updateColumn) {
     return
   }
-  const triggerName = `tgr_${tableName}_${options.update}`
-  return `create trigger if not exists "${triggerName}" after update on "${tableName}" begin update "${tableName}" set "${options.update}" = CURRENT_TIMESTAMP where "${options.triggerKey}" = NEW."${options.triggerKey}"; end;`
+  const triggerName = `tgr_${tableName}_${updateColumn}`
+  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${updateColumn}" = CURRENT_TIMESTAMP WHERE "rowid" = NEW."rowid"; END;`
 }
 
-export async function runRenameTable(
-  trx: Transaction<any>,
-  tableName: string,
-  newTableName: string,
-): Promise<void> {
-  await executeSQL(trx, renameTable(tableName, newTableName))
+export function renameTable(tableName: string, newTableName: string): string {
+  return `ALTER TABLE "${tableName}" RENAME TO "${newTableName}";`
 }
 
-export function renameTable(
+export function addColumn(
+  trx: Kysely<any> | Transaction<any>,
   tableName: string,
-  newTableName: string,
+  columnName: string,
+  columnProperty: ColumnProperty,
 ): string {
-  return `alter table "${tableName}" rename to "${newTableName}";`
+  const { type, notNull, defaultTo } = columnProperty
+  const [dataType] = parseColumnType(type)
+  return `ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${dataType}${notNull ? ' NOT NULL' : ''}${parseDefaultValueWithPrefix(trx, defaultTo)};`
 }
 
-export async function runDropIndex(
-  trx: Transaction<any>,
-  indexName: string,
-): Promise<void> {
-  await executeSQL(trx, dropIndex(indexName))
+export function dropColumn(tableName: string, columnName: string): string {
+  return `ALTER TABLE "${tableName}" DROP COLUMN "${columnName}";`
 }
 
-export function dropIndex(indexName: string): string {
-  return `drop index if exists "${indexName}";`
+export function createIndex(tableName: string, columns: string[]): string {
+  const [columnListStr, indexSuffix] = parseArray(columns)
+  return `CREATE INDEX IF NOT EXISTS "idx_${tableName}${indexSuffix}" on "${tableName}"(${columnListStr});`
 }
-
-export async function runDropTrigger(
-  trx: Transaction<any>,
-  triggerName: string,
-): Promise<void> {
-  await executeSQL(trx, dropTrigger(triggerName))
+export function dropIndex(tableName: string, columns: string[]): string {
+  const [, indexSuffix] = parseArray(columns)
+  return `DROP INDEX IF EXISTS "idx_${tableName}${indexSuffix}";`
 }
 
 export function dropTrigger(triggerName: string): string {
-  return `drop trigger if exists "${triggerName}";`
+  return `DROP TRIGGER IF EXISTS "${triggerName}";`
 }
 
-export async function runRestoreColumns(
-  trx: Transaction<any>,
-  fromTableName: string,
-  toTableName: string,
-  columns: string[],
-): Promise<void> {
-  await executeSQL(trx, restoreColumns(fromTableName, toTableName, columns))
-}
+/**
+ * Restore column list with default value (sql string) for {@link migrateWholeTable}
+ *
+ * `INSERT INTO tempTableName (${names}) SELECT ${selectSQL} FROM tableName;`
+ */
+export type RestoreColumnList = [name: string, selectSQL: string][]
 
-export function restoreColumns(fromTableName: string, toTableName: string, columns: string[]): string {
-  const cols = columns.map(v => `"${v}"`)
-  return `insert into "${toTableName}" (${cols}) select ${cols} from "${fromTableName}";`
+/**
+ * Migrate table data see https://sqlite.org/lang_altertable.html 7. Making Other Kinds Of Table Schema Changes
+ */
+export function migrateWholeTable(
+  trx: Kysely<any>,
+  tableName: string,
+  restoreColumnList: RestoreColumnList,
+  targetTable: Table,
+): string[] {
+  const result: string[] = []
+  const tempTableName = `_temp_${tableName}`
+
+  // 1. create target table with temp name
+  const { updateColumn, sql } = createTable(trx, tempTableName, targetTable)
+  result.push(sql)
+
+  // 2. diff and restore data from source table to target table
+  if (restoreColumnList.length) {
+    let cols = ''
+    let values = ''
+    for (const [name, selectSQL] of restoreColumnList) {
+      cols += `,"${name}"`
+      values += `,${selectSQL}`
+    }
+    result.push(`INSERT INTO "${tempTableName}" (${cols.substring(1)}) SELECT ${values.substring(1)} FROM "${tableName}";`)
+  }
+
+  // 3. remove old table
+  result.push(dropTable(tableName))
+
+  // 4. rename temp table to target table name
+  result.push(renameTable(tempTableName, tableName))
+
+  // 5. restore indexes and triggers
+  result.push(...createTableIndex(tableName, targetTable.index))
+  const triggerSql = createTimeTrigger(tableName, updateColumn)
+  if (triggerSql) {
+    result.push(triggerSql)
+  }
+
+  return result
 }

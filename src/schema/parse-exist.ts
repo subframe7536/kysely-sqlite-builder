@@ -1,104 +1,116 @@
-import type { Kysely } from 'kysely'
+import type { ParsedColumnType } from './types'
+import { type Kysely, sql } from 'kysely'
 
-export type ParsedSchema = {
-  existTables: ParsedTables
-  indexList: string[]
-  triggerList: string[]
-}
-type ParsedTables = Record<string, ParsedCreateTableSQL>
-export type ParsedCreateTableSQL = {
-  name: string
-  columns: Record<string, ParsedColumnProperty>
-  primary: string[] | undefined
-  unique: string[][]
-}
+export type ParsedSchema = Record<string, ParsedTableInfo>
+
 export type ParsedColumnProperty = {
-  type: string
+  type: ParsedColumnType
   notNull: boolean
-  defaultTo?: any
+  defaultTo: string | null
 }
 
-const baseRegex = /create table (?:if not exist)?\s*"([^"]+)"\s*\((.*)\)/i
-const columnRegex = /"([^"]+)"\s+(\w+)\s?(not null)?/gi
+export type ParsedTableInfo = {
+  columns: Record<string, ParsedColumnProperty>
+  /**
+   * Primary key constraint
+   */
+  primary: string[]
+  /**
+   * Unique constraint
+   */
+  unique: string[][]
+  /**
+   * Index
+   */
+  index: string[][]
+  /**
+   * Trigger
+   */
+  trigger: string[]
+  /**
+   * Auto increment column name
+   */
+  increment?: string
+}
 
 /**
  * parse table object
- * @param definition create table sql
- * @todo support extra constraints
+ * @param db kysely instance
+ * @param tableName table name
  */
-export function parseCreateTableSQL(definition: string): ParsedCreateTableSQL {
-  const [, tableName, cols] = definition.replace(/\r?\n/g, '').match(baseRegex)!
-
-  const ret: ParsedCreateTableSQL = {
+export async function parseTable(db: Kysely<any>, tableName: string, hasAutoIncrement: boolean): Promise<ParsedTableInfo> {
+  const result: ParsedTableInfo = {
     columns: {},
-    name: tableName,
-    primary: undefined,
+    primary: [],
     unique: [],
+    index: [],
+    trigger: [],
   }
-  const columnMatches = cols.matchAll(columnRegex)
-  for (const match of columnMatches) {
-    const [, columnName, type, notNull] = match
-    if (columnName.startsWith('pk_')) {
-      const [, ...keys] = columnName.split('_')
-      ret.primary = keys
-    } else if (columnName.startsWith('un_')) {
-      const [, ...keys] = columnName.split('_')
-      ret.unique.push(keys)
-    } else {
-      ret.columns[columnName] = {
-        type,
-        notNull: !!notNull,
+
+  type TableInfoPragma = {
+    name: string
+    type: ParsedColumnType
+    notnull: 0 | 1
+    dflt_value: string | null
+    pk: number
+  }
+  const cols = (await sql<TableInfoPragma>`SELECT "name", "type", "notnull", "dflt_value", "pk" FROM PRAGMA_TABLE_INFO(${tableName})`.execute(db)).rows
+
+  for (const { dflt_value, name, notnull, pk, type } of cols) {
+    result.columns[name] = {
+      type,
+      notNull: !!notnull as any,
+      defaultTo: dflt_value,
+    }
+    if (pk !== 0) {
+      if (hasAutoIncrement && pk === 1 && type === 'INTEGER') {
+        result.increment = name
       }
+      result.primary.push(name)
     }
   }
 
-  return ret
-}
+  type IndexInfoPragma = {
+    origin: string
+    columns: string
+  }
 
-type ExistTable = {
-  name: string
-  sql: string
-  type: string
+  const indexes = (await sql<IndexInfoPragma>`SELECT "origin", (SELECT GROUP_CONCAT(name) FROM PRAGMA_INDEX_INFO(i.name)) as "columns" FROM PRAGMA_INDEX_LIST(${tableName}) as i WHERE "origin" != 'pk'`.execute(db)).rows
+
+  for (const { columns, origin } of indexes) {
+    result[origin === 'u' ? 'unique' : 'index'].push(
+      (columns as string).split(',').map(c => c.trim()),
+    )
+  }
+
+  return result
 }
 
 /**
- * parse exist db structures
+ * Parse exist db structures
  */
-export async function parseExistDB(
+export async function parseExistSchema(
   db: Kysely<any>,
   prefix: string[] = [],
 ): Promise<ParsedSchema> {
-  const tables = await db
-    .selectFrom('sqlite_master')
-    .where('type', 'in', ['table', 'trigger', 'index'])
-    .where('name', 'not like', 'sqlite_%')
-    .$if(prefix.length > 0, qb => qb.where(
-      eb => eb.and(
-        prefix.map(t => eb('name', 'not like', `${t}%`)),
-      ),
-    ))
-    .select(['name', 'sql', 'type'])
-    .execute()
-
-  const tableMap: ParsedSchema = {
-    existTables: {},
-    indexList: [],
-    triggerList: [],
+  type MasterData = {
+    type: 'table' | 'trigger'
+    name: 1 | string
+    table: string
   }
-  for (const { name, sql, type } of tables as ExistTable[]) {
-    if (!sql) {
-      continue
-    }
-    switch (type) {
-      case 'table':
-        tableMap.existTables[name] = parseCreateTableSQL(sql)
-        break
-      case 'index':
-        tableMap.indexList.push(name)
-        break
-      case 'trigger':
-        tableMap.triggerList.push(name)
-        break
+
+  // when type is table, name === 1 indicates that AUTOINCREMENT column exists
+  // when type is trigger, name is trigger's name
+  const extraColumns = prefix.length ? ` AND ${prefix.map(t => `"name" NOT LIKE '${t}%'`).join(' AND ')}` : ''
+  const tables = (await sql<MasterData>`SELECT "type", "tbl_name" AS "table", CASE WHEN "sql" LIKE '%PRIMARY KEY AUTOINCREMENT%' THEN 1 ELSE "name" END AS "name" FROM "sqlite_master" WHERE "type" IN ('table', 'trigger') AND "name" NOT LIKE 'SQLITE_%'${sql.raw(extraColumns)} ORDER BY "type"`.execute(db)).rows
+
+  const tableMap: ParsedSchema = {}
+  for (const { name, table, type } of tables) {
+    // type only can be 'table' or 'trigger'
+    if (type === 'table') {
+      tableMap[table] = await parseTable(db, table, (name as number | string) === 1)
+    } else {
+      tableMap[table].trigger.push(name as string)
     }
   }
   return tableMap
