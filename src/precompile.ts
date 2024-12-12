@@ -17,6 +17,8 @@ export const defaultRootOperatorNodeProcessFn: ProcessRootOperatorNodeFn = (
   node: RootOperationNode,
 ): RootOperationNode => ({ kind: node.kind }) as any
 
+const PARAM_PREFIX = '_P_'
+
 /**
  * Precompile query, call it with different params later, design for better performance
  * @example
@@ -55,13 +57,13 @@ export function precompile<T extends Record<string, any>>(
         dispose,
         compile: (param: T) => {
           if (!compiled) {
-            const { query: node, ...data } = queryBuilder(name => (`_P_${name}`) as any).compile()
+            const { query: node, ...data } = queryBuilder(name => (`${PARAM_PREFIX}${name}`) as any).compile()
             compiled = { ...data, query: processRootOperatorNode(node) }
           }
           return {
             ...compiled,
             parameters: compiled.parameters.map((p) => {
-              const key = (typeof p === 'string' && p.startsWith('_P_')) ? p.substring(3) : undefined
+              const key = (typeof p === 'string' && p.startsWith(PARAM_PREFIX)) ? p.substring(3) : undefined
               return key ? serializer(param[key]) : p
             }),
           }
