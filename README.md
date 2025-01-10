@@ -231,7 +231,7 @@ using selectWithUsing = precompile<{ name: string }>()
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
 import Database from 'better-sqlite3'
 import { SqliteDialect } from 'kysely'
-import { createSoftDeleteExecutor, SqliteBuilder } from 'kysely-sqlite-builder'
+import { SoftDeleteSqliteBuilder } from 'kysely-sqlite-builder'
 import { column, defineTable } from 'kysely-sqlite-builder/schema'
 
 const softDeleteTable = defineTable({
@@ -502,7 +502,6 @@ export default defineConfig({
     dropMigrator: true,
     dropSchema: true,
     minifyMethodName: true,
-    // If you are using `createSoftDeleteExecutor()`
     dropDelete: true,
   })]
 })
