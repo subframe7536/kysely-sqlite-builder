@@ -69,23 +69,80 @@ describe('test builder', async () => {
 
     const start = performance.now()
 
-    const { parameters, sql } = select.compile({ person: { name: '1' } })
-    expect(sql).toBe('select * from "test" where "person" = ?')
-    expect(parameters[0]).toBe('{"name":"1"}')
+    const normalSelect = select.compile({ person: { name: '1' } })
+    expect(normalSelect).toMatchInlineSnapshot(`
+{
+  "parameters": [
+    "{"name":"1"}",
+  ],
+  "query": {
+    "kind": "SelectQueryNode",
+  },
+  "sql": "select * from "test" where "person" = ?",
+}
+`)
 
     const start2 = performance.now()
     console.log('no compiled:', `${(start2 - start).toFixed(2)}ms`)
 
-    const { parameters: p1, sql: s1 } = select.compile({ person: { name: 'test' } })
-    expect(s1).toBe('select * from "test" where "person" = ?')
-    expect(p1).toStrictEqual(['{"name":"test"}'])
+    const cachedSelect = select.compile({ person: { name: 'test' } })
+    expect(cachedSelect).toMatchInlineSnapshot(`
+{
+  "parameters": [
+    "{"name":"test"}",
+  ],
+  "query": {
+    "kind": "SelectQueryNode",
+  },
+  "sql": "select * from "test" where "person" = ?",
+}
+`)
 
     console.log('   compiled:', `${(performance.now() - start2).toFixed(2)}ms`)
 
-    const result = await db.execute(insert.compile({ gender: true }))
+    const compiledInsert = insert.compile({ gender: true })
+    expect(compiledInsert).toMatchInlineSnapshot(`
+{
+  "parameters": [
+    true,
+  ],
+  "query": {
+    "kind": "InsertQueryNode",
+  },
+  "sql": "insert into "test" ("gender") values (?)",
+}
+`)
+    const result = await db.execute(compiledInsert)
     expect(result.rows).toStrictEqual([])
-    const result2 = await db.execute(update.compile({ gender: false }))
+
+    const compiledUpdate = update.compile({ gender: false })
+    expect(compiledUpdate).toMatchInlineSnapshot(`
+{
+  "parameters": [
+    false,
+    1,
+  ],
+  "query": {
+    "kind": "UpdateQueryNode",
+  },
+  "sql": "update "test" set "gender" = ? where "id" = ?",
+}
+`)
+    const result2 = await db.execute(compiledUpdate)
     expect(result2.rows).toStrictEqual([])
+
+    const compiledSelectCol = precompile<{ col: 'name', col1: 'gender' }>().build(
+      param => db.selectFrom('test').select([param('col'), param('col1')]),
+    ).compile({ col: 'name', col1: 'gender' })
+    expect(compiledSelectCol).toMatchInlineSnapshot(`
+{
+  "parameters": [],
+  "query": {
+    "kind": "SelectQueryNode",
+  },
+  "sql": "select "name", "gender" from "test"",
+}
+`)
   })
 
   it('should soft delete', async () => {

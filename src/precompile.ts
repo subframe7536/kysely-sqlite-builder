@@ -17,7 +17,8 @@ export const defaultRootOperatorNodeProcessFn: ProcessRootOperatorNodeFn = (
   node: RootOperationNode,
 ): RootOperationNode => ({ kind: node.kind }) as any
 
-const PARAM_PREFIX = '_P_'
+const PARAM_PREFIX = '_P@'
+const PARAM_IN_SQL = new RegExp(`"${PARAM_PREFIX}([^"]+)"`, 'g')
 
 /**
  * Precompile query, call it with different params later, design for better performance
@@ -50,19 +51,26 @@ export function precompile<T extends Record<string, any>>(
     build: <O>(
       queryBuilder: (param: <K extends keyof T & string>(name: K) => T[K]) => Compilable<O>,
     ) => {
-      let compiled: CompiledQuery<Compilable<O>> | null
-      const dispose = (): null => compiled = null
+      let _sql: string | undefined
+      let _params: any[] | undefined
+      let _query: any | undefined
+      const dispose = (): void => {
+        _sql = _params = _query = undefined
+      }
       return {
         [Symbol.dispose]: dispose,
         dispose,
         compile: (param: T) => {
-          if (!compiled) {
-            const { query: node, ...data } = queryBuilder(name => (`${PARAM_PREFIX}${name}`) as any).compile()
-            compiled = { ...data, query: processRootOperatorNode(node) }
+          if (!_sql) {
+            const { parameters, query, sql } = queryBuilder(name => (`${PARAM_PREFIX}${name}`) as any).compile()
+            _sql = sql
+            _params = parameters as any
+            _query = processRootOperatorNode(query)
           }
           return {
-            ...compiled,
-            parameters: compiled.parameters.map((p) => {
+            query: _query,
+            sql: _sql.replace(PARAM_IN_SQL, (_, key: string) => `"${serializer(param[key])}"`),
+            parameters: _params!.map((p) => {
               const key = (typeof p === 'string' && p.startsWith(PARAM_PREFIX)) ? p.substring(3) : undefined
               return key ? serializer(param[key]) : p
             }),
