@@ -70,10 +70,11 @@ export function precompile<T extends Record<string, any>>(
           return {
             query: _query,
             sql: _sql.replace(PARAM_IN_SQL, (_, key: string) => `"${serializer(param[key])}"`),
-            parameters: _params!.map((p) => {
-              const key = (typeof p === 'string' && p.startsWith(PARAM_PREFIX)) ? p.substring(3) : undefined
-              return key ? serializer(param[key]) : p
-            }),
+            parameters: _params!.map(
+              p => typeof p === 'string' && p.startsWith(PARAM_PREFIX)
+                ? serializer(param[p.substring(3)])
+                : p,
+            ),
           }
         },
       }

@@ -49,6 +49,11 @@ export type LoggerOptions = {
   logQueryNode?: boolean
 }
 
+const QUESTION_MARKER = '_Q_'
+const QUESTION_MARKER_REGEX = new RegExp(QUESTION_MARKER, 'g')
+const QUESTION_MATCH_REGEX = /\?/
+const QUESTION_MATCH_REGEX_GLOBAL = /\?/g
+
 /**
  * Util for `KyselyConfig.log`, log on every execution
  * @example
@@ -65,14 +70,24 @@ export type LoggerOptions = {
 export function createKyselyLogger(
   options: LoggerOptions = {},
 ): (event: LogEvent) => void {
-  const { enable = 'error', logger = console.log, merge, logQueryNode } = options
-  const questionMarker = '_Q_'
-  const regexp = new RegExp(questionMarker, 'g')
+  const {
+    enable = 'error',
+    logger = console.log,
+    merge,
+    logQueryNode,
+  } = options
   return (event: LogEvent) => {
-    if (!enable || (typeof enable === 'string' && event.level !== enable)) {
+    if (
+      !enable
+      || (typeof enable === 'string' && event.level !== enable)
+    ) {
       return
     }
-    const { level, queryDurationMillis, query: { parameters, sql, query } } = event
+    const {
+      level,
+      queryDurationMillis,
+      query: { parameters, sql, query },
+    } = event
     const err = level === 'error' ? event.error : undefined
     let _sql = sql.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ')
     if (merge) {
@@ -81,13 +96,13 @@ export function createKyselyLogger(
           param = param.toLocaleString()
         }
         if (typeof param === 'string') {
-          param = `'${param}'`.replace(/\?/g, questionMarker)
+          param = `'${param}'`.replace(QUESTION_MATCH_REGEX_GLOBAL, QUESTION_MARKER)
         }
-        _sql = _sql.replace(/\?/, param as any)
+        _sql = _sql.replace(QUESTION_MATCH_REGEX, param as any)
       }
     }
     const param: LoggerParams = {
-      sql: _sql.replace(regexp, '?'),
+      sql: _sql.replace(QUESTION_MARKER_REGEX, '?'),
       params: parameters,
       duration: Math.round(queryDurationMillis * 100) / 100,
       error: err,
