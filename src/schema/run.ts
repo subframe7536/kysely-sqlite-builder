@@ -101,7 +101,7 @@ export function createTableIndex(
 export function createTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
-  { columns, primary, unique }: Omit<Table, 'index'>,
+  { columns, primary, unique, withoutRowId }: Omit<Table, 'index'>,
 ): { updateColumn?: string, sql: string } {
   let updateColumn
   let autoIncrementColumn
@@ -145,8 +145,10 @@ export function createTable(
     }
   }
 
+  const rowIdClause = withoutRowId ? ' WITHOUT ROWID' : ''
+
   return {
-    sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList});`,
+    sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList})${rowIdClause};`,
     updateColumn,
   }
 }
