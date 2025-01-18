@@ -21,6 +21,7 @@ import {
 } from './parse-exist'
 import {
   addColumn,
+  asArray,
   createIndex,
   createTableWithIndexAndTrigger,
   createTimeTrigger,
@@ -324,6 +325,7 @@ function updateTable(
     isChanged
     || isPrimaryKeyChanged(existTable.primary, targetTable.primary || autoIncrementColumn)
     || isUniqueChanged(existTable.unique, targetTable.unique)
+    || targetTable.withoutRowId
   ) {
     return migrateWholeTable(trx, tableName, updateColumnList, targetTable)
   }
@@ -349,7 +351,7 @@ function updateTable(
       result.splice(0, 0, dropTrigger(existTrigger))
     }
     if (updateTimeColumn) {
-      result.push(createTimeTrigger(tableName, updateTimeColumn)!)
+      result.push(createTimeTrigger(tableName, updateTimeColumn, asArray(targetTable.primary)[0] || autoIncrementColumn)!)
     }
   }
 

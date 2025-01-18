@@ -29,20 +29,24 @@ export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, i
   return [dataType, isIncrements]
 }
 
+export function asArray<T>(arr: Arrayable<T>): T[] {
+  return Array.isArray(arr) ? arr : [arr]
+}
+
 /**
  * Merge array with `_` and prepend `_`
  *
  * Return merged string and parsed array
  */
-function parseArray(arr: Arrayable<any>): [columnListStr: string, key: string] {
-  const columns = Array.isArray(arr) ? arr : [arr]
+function parseArray(arr: Arrayable<any>): [columnListStr: string, key: string, first: string] {
+  const columns = asArray(arr)
   let key = ''
   let columnList = ''
   for (const c of columns) {
     key += `_${c}`
     columnList += `"${c}",`
   }
-  return [columnList.slice(0, -1), key]
+  return [columnList.slice(0, -1), key, columns[0]]
 }
 
 /**
@@ -79,9 +83,9 @@ export function createTableWithIndexAndTrigger(
 ): string[] {
   const { index, ...props } = table
   const result: string[] = []
-  const { updateColumn, sql } = createTable(trx, tableName, props)
+  const [sql, updateColumn, triggerColumn] = createTable(trx, tableName, props)
   result.push(sql, ...createTableIndex(tableName, index))
-  const triggerSql = createTimeTrigger(tableName, updateColumn)
+  const triggerSql = createTimeTrigger(tableName, updateColumn, triggerColumn)
   if (triggerSql) {
     result.push(triggerSql)
   }
@@ -102,9 +106,9 @@ export function createTable(
   trx: Kysely<any> | Transaction<any>,
   tableName: string,
   { columns, primary, unique, withoutRowId }: Omit<Table, 'index'>,
-): { updateColumn?: string, sql: string } {
+): [sql: string, updateColumn?: string, triggerColumn?: string] {
   let updateColumn
-  let autoIncrementColumn
+  let triggerColumn
 
   const columnList: string[] = []
 
@@ -114,10 +118,13 @@ export function createTable(
     const [dataType, isIncrements] = parseColumnType(type)
 
     if (isIncrements) {
-      if (autoIncrementColumn) {
-        throw new Error(`Multiple AUTOINCREMENT columns (${autoIncrementColumn}, ${columnName}) in table ${tableName}`)
+      if (withoutRowId) {
+        throw new Error(`Cannot setup AUTOINCREMENT column "${columnName}" in table "${tableName}" without rowid `)
       }
-      autoIncrementColumn = columnName
+      if (triggerColumn) {
+        throw new Error(`Multiple AUTOINCREMENT columns (${triggerColumn}, ${columnName}) in table ${tableName}`)
+      }
+      triggerColumn = columnName
       columnList.push(`"${columnName}" ${dataType} PRIMARY KEY AUTOINCREMENT`)
     } else {
       // update trigger column is not null
@@ -131,12 +138,15 @@ export function createTable(
 
   // primary/unique key is jointable, so can not be set as trigger key
   if (primary) {
-    const [targetColumns, key] = parseArray(primary)
-    if (!autoIncrementColumn) {
+    const [targetColumns, key, first] = parseArray(primary)
+    if (!triggerColumn) {
       columnList.push(`PRIMARY KEY (${targetColumns})`)
-    } else if (autoIncrementColumn !== key.substring(1)) {
-      throw new Error(`Exists AUTOINCREMENT column "${autoIncrementColumn}" in table "${tableName}", cannot setup extra primary key (${targetColumns})`)
+      triggerColumn = first
+    } else if (triggerColumn !== key.substring(1)) {
+      throw new Error(`Exists AUTOINCREMENT column "${triggerColumn}" in table "${tableName}", cannot setup extra primary key (${targetColumns})`)
     }
+  } else if (withoutRowId) {
+    throw new Error(`No primary key in table "${tableName}" and "withoutRowId" setup`)
   }
 
   if (unique) {
@@ -147,18 +157,19 @@ export function createTable(
 
   const rowIdClause = withoutRowId ? ' WITHOUT ROWID' : ''
 
-  return {
-    sql: `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList})${rowIdClause};`,
+  return [
+    `CREATE TABLE IF NOT EXISTS "${tableName}" (${columnList})${rowIdClause};`,
     updateColumn,
-  }
+    triggerColumn || 'rowid',
+  ]
 }
 
-export function createTimeTrigger(tableName: string, updateColumn?: string): string | undefined {
-  if (!updateColumn) {
+export function createTimeTrigger(tableName: string, updateColumn: string | undefined, triggerColumn: string | undefined): string | undefined {
+  if (!updateColumn || !triggerColumn) {
     return
   }
   const triggerName = `tgr_${tableName}_${updateColumn}`
-  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${updateColumn}" = CURRENT_TIMESTAMP WHERE "rowid" = NEW."rowid"; END;`
+  return `CREATE TRIGGER IF NOT EXISTS "${triggerName}" AFTER UPDATE ON "${tableName}" BEGIN UPDATE "${tableName}" SET "${updateColumn}" = CURRENT_TIMESTAMP WHERE "${triggerColumn}" = NEW."${triggerColumn}"; END;`
 }
 
 export function renameTable(tableName: string, newTableName: string): string {
@@ -213,7 +224,7 @@ export function migrateWholeTable(
   const tempTableName = `_temp_${tableName}`
 
   // 1. create target table with temp name
-  const { updateColumn, sql } = createTable(trx, tempTableName, targetTable)
+  const [sql, updateColumn, triggerColumn] = createTable(trx, tempTableName, targetTable)
   result.push(sql)
 
   // 2. diff and restore data from source table to target table
@@ -235,7 +246,7 @@ export function migrateWholeTable(
 
   // 5. restore indexes and triggers
   result.push(...createTableIndex(tableName, targetTable.index))
-  const triggerSql = createTimeTrigger(tableName, updateColumn)
+  const triggerSql = createTimeTrigger(tableName, updateColumn, triggerColumn)
   if (triggerSql) {
     result.push(triggerSql)
   }

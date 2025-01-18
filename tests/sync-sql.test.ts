@@ -34,7 +34,7 @@ describe('test sync sql', async () => {
         'CREATE TABLE IF NOT EXISTS "test" ("id" INTEGER PRIMARY KEY AUTOINCREMENT,"person" TEXT DEFAULT \'{"name":"test"}\',"gender" INTEGER NOT NULL,"createAt" TEXT DEFAULT CURRENT_TIMESTAMP,"updateAt" TEXT DEFAULT CURRENT_TIMESTAMP);',
         'CREATE INDEX IF NOT EXISTS idx_test_person on "test" ("person");',
         'CREATE INDEX IF NOT EXISTS idx_test_id_gender on "test" ("id","gender");',
-        'CREATE TRIGGER IF NOT EXISTS "tgr_test_updateAt" AFTER UPDATE ON "test" BEGIN UPDATE "test" SET "updateAt" = CURRENT_TIMESTAMP WHERE "rowid" = NEW."rowid"; END;',
+        'CREATE TRIGGER IF NOT EXISTS "tgr_test_updateAt" AFTER UPDATE ON "test" BEGIN UPDATE "test" SET "updateAt" = CURRENT_TIMESTAMP WHERE "id" = NEW."id"; END;',
       ],
     )
 
