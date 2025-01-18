@@ -53,6 +53,7 @@ type ParseFalseToNull<T extends boolean | string | null> = T extends false ? nul
  *   createAt: true, // `createTime` column
  *   updateAt: true, // `updateTime` column
  *   softDelete: true, // `isDeleted` column
+ *   withoutRowId: true, // disables implicit rowId
  * })
  */
 export function defineTable<

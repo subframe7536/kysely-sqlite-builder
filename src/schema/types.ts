@@ -65,6 +65,13 @@ export type ExtraOptions<Create, Update, Delete> = {
    * - If type is `string`, it will be treated as column name
    */
   softDelete?: Delete
+  /**
+   * Disable implicit rowId
+   *
+   * - If type is `true`, disable implicit rowId
+   * - If type is `false`, enable implicit rowId
+   */
+  withoutRowId?: boolean
 }
 
 export type TableProperty<

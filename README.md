@@ -57,6 +57,7 @@ const testTable = defineTable({
   createAt: true, // `createTime` column
   updateAt: true, // `updateTime` column
   softDelete: true, // `isDeleted` column
+  withoutRowId: true, // disable implicit rowId
 })
 
 const DBSchema = {
