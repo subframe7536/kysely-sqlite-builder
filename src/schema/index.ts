@@ -11,7 +11,15 @@ export type { ColumnFallbackInfo, SchemaSyncOptions } from './core'
 export { column, defineTable } from './define'
 export { parseExistSchema } from './parse-exist'
 export { migrateWholeTable, parseColumnType, type RestoreColumnList } from './run'
-export type { ColumnProperty, Columns, InferDatabase, InferTable, Schema, Table, TableProperty } from './types'
+export type {
+  ColumnProperty,
+  Columns,
+  InferDatabase,
+  InferTable,
+  Schema,
+  Table,
+  TableProperty,
+} from './types'
 
 /**
  * Auto sync table using schema, only sync table/index/trigger

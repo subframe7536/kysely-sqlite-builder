@@ -167,19 +167,19 @@ export const column = {
     options?: { notNull?: NotNull },
   ) => parse(DataType.blob, options as any) as ColumnBuilder<TDataType['blob'], T, NotNull>,
   /**
-   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: INTEGER
    */
   boolean: <T extends BooleanColumnType, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
     options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.boolean, options as any) as ColumnBuilder<TDataType['boolean'], T, NotNull>,
   /**
-   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: TEXT (serialize with `JSON.parse` and `JSON.stringify`)
    */
   date: <T extends Date, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
     options?: Options<T, DefaultTo, NotNull>,
   ) => parse(DataType.date, options as any) as ColumnBuilder<TDataType['date'], T, NotNull>,
   /**
-   * Column type: text (serialize with `JSON.parse` and `JSON.stringify`)
+   * Column type: TEXT (serialize with `JSON.parse` and `JSON.stringify`)
    */
   object: <T extends object, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
     options?: Options<T, DefaultTo, NotNull>,
