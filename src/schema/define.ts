@@ -183,5 +183,5 @@ export const column = {
    */
   object: <T extends object, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
     options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.object, options as any) as ColumnBuilder<TDataType['object'], T, NotNull>,
+  ) => parse(DataType.object, options as any) as ColumnBuilder<TDataType['object'], DefaultTo, NotNull>,
 }

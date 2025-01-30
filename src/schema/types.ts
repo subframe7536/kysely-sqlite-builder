@@ -190,12 +190,8 @@ export type InferTable<
       : P[K]['type'] extends TDataType['increments']
         // return "Generated<...>"
         ? Exclude<P[K]['defaultTo'], null>
-        // if defaultTo is not null
-        : IsNotNull<P[K]['defaultTo']> extends true
-          // return Generated
-          ? Generated<Exclude<P[K]['defaultTo'], null>>
-          // return optional
-          : P[K]['defaultTo'] | null
+        // return defaultTo
+        : P[K]['defaultTo'] | null
     // return error info
     : `TypeError: [defaultTo] is not satisfied [type] in column "${K & string}"`
 }>
