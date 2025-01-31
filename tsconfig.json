@@ -1,6 +1,9 @@
 {
   "extends": "@subframe7536/type-utils/tsconfig.json",
   "compilerOptions": {
-    "moduleResolution": "Node"
+    "moduleResolution": "Node",
+    "types": [
+      "bun-types"
+    ]
   }
 }

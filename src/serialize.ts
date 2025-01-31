@@ -1,4 +1,10 @@
-import { dateRegex, type Deserializer, type Serializer, skipTransform as skip } from 'kysely-plugin-serialize'
+import {
+  dateRegex,
+  type Deserializer,
+  maybeJson,
+  type Serializer,
+  skipTransform as skip,
+} from 'kysely-plugin-serialize'
 
 const skipTransform = (parameter: unknown): boolean => skip(parameter) || typeof parameter === 'boolean'
 
@@ -21,10 +27,7 @@ export const defaultDeserializer: Deserializer = (parameter) => {
   if (typeof parameter === 'string') {
     if (dateRegex.test(parameter)) {
       return new Date(parameter)
-    } else if (
-      (parameter.startsWith('{') && parameter.endsWith('}'))
-      || (parameter.startsWith('[') && parameter.endsWith(']'))
-    ) {
+    } else if (maybeJson(parameter)) {
       try {
         return JSON.parse(parameter)
       } catch { }

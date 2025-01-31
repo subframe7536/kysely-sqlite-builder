@@ -86,11 +86,7 @@ export class BaseSqliteBuilder<DB extends Record<string, any>> {
       plugins = [],
     } = options
     this.log = logger
-    plugins.push(new BaseSerializePlugin({
-      deserializer: defaultDeserializer,
-      serializer: defaultSerializer,
-      skipNodeKind: [],
-    }))
+    plugins.push(new BaseSerializePlugin(defaultSerializer, defaultDeserializer, []))
 
     let log
     if (onQuery === true) {
