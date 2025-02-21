@@ -1,8 +1,8 @@
+import type { Deserializer, Serializer } from 'kysely-plugin-serialize'
+
 import {
   dateRegex,
-  type Deserializer,
   maybeJson,
-  type Serializer,
   skipTransform as skip,
 } from 'kysely-plugin-serialize'
 

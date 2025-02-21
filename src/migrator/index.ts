@@ -1,5 +1,7 @@
 import type { DBLogger, SchemaUpdater } from '../types'
-import { type Kysely, type MigrationProvider, Migrator, type MigratorProps } from 'kysely'
+import type { Kysely, MigrationProvider, MigratorProps } from 'kysely'
+
+import { Migrator } from 'kysely'
 
 export * from './code-provider'
 

@@ -1,4 +1,6 @@
-import { executeSQL, type KyselyInstance } from './utils'
+import type { KyselyInstance } from './utils'
+
+import { executeSQL } from './utils'
 
 /**
  * Check integrity_check pragma

@@ -1,5 +1,7 @@
 import type { InferDatabase } from '../src/schema'
+
 import { describe, expect, it } from 'bun:test'
+
 import { pageQuery, precompile, SoftDeleteSqliteBuilder } from '../src'
 import { getOrSetDBVersion } from '../src/pragma'
 import { column, defineTable, useSchema } from '../src/schema'

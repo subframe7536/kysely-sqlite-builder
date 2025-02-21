@@ -1,5 +1,7 @@
-import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
 import type { DBLogger, StatusResult } from '../types'
+import type { DataTypeValue } from './column'
+import type { ParsedColumnProperty, ParsedSchema, ParsedTableInfo } from './parse-exist'
+import type { RestoreColumnList } from './run'
 import type {
   Columns,
   InferDatabase,
@@ -8,17 +10,16 @@ import type {
   Table,
   TableProperty,
 } from './types'
-import { type Kysely, type RawBuilder, sql, type Transaction } from 'kysely'
+import type { Arrayable, Promisable, StringKeys } from '@subframe7536/type-utils'
+import type { Kysely, RawBuilder, Transaction } from 'kysely'
+
+import { sql } from 'kysely'
+
 import { getOrSetDBVersion } from '../pragma'
 import { executeSQL } from '../utils'
-import { DataType, type DataTypeValue } from './column'
+import { DataType } from './column'
 import { TGRU } from './define'
-import {
-  type ParsedColumnProperty,
-  type ParsedSchema,
-  type ParsedTableInfo,
-  parseExistSchema,
-} from './parse-exist'
+import { parseExistSchema } from './parse-exist'
 import {
   addColumn,
   asArray,
@@ -32,7 +33,6 @@ import {
   migrateWholeTable,
   parseColumnType,
   parseDefaultValue,
-  type RestoreColumnList,
 } from './run'
 
 export type ColumnFallbackInfo = {

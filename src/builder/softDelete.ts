@@ -1,6 +1,10 @@
+import type { JoinFnName, SqliteBuilderOptions } from './base'
+import type { DeleteQueryBuilder, Kysely, UpdateResult, WhereInterface } from 'kysely'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
-import { type DeleteQueryBuilder, DeleteResult, type Kysely, type UpdateResult, type WhereInterface } from 'kysely'
-import { BaseSqliteBuilder, type JoinFnName, type SqliteBuilderOptions } from './base'
+
+import { DeleteResult } from 'kysely'
+
+import { BaseSqliteBuilder } from './base'
 
 interface SoftDeleteSqliteBuilderOptions extends SqliteBuilderOptions {
   /**

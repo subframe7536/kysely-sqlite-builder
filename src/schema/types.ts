@@ -1,6 +1,6 @@
+import type { DataTypeValue, TDataType } from './column'
 import type { Arrayable, IsNotNull, Prettify } from '@subframe7536/type-utils'
 import type { ColumnType, Generated, RawBuilder } from 'kysely'
-import type { DataTypeValue, TDataType } from './column'
 
 export type BooleanColumnType = ColumnType<0 | 1, boolean, boolean>
 

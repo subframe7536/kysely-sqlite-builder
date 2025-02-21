@@ -1,7 +1,8 @@
-import type { Kysely } from 'kysely'
 import type { DBLogger, SchemaUpdater } from '../types'
 import type { SchemaSyncOptions } from './core'
 import type { Schema } from './types'
+import type { Kysely } from 'kysely'
+
 import { generateSyncTableSQL, syncTables } from './core'
 import { parseExistSchema } from './parse-exist'
 

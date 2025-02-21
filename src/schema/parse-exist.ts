@@ -1,5 +1,7 @@
 import type { ParsedColumnType } from './types'
-import { type Kysely, sql } from 'kysely'
+import type { Kysely } from 'kysely'
+
+import { sql } from 'kysely'
 
 export type ParsedSchema = Record<string, ParsedTableInfo>
 

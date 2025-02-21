@@ -1,5 +1,4 @@
-import type { IsNotNull } from '@subframe7536/type-utils'
-import type { Generated, RawBuilder } from 'kysely'
+import type { DataTypeValue, TDataType } from './column'
 import type {
   BooleanColumnType,
   ColumnProperty,
@@ -10,7 +9,10 @@ import type {
   Table,
   TableProperty,
 } from './types'
-import { DataType, type DataTypeValue, type TDataType } from './column'
+import type { IsNotNull } from '@subframe7536/type-utils'
+import type { Generated, RawBuilder } from 'kysely'
+
+import { DataType } from './column'
 
 export const TGRC = '_TC_'
 export const TGRU = '_TU_'

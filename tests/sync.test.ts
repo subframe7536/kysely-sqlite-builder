@@ -1,7 +1,9 @@
 import type { SqliteBuilder } from '../src'
 import type { DB } from './utils'
+
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { sql } from 'kysely'
+
 import {
   column,
   DataType,
@@ -65,24 +67,25 @@ describe('test create table', async () => {
   })
 })
 describe('test drop table', async () => {
+  const log = false
   it('should drop old table', async () => {
     const db = getDatabaseBuilder()
 
-    await db.syncDB(useSchema(baseTables, { log: false }))
+    await db.syncDB(useSchema(baseTables, { log }))
     let _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(2)
 
-    await db.syncDB(useSchema({}, { log: true }))
+    await db.syncDB(useSchema({}, { log }))
     _tables = await db.kysely.introspection.getTables()
     expect(_tables.length).toBe(0)
   })
 })
 describe('test update table', async () => {
   let db: SqliteBuilder<DB>
-
+  const log = false
   beforeEach(async () => {
-    db = getDatabaseBuilder({ enable: false })
-    await db.syncDB(useSchema(baseTables, { log: false }))
+    db = getDatabaseBuilder({ enable: log })
+    await db.syncDB(useSchema(baseTables, { log }))
     await db.insertInto('test')
       .values([
         {
@@ -113,7 +116,7 @@ describe('test update table', async () => {
         newColumn: column.int({ defaultTo: 0, notNull: true }),
       },
     })
-    await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, test }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     const {
@@ -133,7 +136,7 @@ describe('test update table', async () => {
       ...baseTables.test,
       columns: newColumns,
     })
-    await db.syncDB(useSchema({ ...baseTables, test }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, test }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables.test.columns.array).toBeUndefined()
@@ -205,7 +208,7 @@ describe('test update table', async () => {
       index: ['literal'],
     })
 
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].index).toStrictEqual([['literal']])
@@ -217,7 +220,7 @@ describe('test update table', async () => {
       ...baseTables[tableName],
       index: [],
     })
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].index).toStrictEqual([])
@@ -231,7 +234,7 @@ describe('test update table', async () => {
       updateAt: true,
     })
 
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].trigger).toStrictEqual(['tgr_blob_updateAt'])
@@ -249,7 +252,7 @@ describe('test update table', async () => {
     // @ts-expect-error delete update at
     delete updatedTable.columns.updateAt
 
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].trigger).toStrictEqual([])
@@ -262,7 +265,7 @@ describe('test update table', async () => {
       unique: ['literal', ['id', 'name']],
     })
 
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].unique).toStrictEqual([['id', 'name'], ['literal']])
@@ -275,7 +278,7 @@ describe('test update table', async () => {
       unique: [],
     })
 
-    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log: true }))
+    await db.syncDB(useSchema({ ...baseTables, [tableName]: updatedTable }, { log }))
     const tables = await parseExistSchema(db.kysely)
     expect(Object.keys(tables).length).toBe(2)
     expect(tables[tableName].unique).toStrictEqual([])

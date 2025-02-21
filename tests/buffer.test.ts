@@ -1,7 +1,10 @@
 import type { SqliteBuilder } from '../src'
+import type { DB } from './utils'
+
 import { beforeEach, describe, expect, it } from 'bun:test'
+
 import { useSchema } from '../src/schema'
-import { baseTables, type DB, getDatabaseBuilder } from './utils'
+import { baseTables, getDatabaseBuilder } from './utils'
 
 describe('test buffer type', async () => {
   let db: SqliteBuilder<DB>

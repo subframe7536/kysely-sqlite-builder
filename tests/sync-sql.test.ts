@@ -1,7 +1,10 @@
+import type { Schema } from '../src/schema'
+
 import { describe, expect, it } from 'bun:test'
 import { Kysely } from 'kysely'
+
 import { executeSQL } from '../src'
-import { column, defineTable, generateMigrateSQL, type Schema } from '../src/schema'
+import { column, defineTable, generateMigrateSQL } from '../src/schema'
 import { createDialect } from './utils'
 
 const db = new Kysely({ dialect: createDialect() })

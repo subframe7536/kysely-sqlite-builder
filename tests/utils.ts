@@ -1,7 +1,10 @@
+import type { LoggerOptions } from '../src'
 import type { InferDatabase } from '../src/schema'
-import { NodeWasmDialect } from 'kysely-wasm'
-import { Database } from 'node-sqlite3-wasm'
-import { type LoggerOptions, optimizePragma, SqliteBuilder } from '../src'
+import type { Dialect } from 'kysely'
+
+import { BunSqliteDialect } from 'kysely-bun-worker/normal'
+
+import { optimizePragma, SqliteBuilder } from '../src'
 import { column, defineTable } from '../src/schema'
 
 const testTable = defineTable({
@@ -39,9 +42,8 @@ export const baseTables = {
 }
 export type DB = InferDatabase<typeof baseTables>
 
-export function createDialect(): NodeWasmDialect {
-  return new NodeWasmDialect({
-    database: new Database(':memory:'),
+export function createDialect(): Dialect {
+  return new BunSqliteDialect({
     async onCreateConnection(connection) {
       await optimizePragma(connection)
     },
@@ -52,7 +54,7 @@ export function getDatabaseBuilder<T extends Record<string, any> = DB>(
   debug: boolean | LoggerOptions = false,
 ): SqliteBuilder<T> {
   return new SqliteBuilder<T>({
-    dialect: createDialect(),
+    dialect: new BunSqliteDialect(),
     logger: console,
     onQuery: debug,
   })

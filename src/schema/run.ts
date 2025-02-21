@@ -1,8 +1,10 @@
+import type { DataTypeValue } from './column'
+import type { ColumnProperty, ParsedColumnType, Table } from './types'
 import type { Arrayable } from '@subframe7536/type-utils'
 import type { Kysely, RawBuilder, Transaction } from 'kysely'
-import type { ColumnProperty, ParsedColumnType, Table } from './types'
+
 import { defaultSerializer } from '../serialize'
-import { DataType, type DataTypeValue } from './column'
+import { DataType } from './column'
 import { TGRC, TGRU } from './define'
 
 export function parseColumnType(type: DataTypeValue): [type: ParsedColumnType, isAutoIncrement: boolean] {

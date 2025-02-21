@@ -33,6 +33,7 @@ For normal usage, you can just use official `SqliteDialect` with `better-sqlite3
 
 ```ts
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
+
 import Database from 'better-sqlite3'
 import { FileMigrationProvider, SqliteDialect } from 'kysely'
 import { SqliteBuilder } from 'kysely-sqlite-builder'
@@ -230,6 +231,7 @@ using selectWithUsing = precompile<{ name: string }>()
 
 ```ts
 import type { InferDatabase } from 'kysely-sqlite-builder/schema'
+
 import Database from 'better-sqlite3'
 import { SqliteDialect } from 'kysely'
 import { SoftDeleteSqliteBuilder } from 'kysely-sqlite-builder'

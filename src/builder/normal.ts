@@ -1,6 +1,8 @@
+import type { JoinFnName } from './base'
 import type { DeleteQueryBuilder, DeleteResult, Kysely } from 'kysely'
 import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
-import { BaseSqliteBuilder, type JoinFnName } from './base'
+
+import { BaseSqliteBuilder } from './base'
 
 /**
  * SQLite builder. All methods will run in current transaction

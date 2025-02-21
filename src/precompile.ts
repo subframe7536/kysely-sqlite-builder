@@ -1,5 +1,6 @@
-import type { Compilable, CompiledQuery, RootOperationNode } from 'kysely'
 import type { QueryBuilderOutput } from './types'
+import type { Compilable, CompiledQuery, RootOperationNode } from 'kysely'
+
 import { defaultSerializer } from './serialize'
 
 export type PrecompileBuilder<T extends Record<string, any>> = {
