@@ -1,9 +1,6 @@
 import type { DatabaseConnection, Kysely, QueryResult, Transaction } from 'kysely'
 
-import {
-  CompiledQuery,
-
-} from 'kysely'
+import { CompiledQuery } from 'kysely'
 
 export type KyselyInstance = DatabaseConnection | Kysely<any> | Transaction<any>
 

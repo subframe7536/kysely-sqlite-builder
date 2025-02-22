@@ -4,13 +4,14 @@ import type {
   ColumnProperty,
   Columns,
   ColumnsWithErrorInfo,
+  DefaultValue,
   ExtraOptions,
   InferColumnType,
+  Nullable,
   Table,
   TableProperty,
 } from './types'
-import type { IsNotNull } from '@subframe7536/type-utils'
-import type { Generated, RawBuilder } from 'kysely'
+import type { Generated } from 'kysely'
 
 import { DataType } from './column'
 
@@ -103,8 +104,8 @@ type NormalizeType<T> =
 
 type Options<
   T = any,
-  DefaultTo extends T | RawBuilder<unknown> | null = T | RawBuilder<unknown> | null,
-  NotNull extends boolean | null = null,
+  DefaultTo extends DefaultValue<T> = DefaultValue<T>,
+  NotNull extends Nullable = null,
 > = {
   defaultTo?: NormalizeType<DefaultTo>
   notNull?: NotNull
@@ -117,11 +118,11 @@ function parse(type: DataTypeValue, options?: Options): any {
 
 type ColumnBuilder<
   T extends DataTypeValue,
-  Type extends InferColumnType<T> | null,
-  NotNull extends boolean | null,
+  DefaultTo extends InferColumnType<T> | null,
+  NotNull extends Nullable,
 > = ColumnProperty<
   T,
-  IsNotNull<Type> extends true ? Type : Type | null,
+  Exclude<DefaultTo, null>,
   NotNull extends false ? null : true
 > & {
   /**
@@ -131,8 +132,8 @@ type ColumnBuilder<
     NarrowedType extends InferColumnType<T>,
   >() => ColumnProperty<
     T,
-    IsNotNull<Type> extends true ? NarrowedType : NarrowedType | null,
-    NotNull extends false ? null : true
+    Exclude<NarrowedType, null>,
+    NotNull
   >
 }
 
@@ -143,47 +144,47 @@ export const column = {
   /**
    * Column type: INTEGER AUTO INCREMENT
    */
-  increments: () => ({ type: DataType.increments }) as ColumnBuilder<TDataType['increments'], Generated<number>, null>,
+  increments: () => ({ type: DataType.increments }) as ColumnBuilder<TDataType['increments'], Generated<number>, Nullable>,
   /**
    * Column type: INTEGER
    */
-  int: <T extends number, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.int, options as any) as ColumnBuilder<TDataType['int'], T, NotNull>,
+  int: <T extends number, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.int, options as any) as ColumnBuilder<TDataType['int'], T, IsNotNull>,
   /**
    * Column type: REAL
    */
-  float: <T extends number, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.float, options as any) as ColumnBuilder<TDataType['float'], T, NotNull>,
+  float: <T extends number, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.float, options as any) as ColumnBuilder<TDataType['float'], T, IsNotNull>,
   /**
    * Column type: text
    */
-  string: <T extends string, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.string, options as any) as ColumnBuilder<TDataType['string'], T, NotNull>,
+  string: <T extends string, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.string, options as any) as ColumnBuilder<TDataType['string'], T, IsNotNull>,
   /**
    * Column type: BLOB
    */
-  blob: <T extends Uint8Array, NotNull extends boolean | null>(
-    options?: { notNull?: NotNull },
-  ) => parse(DataType.blob, options as any) as ColumnBuilder<TDataType['blob'], T, NotNull>,
+  blob: <T extends Uint8Array, IsNotNull extends Nullable>(
+    options?: { notNull?: IsNotNull },
+  ) => parse(DataType.blob, options as any) as ColumnBuilder<TDataType['blob'], T, IsNotNull>,
   /**
    * Column type: INTEGER
    */
-  boolean: <T extends BooleanColumnType, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.boolean, options as any) as ColumnBuilder<TDataType['boolean'], T, NotNull>,
+  boolean: <T extends BooleanColumnType, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.boolean, options as any) as ColumnBuilder<TDataType['boolean'], T, IsNotNull>,
   /**
    * Column type: TEXT (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  date: <T extends Date, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.date, options as any) as ColumnBuilder<TDataType['date'], T, NotNull>,
+  date: <T extends Date, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.date, options as any) as ColumnBuilder<TDataType['date'], T, IsNotNull>,
   /**
    * Column type: TEXT (serialize with `JSON.parse` and `JSON.stringify`)
    */
-  object: <T extends object, DefaultTo extends T | RawBuilder<unknown> | null, NotNull extends boolean | null>(
-    options?: Options<T, DefaultTo, NotNull>,
-  ) => parse(DataType.object, options as any) as ColumnBuilder<TDataType['object'], DefaultTo, NotNull>,
+  object: <T extends object, DefaultTo extends DefaultValue<T>, IsNotNull extends Nullable>(
+    options?: Options<T, DefaultTo, IsNotNull>,
+  ) => parse(DataType.object, options as any) as ColumnBuilder<TDataType['object'], DefaultTo, IsNotNull>,
 }

@@ -31,10 +31,14 @@ export type ParsedColumnType =
   | 'BLOB'
   | 'REAL'
 
+export type DefaultValue<T> = T | RawBuilder<unknown> | null
+
+export type Nullable = boolean | null
+
 export type ColumnProperty<
   ColType extends DataTypeValue = DataTypeValue,
-  DefaultTo extends InferColumnType<ColType> | RawBuilder<unknown> | null = InferColumnType<ColType> | null | RawBuilder<unknown>,
-  NotNull extends true | null = true | null,
+  DefaultTo extends DefaultValue<InferColumnType<ColType>> = DefaultValue<InferColumnType<ColType>>,
+  NotNull extends Nullable = Nullable,
 > = {
   type: ColType
   defaultTo?: DefaultTo
