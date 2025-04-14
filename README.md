@@ -1,8 +1,6 @@
 # kysely-sqlite-builder
 
-Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
-
-- Under development, breaking updates may occur, use at your own risk
+Utility layer for [Kysely](https://github.com/kysely-org/kysely) on SQLite
 
 ## Features
 
@@ -11,6 +9,7 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely)  on SQLite
   - Auto migration
   - Auto generate `createAt` and `updateAt`
   - Auto soft delete
+  - Support `WITHOUT ROWID`
 - Auto serialize / deserialize
 - Precompile query
 - Page query
@@ -292,7 +291,7 @@ console.log(page.convertRecords(p => p.literal).records)
 
 ### Upsert (SaveOrUpdate)
 
-Use `db.replaceInto()` or `db.insertInto().onConflict()`
+Use `db.replaceInto()` or `db.insertInto().orReplace()`
 
 ### Pragma / Utils
 
