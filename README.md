@@ -20,6 +20,10 @@ Utility layer for [Kysely](https://github.com/kysely-org/kysely) on SQLite
 
 ## Usage
 
+### Minimal Kysely Version
+
+0.28.0
+
 ### Dialect Choice
 
 For normal usage, you can just use official `SqliteDialect` with `better-sqlite3`
