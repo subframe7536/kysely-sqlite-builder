@@ -45,7 +45,7 @@ export type ColumnProperty<
   notNull?: NotNull
 }
 
-export type ExtraOptions<Create, Update, Delete> = {
+export interface ExtraOptions<Create, Update, Delete> {
   /**
   /**
    * Create time column

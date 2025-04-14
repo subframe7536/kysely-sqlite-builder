@@ -1,6 +1,8 @@
 import type { QueryBuilderOutput } from './types'
 import type { Compilable, CompiledQuery, RootOperationNode } from 'kysely'
 
+import { createQueryId } from 'kysely'
+
 import { defaultSerializer } from './serialize'
 
 export type PrecompileBuilder<T extends Record<string, any>> = {
@@ -69,6 +71,7 @@ export function precompile<T extends Record<string, any>>(
             _query = processRootOperatorNode(query)
           }
           return {
+            queryId: createQueryId(),
             query: _query,
             sql: _sql.replace(PARAM_IN_SQL, (_, key: string) => `"${serializer(param[key])}"`),
             parameters: _params!.map(

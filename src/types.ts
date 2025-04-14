@@ -7,7 +7,7 @@ import type {
   UpdateQueryBuilder,
 } from 'kysely'
 
-export type DBLogger = {
+export interface DBLogger {
   debug: (args: any) => void
   info: (msg: any) => void
   warn: (msg: any) => void

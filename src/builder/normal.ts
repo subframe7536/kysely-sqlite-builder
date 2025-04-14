@@ -1,6 +1,7 @@
 import type { JoinFnName } from './base'
 import type { DeleteQueryBuilder, DeleteResult, Kysely } from 'kysely'
-import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
+import type { DeleteFrom } from 'kysely/dist/cjs/parser/delete-from-parser'
+import type { ExtractTableAlias, From, FromTables, TableExpressionOrList } from 'kysely/dist/cjs/parser/table-parser'
 
 import { BaseSqliteBuilder } from './base'
 
@@ -85,43 +86,5 @@ export class SqliteBuilder<DB extends Record<string, any>> extends BaseSqliteBui
   public replaceInto: Kysely<DB>['replaceInto'] = tb => this.kysely.replaceInto(tb)
   public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.kysely.selectFrom(tb) as any
   public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.kysely.updateTable(tb) as any
-  /**
-   * Creates a delete query.
-   *
-   * See the {@link DeleteQueryBuilder.where} method for examples on how to specify
-   * a where clause for the delete operation.
-   *
-   * The return value of the query is an instance of {@link DeleteResult}.
-   *
-   * ### Examples
-   *
-   * <!-- siteExample("delete", "Single row", 10) -->
-   *
-   * Delete a single row:
-   *
-   * ```ts
-   * const result = await db
-   *   .deleteFrom('person')
-   *   .where('person.id', '=', '1')
-   *   .executeTakeFirst()
-   *
-   * console.log(result.numDeletedRows)
-   * ```
-   *
-   * The generated SQL (SQLite):
-   *
-   * ```sql
-   * delete from "person" where "person"."id" = $1
-   * ```
-   */
-  public deleteFrom: {
-    <TR extends keyof DB & string>(from: TR): Omit<
-      DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
-      JoinFnName
-    >
-    <TR extends TableReference<DB>>(table: TR): Omit<
-      DeleteQueryBuilder<From<DB, TR>, FromTables<DB, never, TR>, DeleteResult>,
-      JoinFnName
-    >
-  } = (tb: any) => this.kysely.deleteFrom(tb) as any
+  public deleteFrom: Kysely<DB>['deleteFrom'] = (tb: any) => this.kysely.deleteFrom(tb) as any
 }

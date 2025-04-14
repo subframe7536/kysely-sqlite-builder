@@ -1,6 +1,7 @@
-import type { JoinFnName, SqliteBuilderOptions } from './base'
+import type { SqliteBuilderOptions } from './base'
 import type { DeleteQueryBuilder, Kysely, UpdateResult, WhereInterface } from 'kysely'
-import type { ExtractTableAlias, From, FromTables, TableReference } from 'kysely/dist/cjs/parser/table-parser'
+import type { DeleteFrom } from 'kysely/dist/cjs/parser/delete-from-parser'
+import type { TableExpressionOrList } from 'kysely/dist/cjs/parser/table-parser'
 
 import { DeleteResult } from 'kysely'
 
@@ -37,8 +38,12 @@ export class SoftDeleteSqliteBuilder<DB extends Record<string, any>> extends Bas
 
   public insertInto: Kysely<DB>['insertInto'] = tb => this.kysely.insertInto(tb)
   public replaceInto: Kysely<DB>['replaceInto'] = tb => this.kysely.replaceInto(tb)
-  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) => this.kysely.selectFrom(tb).where(this.col, '=', 0 as any) as any
-  public updateTable: Kysely<DB>['updateTable'] = (tb: any) => this.kysely.updateTable(tb).where(this.col, '=', 0 as any) as any
+  public selectFrom: Kysely<DB>['selectFrom'] = (tb: any) =>
+    (this.kysely.selectFrom(tb) as any).where(this.col, '=', 0)
+
+  public updateTable: Kysely<DB>['updateTable'] = (tb: any) =>
+    (this.kysely.updateTable(tb) as any).where(this.col, '=', 0)
+
   /**
    * Creates a soft delete query.
    *
@@ -68,16 +73,8 @@ export class SoftDeleteSqliteBuilder<DB extends Record<string, any>> extends Bas
    * update "person" set "isDeleted" = 1 where "person"."id" = $1
    * ```
    */
-  public deleteFrom: {
-    <TR extends keyof DB & string>(from: TR): Omit<
-      DeleteQueryBuilder<DB, ExtractTableAlias<DB, TR>, DeleteResult>,
-      JoinFnName
-    >
-    <TR extends TableReference<DB>>(table: TR): Omit<
-      DeleteQueryBuilder<From<DB, TR>, FromTables<DB, never, TR>, DeleteResult>,
-      JoinFnName
-    >
-  } = (tb: any) => this.kysely.updateTable(tb).set(this.col, 1 as any) as any
+  public deleteFrom: <TE extends TableExpressionOrList<DB, never>>(from: TE) => DeleteFrom<DB, TE>
+    = (tb: any) => (this.kysely.updateTable(tb) as any).set(this.col, 1)
 
   /**
    * Fix `DeleteResult` runtime type

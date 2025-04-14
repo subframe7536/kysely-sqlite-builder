@@ -8,6 +8,8 @@ export type SavePoint = {
 }
 
 /**
+ * @deprecated use built-in `Kysely.startTransaction()` instead
+ *
  * Create savepoint, release or rollback it later,
  * included in `SqliteBuilder`
  * @example

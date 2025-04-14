@@ -3,6 +3,7 @@ import type { DBLogger, SchemaUpdater, StatusResult } from '../types'
 import type { Promisable } from '@subframe7536/type-utils'
 import type {
   CompiledQuery,
+  ControlledTransaction,
   Dialect,
   JoinType,
   KyselyPlugin,
@@ -16,12 +17,11 @@ import { BaseSerializePlugin } from 'kysely-plugin-serialize'
 
 import { createKyselyLogger } from '../logger'
 import { checkIntegrity as runCheckIntegrity } from '../pragma'
-import { savePoint } from '../savepoint'
 import { defaultDeserializer, defaultSerializer } from '../serialize'
 import { IntegrityError } from '../types'
 import { executeSQL } from '../utils'
 
-export type SqliteBuilderOptions = {
+export interface SqliteBuilderOptions {
   /**
    * Kysely dialect
    */
@@ -67,7 +67,7 @@ export type JoinFnName = CamelCase<JoinType>
 export class BaseSqliteBuilder<DB extends Record<string, any>> {
   public trxCount = 0
   private ky: Kysely<DB>
-  private trx?: Transaction<DB>
+  private trx?: ControlledTransaction<DB>
   private log?: DBLogger
 
   /**
@@ -148,7 +148,7 @@ export class BaseSqliteBuilder<DB extends Record<string, any>> {
    *   // or
    *   await trx.insertInto('test').values({ person: { name: 'test' }, gender: true }).execute()
    *   db.transaction(async () => {
-   *     // nest transaction, use savepoint
+   *     // nest transaction, using savepoint
    *     await db.selectFrom('test').where('gender', '=', true).execute()
    *   })
    * })
@@ -158,43 +158,42 @@ export class BaseSqliteBuilder<DB extends Record<string, any>> {
     options: TransactionOptions<O> = {},
   ): Promise<O | undefined> {
     if (!this.trx) {
-      return await this.ky
-        .transaction()
-        .execute(async (trx) => {
-          this.trx = trx
-          this.log?.debug('Run in transaction')
-          return await fn(trx)
-        })
-        .then(async (result) => {
-          await options.onCommit?.(result)
-          return result
-        })
-        .catch(async (e) => {
-          await options.onRollback?.(e)
-          this.logError(e, options.errorMsg)
-          return undefined
-        })
-        .finally(() => this.trx = undefined)
+      const trx = await this.ky.startTransaction().execute()
+
+      this.log?.debug('Run in transaction')
+      this.trx = trx
+      try {
+        const result = await fn(trx)
+        await trx.commit().execute()
+        await options.onCommit?.(result)
+        return result
+      } catch (e) {
+        await trx.rollback().execute()
+        this.logError(e, options.errorMsg)
+        await options.onRollback?.(e)
+        return undefined
+      } finally {
+        this.trx = undefined
+      }
     }
 
     this.trxCount++
-    const sp = `SP_${this.trxCount}`
-    this.log?.debug(`Run in savepoint: ${sp}`)
-    const { release, rollback } = await savePoint(this.kysely, sp)
-
-    return await fn(this.kysely as Transaction<DB>)
-      .then(async (result) => {
-        await release()
-        await options.onCommit?.(result)
-        return result
-      })
-      .catch(async (e) => {
-        await rollback()
-        await options.onRollback?.(e)
-        this.logError(e, options.errorMsg)
-        return undefined
-      })
-      .finally(() => this.trxCount--)
+    const spName = `SP_${this.trxCount}`
+    this.log?.debug(`Run in savepoint: ${spName}`)
+    const sp = await this.trx.savepoint(spName).execute()
+    try {
+      const result = await fn(this.kysely as Transaction<DB>)
+      await sp.releaseSavepoint(spName).execute()
+      await options.onCommit?.(result)
+      return result
+    } catch (e) {
+      await sp.rollbackToSavepoint(spName).execute()
+      await options.onRollback?.(e)
+      this.logError(e, options.errorMsg)
+      return undefined
+    } finally {
+      this.trxCount--
+    }
   }
 
   /**

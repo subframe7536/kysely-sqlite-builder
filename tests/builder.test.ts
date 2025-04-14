@@ -73,63 +73,67 @@ describe('test builder', async () => {
 
     const normalSelect = select.compile({ person: { name: '1' } })
     expect(normalSelect).toMatchInlineSnapshot(`
-{
-  "parameters": [
-    "{"name":"1"}",
-  ],
-  "query": {
-    "kind": "SelectQueryNode",
-  },
-  "sql": "select * from "test" where "person" = ?",
-}
-`)
+      {
+        "parameters": [
+          "{"name":"1"}",
+        ],
+        "query": {
+          "kind": "SelectQueryNode",
+        },
+        "queryId": LazyQueryId {},
+        "sql": "select * from "test" where "person" = ?",
+      }
+    `)
 
     const start2 = performance.now()
     console.log('no compiled:', `${(start2 - start).toFixed(2)}ms`)
 
     const cachedSelect = select.compile({ person: { name: 'test' } })
     expect(cachedSelect).toMatchInlineSnapshot(`
-{
-  "parameters": [
-    "{"name":"test"}",
-  ],
-  "query": {
-    "kind": "SelectQueryNode",
-  },
-  "sql": "select * from "test" where "person" = ?",
-}
-`)
+      {
+        "parameters": [
+          "{"name":"test"}",
+        ],
+        "query": {
+          "kind": "SelectQueryNode",
+        },
+        "queryId": LazyQueryId {},
+        "sql": "select * from "test" where "person" = ?",
+      }
+    `)
 
     console.log('   compiled:', `${(performance.now() - start2).toFixed(2)}ms`)
 
     const compiledInsert = insert.compile({ gender: true })
     expect(compiledInsert).toMatchInlineSnapshot(`
-{
-  "parameters": [
-    true,
-  ],
-  "query": {
-    "kind": "InsertQueryNode",
-  },
-  "sql": "insert into "test" ("gender") values (?)",
-}
-`)
+      {
+        "parameters": [
+          true,
+        ],
+        "query": {
+          "kind": "InsertQueryNode",
+        },
+        "queryId": LazyQueryId {},
+        "sql": "insert into "test" ("gender") values (?)",
+      }
+    `)
     const result = await db.execute(compiledInsert)
     expect(result.rows).toStrictEqual([])
 
     const compiledUpdate = update.compile({ gender: false })
     expect(compiledUpdate).toMatchInlineSnapshot(`
-{
-  "parameters": [
-    false,
-    1,
-  ],
-  "query": {
-    "kind": "UpdateQueryNode",
-  },
-  "sql": "update "test" set "gender" = ? where "id" = ?",
-}
-`)
+      {
+        "parameters": [
+          false,
+          1,
+        ],
+        "query": {
+          "kind": "UpdateQueryNode",
+        },
+        "queryId": LazyQueryId {},
+        "sql": "update "test" set "gender" = ? where "id" = ?",
+      }
+    `)
     const result2 = await db.execute(compiledUpdate)
     expect(result2.rows).toStrictEqual([])
 
@@ -137,14 +141,15 @@ describe('test builder', async () => {
       param => db.selectFrom('test').select([param('col'), param('col1')]),
     ).compile({ col: 'name', col1: 'gender' })
     expect(compiledSelectCol).toMatchInlineSnapshot(`
-{
-  "parameters": [],
-  "query": {
-    "kind": "SelectQueryNode",
-  },
-  "sql": "select "name", "gender" from "test"",
-}
-`)
+      {
+        "parameters": [],
+        "query": {
+          "kind": "SelectQueryNode",
+        },
+        "queryId": LazyQueryId {},
+        "sql": "select "name", "gender" from "test"",
+      }
+    `)
   })
 
   it('should soft delete', async () => {
