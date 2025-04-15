@@ -6,8 +6,6 @@ import { BaseSqliteBuilder } from './base'
  * SQLite builder. All methods will run in current transaction
  * @param options options
  * @example
- * ### Definition
- *
  * ```ts
  * import { FileMigrationProvider, SqliteDialect, createSoftDeleteExecutor } from 'kysely'
  * import { SqliteBuilder } from 'kysely-sqlite-builder'
