@@ -1,5 +1,5 @@
 import type { SqliteBuilderOptions } from './base'
-import type { DeleteQueryBuilder, Kysely, UpdateResult, WhereInterface } from 'kysely'
+import type { Kysely, UpdateResult, WhereInterface } from 'kysely'
 import type { DeleteFrom } from 'kysely/dist/cjs/parser/delete-from-parser'
 import type { TableExpressionOrList } from 'kysely/dist/cjs/parser/table-parser'
 
