@@ -180,9 +180,7 @@ describe('test builder', async () => {
     expect(insertResult?.isDeleted).toBe(0)
 
     const deleteResult = await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
-    expect(deleteResult[0].numDeletedRows).toBeUndefined()
-    const fixedDeleteResult = db.toDeleteResult(deleteResult)
-    expect(fixedDeleteResult[0].numDeletedRows).toBe(1n)
+    expect(deleteResult[0].numUpdatedRows).toBe(1n)
 
     const selectResult = await db
       .selectFrom('testSoftDelete')

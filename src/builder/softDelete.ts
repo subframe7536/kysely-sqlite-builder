@@ -1,7 +1,5 @@
 import type { SqliteBuilderOptions } from './base'
-import type { Kysely, UpdateResult, WhereInterface } from 'kysely'
-import type { DeleteFrom } from 'kysely/dist/cjs/parser/delete-from-parser'
-import type { TableExpressionOrList } from 'kysely/dist/cjs/parser/table-parser'
+import type { Kysely, WhereInterface } from 'kysely'
 
 import { DeleteResult } from 'kysely'
 
@@ -54,8 +52,6 @@ export class SoftDeleteSqliteBuilder<DB extends Record<string, any>> extends Bas
    *
    * ### Examples
    *
-   * <!-- siteExample("delete", "Single row", 10) -->
-   *
    * Delete a single row:
    *
    * ```ts
@@ -64,7 +60,7 @@ export class SoftDeleteSqliteBuilder<DB extends Record<string, any>> extends Bas
    *   .where('person.id', '=', '1')
    *   .executeTakeFirst()
    *
-   * console.log(result.numDeletedRows)
+   * console.log(result.numUpdatedRows)
    * ```
    *
    * The generated SQL (SQLite):
@@ -73,21 +69,5 @@ export class SoftDeleteSqliteBuilder<DB extends Record<string, any>> extends Bas
    * update "person" set "isDeleted" = 1 where "person"."id" = $1
    * ```
    */
-  public deleteFrom: <TE extends TableExpressionOrList<DB, never>>(from: TE) => DeleteFrom<DB, TE>
-    = (tb: any) => (this.kysely.updateTable(tb) as any).set(this.col, 1)
-
-  /**
-   * Fix `DeleteResult` runtime type
-   * @param result original `DeleteResult`
-   * @example
-   * db.toDeleteResult(
-   *   await db
-   *     .deleteFrom('testSoftDelete')
-   *     .where('id', '=', 1)
-   *     .execute()
-   * )
-   */
-  public toDeleteResult(result: DeleteResult[]): DeleteResult[] {
-    return result.map(r => new DeleteResult((r as unknown as UpdateResult).numUpdatedRows))
-  }
+  public deleteFrom: Kysely<DB>['updateTable'] = (tb: any) => (this.kysely.updateTable(tb) as any).set(this.col, 1)
 }

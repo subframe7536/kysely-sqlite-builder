@@ -263,9 +263,6 @@ await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute()
 
 // if you are using original kysely instance:
 await db.kysely.selectFrom('testSoftDelete').selectAll().$call(db.whereExists).execute()
-
-// fix `DeleteResult` runtime type
-db.toDeleteResult(await db.deleteFrom('testSoftDelete').where('id', '=', 1).execute())
 ```
 
 ### Page Query
