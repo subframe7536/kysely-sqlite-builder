@@ -7,8 +7,9 @@ export default defineConfig({
     migrator: 'src/migrator/index.ts',
   },
   clean: true,
-  external: ['unplugin'],
   format: ['cjs', 'esm'],
-  dts: true,
+  dts: {
+    isolatedDeclaration: true,
+  },
   treeshake: true,
 })

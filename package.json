@@ -51,7 +51,7 @@
   "scripts": {
     "build": "tsdown",
     "test": "bun test",
-    "format": "eslint --fix",
+    "format": "tsc --noEmit && eslint --fix",
     "release": "bun test && bun run build && bumpp --all && npm publish"
   },
   "peerDependencies": {
@@ -67,8 +67,8 @@
     "bun-types": "^1.2.9",
     "eslint": "^9.24.0",
     "kysely": "^0.28.0",
-    "kysely-bun-worker": "^1.1.0",
-    "tsdown": "^0.6.10",
+    "kysely-bun-worker": "^1.2.0",
+    "tsdown": "^0.8.0",
     "typescript": "5.7.3"
   }
 }
