@@ -22,7 +22,7 @@ export default defineConfig({
   format: ['cjs', 'esm'],
   external: ['@subframe7536/type-utils'],
   dts: {
-    isolatedDeclaration: true,
+    isolatedDeclarations: true,
     // inputAlias,
   },
   treeshake: true,

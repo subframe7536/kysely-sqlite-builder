@@ -10,11 +10,11 @@
         "@subframe7536/eslint-config": "^1.2.3",
         "@subframe7536/type-utils": "^0.1.6",
         "bumpp": "^10.1.0",
-        "bun-types": "^1.2.9",
-        "eslint": "^9.24.0",
-        "kysely": "^0.28.0",
+        "bun-types": "^1.2.10",
+        "eslint": "^9.25.0",
+        "kysely": "^0.28.1",
         "kysely-bun-worker": "^1.2.0",
-        "tsdown": "^0.8.0",
+        "tsdown": "^0.9.0",
         "typescript": "5.7.3",
       },
       "peerDependencies": {
@@ -617,7 +617,7 @@
 
     "keyv": ["keyv@4.5.4", "https://registry.npmmirror.com/keyv/-/keyv-4.5.4.tgz", { "dependencies": { "json-buffer": "3.0.1" } }, "sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw=="],
 
-    "kysely": ["kysely@0.28.0", "https://registry.npmmirror.com/kysely/-/kysely-0.28.0.tgz", {}, "sha512-hq8VcLy57Ww7oPTTVEOrT9ml+g8ehbbmEUkHmW4Xtubu+NHdKZi6SH6egmD4cjDhn3b/0s0h/6AjdPayOTJhNw=="],
+    "kysely": ["kysely@0.28.1", "", {}, "sha512-umkhsHB0y2JvI83DUtuYYTfvr063xTHTcr/k1z0E2Bg39zGiBcdDvlbP79YMcItn55pKQtD120sZmKa9jhCVtw=="],
 
     "kysely-bun-worker": ["kysely-bun-worker@1.2.0", "https://registry.npmmirror.com/kysely-bun-worker/-/kysely-bun-worker-1.2.0.tgz", { "dependencies": { "kysely-generic-sqlite": "1.2.0" }, "peerDependencies": { "bun-types": ">=1.1.14", "kysely": ">=0.26" } }, "sha512-xBs+UE5sWVNkmC+4PAIC6mOTiCGyfzq/0ULgaopsloZzPbeLvHauMOaATF9lNvCW6Pae4xDD4kwmUN4ffMUysw=="],
 
@@ -831,7 +831,7 @@
 
     "rolldown": ["rolldown@1.0.0-beta.7", "https://registry.npmmirror.com/rolldown/-/rolldown-1.0.0-beta.7.tgz", { "dependencies": { "@oxc-project/types": "0.61.2", "@valibot/to-json-schema": "1.0.0", "valibot": "1.0.0" }, "optionalDependencies": { "@rolldown/binding-darwin-arm64": "1.0.0-beta.7", "@rolldown/binding-darwin-x64": "1.0.0-beta.7", "@rolldown/binding-freebsd-x64": "1.0.0-beta.7", "@rolldown/binding-linux-arm-gnueabihf": "1.0.0-beta.7", "@rolldown/binding-linux-arm64-gnu": "1.0.0-beta.7", "@rolldown/binding-linux-arm64-musl": "1.0.0-beta.7", "@rolldown/binding-linux-x64-gnu": "1.0.0-beta.7", "@rolldown/binding-linux-x64-musl": "1.0.0-beta.7", "@rolldown/binding-wasm32-wasi": "1.0.0-beta.7", "@rolldown/binding-win32-arm64-msvc": "1.0.0-beta.7", "@rolldown/binding-win32-ia32-msvc": "1.0.0-beta.7", "@rolldown/binding-win32-x64-msvc": "1.0.0-beta.7" }, "peerDependencies": { "@oxc-project/runtime": "0.61.2" }, "optionalPeers": ["@oxc-project/runtime"], "bin": { "rolldown": "bin/cli.js" } }, "sha512-IUa/9lZVqgFilYggiY7jxUbmvU4Q8wVvVqsru+AeMldBccBEhTYZ6/XP6cWsznb8Fv49zfYGaeEpJ5WeVdo6Mg=="],
 
-    "rolldown-plugin-dts": ["rolldown-plugin-dts@0.7.11", "", { "dependencies": { "debug": "^4.4.0", "dts-resolver": "^1.0.0", "get-tsconfig": "^4.10.0", "magic-string-ast": "^0.9.1", "oxc-parser": "^0.64.0", "oxc-transform": "^0.64.0" }, "peerDependencies": { "rolldown": "^1.0.0-beta.7", "typescript": "^5.0.0" }, "optionalPeers": ["typescript"] }, "sha512-zSE04cCZECUnNOSB3fJvjJcGR7u+o3cCUYamgaKtoXEsMfUcSpVE7Ph6ojLvN5TdnqpBc6fcqEEORvXp6e9lYg=="],
+    "rolldown-plugin-dts": ["rolldown-plugin-dts@0.8.1", "", { "dependencies": { "debug": "^4.4.0", "dts-resolver": "^1.0.0", "get-tsconfig": "^4.10.0", "magic-string-ast": "^0.9.1", "oxc-parser": "^0.64.0", "oxc-transform": "^0.64.0" }, "peerDependencies": { "rolldown": "^1.0.0-beta.7", "typescript": "^5.0.0" }, "optionalPeers": ["typescript"] }, "sha512-6F/BrP1tmroEz33fiyZ8MARph07Z/UWmsT6ihbs11dK1qAaw5s+D/5sojTzH8zcTO3TQSzOcsdZ4Vmql+1XrVw=="],
 
     "rollup": ["rollup@4.40.0", "https://registry.npmmirror.com/rollup/-/rollup-4.40.0.tgz", { "dependencies": { "@types/estree": "1.0.7" }, "optionalDependencies": { "@rollup/rollup-android-arm-eabi": "4.40.0", "@rollup/rollup-android-arm64": "4.40.0", "@rollup/rollup-darwin-arm64": "4.40.0", "@rollup/rollup-darwin-x64": "4.40.0", "@rollup/rollup-freebsd-arm64": "4.40.0", "@rollup/rollup-freebsd-x64": "4.40.0", "@rollup/rollup-linux-arm-gnueabihf": "4.40.0", "@rollup/rollup-linux-arm-musleabihf": "4.40.0", "@rollup/rollup-linux-arm64-gnu": "4.40.0", "@rollup/rollup-linux-arm64-musl": "4.40.0", "@rollup/rollup-linux-loongarch64-gnu": "4.40.0", "@rollup/rollup-linux-powerpc64le-gnu": "4.40.0", "@rollup/rollup-linux-riscv64-gnu": "4.40.0", "@rollup/rollup-linux-riscv64-musl": "4.40.0", "@rollup/rollup-linux-s390x-gnu": "4.40.0", "@rollup/rollup-linux-x64-gnu": "4.40.0", "@rollup/rollup-linux-x64-musl": "4.40.0", "@rollup/rollup-win32-arm64-msvc": "4.40.0", "@rollup/rollup-win32-ia32-msvc": "4.40.0", "@rollup/rollup-win32-x64-msvc": "4.40.0", "fsevents": "~2.3.2" }, "bin": { "rollup": "dist/bin/rollup" } }, "sha512-Noe455xmA96nnqH5piFtLobsGbCij7Tu+tb3c1vYjNbTkfzGqXqQXG3wJaYXkRZuQ0vEYN4bhwg7QnIrqB5B+w=="],
 
@@ -895,7 +895,7 @@
 
     "ts-api-utils": ["ts-api-utils@2.1.0", "https://registry.npmmirror.com/ts-api-utils/-/ts-api-utils-2.1.0.tgz", { "peerDependencies": { "typescript": ">=4.8.4" } }, "sha512-CUgTZL1irw8u29bzrOD/nH85jqyc74D6SshFgujOIA7osm2Rz7dYH77agkx7H4FBNxDq7Cjf+IjaX/8zwFW+ZQ=="],
 
-    "tsdown": ["tsdown@0.8.1", "", { "dependencies": { "ansis": "^3.17.0", "cac": "^6.7.14", "chokidar": "^4.0.3", "consola": "^3.4.2", "debug": "^4.4.0", "diff": "^7.0.0", "find-up-simple": "^1.0.1", "rolldown": "^1.0.0-beta.7", "rolldown-plugin-dts": "^0.7.8", "tinyexec": "^1.0.1", "tinyglobby": "^0.2.12", "unconfig": "^7.3.1" }, "peerDependencies": { "publint": "^0.3.0", "unplugin-unused": "^0.4.0" }, "optionalPeers": ["publint", "unplugin-unused"], "bin": { "tsdown": "bin/tsdown.js" } }, "sha512-qGyXNeF9tF5hLEJ9/C5qf7kqMJpjUVekk08RgzSRVLMe3ryBLhtPDMjQPXfbVf14wnMQ+tkQZJVEJ0N69zF3AQ=="],
+    "tsdown": ["tsdown@0.9.0", "", { "dependencies": { "ansis": "^3.17.0", "cac": "^6.7.14", "chokidar": "^4.0.3", "consola": "^3.4.2", "debug": "^4.4.0", "diff": "^7.0.0", "find-up-simple": "^1.0.1", "rolldown": "^1.0.0-beta.7", "rolldown-plugin-dts": "^0.8.0", "tinyexec": "^1.0.1", "tinyglobby": "^0.2.12", "unconfig": "^7.3.1" }, "peerDependencies": { "publint": "^0.3.0", "unplugin-unused": "^0.4.0" }, "optionalPeers": ["publint", "unplugin-unused"], "bin": { "tsdown": "bin/tsdown.js" } }, "sha512-4fTdnr1d2RrWUWTzBlMFjmeKyWV6J+qALBAZUh3xJ7YbBNTefz0btpZhFRX+tQj+sf4kKyTjUEsu/W/Vv9vMsw=="],
 
     "tslib": ["tslib@2.8.1", "https://registry.npmmirror.com/tslib/-/tslib-2.8.1.tgz", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
 
