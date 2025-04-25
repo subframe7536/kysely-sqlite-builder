@@ -11,11 +11,6 @@ const entry = {
   migrator: 'src/migrator/index.ts',
 }
 
-// const inputAlias = Object.fromEntries(
-//   Object.entries(entry)
-//     .map(([k, v]) => [path.join(dir, v).replace('.ts', '.d.ts'), `${k}.d`]),
-// )
-
 export default defineConfig({
   entry,
   clean: true,
@@ -23,7 +18,6 @@ export default defineConfig({
   external: ['@subframe7536/type-utils'],
   dts: {
     isolatedDeclarations: true,
-    // inputAlias,
   },
   treeshake: true,
 })
