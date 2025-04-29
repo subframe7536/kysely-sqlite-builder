@@ -64,11 +64,11 @@
     "@subframe7536/eslint-config": "^1.2.4",
     "@subframe7536/type-utils": "^0.1.6",
     "bumpp": "^10.1.0",
-    "bun-types": "^1.2.10",
+    "bun-types": "^1.2.11",
     "eslint": "^9.25.1",
     "kysely": "^0.28.2",
     "kysely-bun-worker": "^1.2.1",
-    "tsdown": "^0.9.8",
-    "typescript": "5.7.3"
+    "tsdown": "^0.10.1",
+    "typescript": "5.8.3"
   }
 }
