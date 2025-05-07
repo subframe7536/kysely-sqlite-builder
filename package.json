@@ -49,7 +49,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "bun --bun tsdown",
     "test": "bun test",
     "format": "tsc --noEmit && eslint --fix",
     "release": "bun test && bun run build && bumpp --all && npm publish"
@@ -64,11 +64,11 @@
     "@subframe7536/eslint-config": "^1.2.4",
     "@subframe7536/type-utils": "^0.1.6",
     "bumpp": "^10.1.0",
-    "bun-types": "^1.2.11",
-    "eslint": "^9.25.1",
+    "bun-types": "^1.2.12",
+    "eslint": "^9.26.0",
     "kysely": "^0.28.2",
     "kysely-bun-worker": "^1.2.1",
-    "tsdown": "^0.10.1",
+    "tsdown": "^0.11.0",
     "typescript": "5.8.3"
   }
 }
