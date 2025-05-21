@@ -11,4 +11,5 @@ export default defineConfig({
   dts: {
     isolatedDeclarations: true,
   },
+  exports: true
 })
