@@ -59,11 +59,11 @@
     "@subframe7536/type-utils": "^0.2.0",
     "bumpp": "^10.1.1",
     "bun-types": "^1.2.15",
-    "bunup": "^0.8.23",
+    "bunup": "^0.8.35",
     "eslint": "^9.28.0",
     "kysely": "^0.28.2",
     "kysely-bun-worker": "^1.2.1",
-    "tsdown": "^0.12.6",
+    "tsdown": "^0.12.7",
     "typescript": "5.8.3"
   }
 }
