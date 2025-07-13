@@ -7,15 +7,15 @@ export default defineConfig({
   //   migrator: 'src/migrator/index.ts',
   // },
   entry: [
-     'src/index.ts',
-     'src/schema/index.ts',
-     'src/migrator/index.ts',
+    'src/index.ts',
+    'src/schema/index.ts',
+    'src/migrator/index.ts',
   ],
   // clean: true,
   format: ['cjs', 'esm'],
-  // dts: {
-  //   isolatedDeclarations: true,
-  // },
-  dts: false,
+  dts: {
+    isolatedDeclarations: true,
+  },
+  // dts: false,
   // exports: true
 })
